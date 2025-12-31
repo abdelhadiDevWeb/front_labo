@@ -12,6 +12,7 @@ import {
   Scale,
   Filter,
 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 
 interface Product {
   id: number;
@@ -112,6 +113,7 @@ const allProducts: Product[] = [
 
 export default function ProductsPage() {
   const router = useRouter();
+  const { addToCart: addToCartContext } = useCart();
   const [products, setProducts] = useState<Product[]>(allProducts);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -161,21 +163,12 @@ export default function ProductsPage() {
   };
 
   const addToCart = (product: Product) => {
-    if (typeof window !== "undefined") {
-      const cart = localStorage.getItem("cart");
-      const cartItems = cart ? JSON.parse(cart) : [];
-      const existingItem = cartItems.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity += 1;
-      } else {
-        cartItems.push({ ...product, quantity: 1 });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-      window.dispatchEvent(new Event("cartUpdated"));
-      alert(`${product.name} ajouté au panier !`);
-    }
+    addToCartContext({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+    });
+    alert(`${product.name} ajouté au panier !`);
   };
 
   return (

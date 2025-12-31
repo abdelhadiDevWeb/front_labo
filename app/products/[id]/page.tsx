@@ -15,6 +15,7 @@ import {
   Star,
   Scale,
 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 
 interface Product {
   id: number;
@@ -179,6 +180,7 @@ const productsData: Product[] = [
 export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const { addToCart } = useCart();
   const productId = parseInt(params.id as string);
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -194,21 +196,15 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
 
-    if (typeof window !== "undefined") {
-      const cart = localStorage.getItem("cart");
-      const cartItems = cart ? JSON.parse(cart) : [];
-      const existingItem = cartItems.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity += quantity;
-      } else {
-        cartItems.push({ ...product, quantity });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-      window.dispatchEvent(new Event("cartUpdated"));
-      alert(`${quantity} ${product.name} ajouté(s) au panier !`);
-    }
+    addToCart(
+      {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      },
+      quantity
+    );
+    alert(`${quantity} ${product.name} ajouté(s) au panier !`);
   };
 
   if (isLoading) {

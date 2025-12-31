@@ -11,6 +11,7 @@ import {
   X,
   ShoppingCart,
 } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 
 interface Product {
   id: number;
@@ -128,6 +129,7 @@ const productsData: Product[] = [
 function CompareContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { addToCart } = useCart();
   const [product1, setProduct1] = useState<Product | null>(null);
   const [product2, setProduct2] = useState<Product | null>(null);
   const [selectedProduct2, setSelectedProduct2] = useState<string>("");
@@ -155,22 +157,13 @@ function CompareContent() {
     }
   };
 
-  const addToCart = (product: Product) => {
-    if (typeof window !== "undefined") {
-      const cart = localStorage.getItem("cart");
-      const cartItems = cart ? JSON.parse(cart) : [];
-      const existingItem = cartItems.find((item: any) => item.id === product.id);
-
-      if (existingItem) {
-        existingItem.quantity += 1;
-      } else {
-        cartItems.push({ ...product, quantity: 1 });
-      }
-
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-      window.dispatchEvent(new Event("cartUpdated"));
-      alert(`${product.name} ajouté au panier !`);
-    }
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+    });
+    alert(`${product.name} ajouté au panier !`);
   };
 
   if (!product1) {
@@ -256,7 +249,7 @@ function CompareContent() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{product1.name}</h2>
               <p className="text-3xl font-bold text-blue-600 mb-4">{product1.price}</p>
               <button
-                onClick={() => addToCart(product1)}
+                onClick={() => handleAddToCart(product1)}
                 className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
               >
                 <ShoppingCart className="w-5 h-5" />
@@ -315,7 +308,7 @@ function CompareContent() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{product2.name}</h2>
                 <p className="text-3xl font-bold text-purple-600 mb-4">{product2.price}</p>
                 <button
-                  onClick={() => addToCart(product2)}
+                  onClick={() => handleAddToCart(product2)}
                   className="w-full py-3 px-4 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
                 >
                   <ShoppingCart className="w-5 h-5" />

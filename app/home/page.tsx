@@ -27,15 +27,17 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import { getAuthToken } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
 
 export default function HomePage() {
+  const { getTotalItems, addToCart } = useCart();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
-  const [cartItemCount, setCartItemCount] = useState(0);
+  const cartItemCount = getTotalItems();
   const [particles, setParticles] = useState<Array<{
     left: number;
     top: number;
@@ -61,35 +63,6 @@ export default function HomePage() {
     }
   }, []);
 
-  // Update cart item count
-  const updateCartCount = () => {
-    if (typeof window !== "undefined") {
-      const cart = localStorage.getItem("cart");
-      if (cart) {
-        try {
-          const cartItems = JSON.parse(cart);
-          const count = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
-          setCartItemCount(count);
-        } catch {
-          setCartItemCount(0);
-        }
-      } else {
-        setCartItemCount(0);
-      }
-    }
-  };
-
-  useEffect(() => {
-    updateCartCount();
-    
-    // Listen for cart updates
-    const handleCartUpdate = () => {
-      updateCartCount();
-    };
-    
-    window.addEventListener("cartUpdated", handleCartUpdate);
-    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
-  }, []);
 
   useEffect(() => {
     const observerOptions = {
@@ -221,7 +194,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       {/* Header - Professional & Modern */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -795,25 +768,12 @@ export default function HomePage() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => {
-                      // Add to cart
-                      if (typeof window !== "undefined") {
-                        const cart = localStorage.getItem("cart");
-                        const cartItems = cart ? JSON.parse(cart) : [];
-                        const existingItem = cartItems.find((item: any) => item.id === product.id);
-                        
-                        if (existingItem) {
-                          existingItem.quantity += 1;
-                        } else {
-                          cartItems.push({ ...product, quantity: 1 });
-                        }
-                        
-                        localStorage.setItem("cart", JSON.stringify(cartItems));
-                        
-                        // Dispatch custom event to update cart panel
-                        window.dispatchEvent(new Event("cartUpdated"));
-                        
-                        setCartOpen(true);
-                      }
+                      addToCart({
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                      });
+                      setCartOpen(true);
                     }}
                     className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all transform hover:scale-105 hover:shadow-lg text-sm sm:text-base"
                   >

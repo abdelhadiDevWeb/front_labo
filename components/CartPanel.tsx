@@ -2,13 +2,7 @@
 
 import { X, ShoppingCart, Trash2, FileText, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-
-interface CartItem {
-  id: number;
-  name: string;
-  price: string;
-  quantity: number;
-}
+import { useCart } from "@/contexts/CartContext";
 
 interface CartPanelProps {
   isOpen: boolean;
@@ -16,97 +10,17 @@ interface CartPanelProps {
 }
 
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
   const [showInvoice, setShowInvoice] = useState(false);
 
-  // Load cart from localStorage on mount and when panel opens
-  const loadCart = () => {
-    if (typeof window !== "undefined") {
-      const savedCart = localStorage.getItem("cart");
-      if (savedCart) {
-        try {
-          setCartItems(JSON.parse(savedCart));
-        } catch (error) {
-          console.error("Error parsing cart:", error);
-          setCartItems([]);
-        }
-      } else {
-        setCartItems([]);
-      }
-    }
-  };
-
+  // Reset invoice view when panel closes
   useEffect(() => {
-    loadCart();
-  }, []);
-
-  // Reload cart when panel opens and reset invoice view
-  useEffect(() => {
-    if (isOpen) {
-      loadCart();
-    } else {
+    if (!isOpen) {
       setShowInvoice(false);
     }
   }, [isOpen]);
 
-  // Listen for storage changes and custom cart update events
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "cart") {
-        loadCart();
-      }
-    };
-
-    const handleCartUpdate = () => {
-      loadCart();
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("cartUpdated", handleCartUpdate);
-    
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("cartUpdated", handleCartUpdate);
-    };
-  }, []);
-
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cart", JSON.stringify(cartItems));
-    }
-  }, [cartItems]);
-
-  const removeItem = (id: number) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateQuantity = (id: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(id);
-      return;
-    }
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
-  };
-
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace("€", "").replace(",", "."));
-      return total + price * item.quantity;
-    }, 0);
-  };
-
-  const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace("€", "").replace(",", "."));
-      return total + price * item.quantity;
-    }, 0);
-  };
-
-  const total = calculateTotal();
-  const subtotal = calculateSubtotal();
+  const subtotal = getTotalPrice();
   const tax = subtotal * 0.2; // 20% TVA (example)
   const finalTotal = subtotal + tax;
 
@@ -118,11 +32,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   const handleBuy = () => {
     alert("Le paiement en ligne sera disponible très bientôt ! 🚀\n\nNous travaillons sur l'intégration d'un système de paiement sécurisé.");
     setShowInvoice(false);
-    setCartItems([]);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("cart");
-      window.dispatchEvent(new Event("cartUpdated"));
-    }
+    clearCart();
     onClose();
   };
 
@@ -317,7 +227,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => removeFromCart(item.id)}
                       className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -336,7 +246,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       Total:
                     </span>
                     <span className="text-2xl font-bold text-blue-600">
-                      {total.toFixed(2)}€
+                      {subtotal.toFixed(2)}€
                     </span>
                   </div>
                   <button
