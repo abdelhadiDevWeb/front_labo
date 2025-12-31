@@ -200,12 +200,16 @@ export default function HomePage() {
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-24">
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 rounded-lg sm:rounded-xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg shadow-md">
-                <FlaskConical className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-white" />
+              <div className="transform transition-all duration-300 group-hover:scale-105">
+                <Image
+                  src="/images/logo.jpeg"
+                  alt="Market Lab Logo"
+                  width={120}
+                  height={40}
+                  className="h-8 sm:h-10 md:h-12 w-auto object-contain"
+                  priority
+                />
               </div>
-              <span className="text-base sm:text-lg md:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent tracking-tight">
-                MARKET LAB
-              </span>
             </Link>
             <div className="hidden md:flex items-center gap-8 lg:gap-10">
               <a href="#accueil" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
@@ -797,11 +801,17 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8 md:mb-12">
             <div className="col-span-2 sm:col-span-1">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
-                  <FlaskConical className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <span className="text-lg sm:text-xl font-bold">MARKET LAB</span>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4" >
+                <Image
+                style={{
+                  borderRadius: "3px",
+                }}
+                  src="/images/logo.jpeg"
+                  alt="Market Lab Logo"
+                  width={80}
+                  height={80}
+                  className="h-6 sm:h-8 w-auto object-contain"
+                />
               </div>
               <p className="text-gray-400 text-xs sm:text-sm">
                 La marketplace professionnelle des laboratoires d'analyses
