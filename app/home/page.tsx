@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
+import LoginAlert from "@/components/LoginAlert";
 import { getAuthToken } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 
@@ -35,9 +36,12 @@ export default function HomePage() {
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [userRole, setUserRole] = useState<string | null>(null);
   const cartItemCount = getTotalItems();
+  const isClientUser = userRole === "client";
   const [particles, setParticles] = useState<Array<{
     left: number;
     top: number;
@@ -47,19 +51,33 @@ export default function HomePage() {
     animationDuration: number;
   }>>([]);
 
-  // Check authentication status
+  // Check authentication status and role
   useEffect(() => {
     const token = getAuthToken();
-    setIsAuthenticated(!!token);
     
-    // Try to get user email from token (basic implementation)
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        setUserEmail(payload.email || "");
+        const role = payload.role || null;
+        setUserRole(role);
+        
+        // Only set authenticated and show client features if role is "client"
+        if (role === "client") {
+          setIsAuthenticated(true);
+          setUserEmail(payload.email || "");
+        } else {
+          // Admin or supplier should not see client features on home page
+          setIsAuthenticated(false);
+          setUserEmail("");
+        }
       } catch {
-        // If token parsing fails, just show authenticated state
+        // If token parsing fails, don't show authenticated state
+        setIsAuthenticated(false);
+        setUserRole(null);
       }
+    } else {
+      setIsAuthenticated(false);
+      setUserRole(null);
     }
   }, []);
 
@@ -226,7 +244,7 @@ export default function HomePage() {
               </a>
             </div>
             <div className="flex items-center gap-3">
-              {isAuthenticated ? (
+              {isAuthenticated && isClientUser ? (
                 <>
                   {/* Shopping Cart Icon */}
                   <button
@@ -277,7 +295,7 @@ export default function HomePage() {
                 <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </a>
-                {isAuthenticated ? (
+                {isAuthenticated && isClientUser ? (
                   <>
                     <button
                       onClick={() => {
@@ -772,12 +790,16 @@ export default function HomePage() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => {
-                      addToCart({
-                        id: product.id,
-                        name: product.name,
-                        price: product.price,
-                      });
-                      setCartOpen(true);
+                      if (isClientUser) {
+                        addToCart({
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                        });
+                        setCartOpen(true);
+                      } else {
+                        setLoginAlertOpen(true);
+                      }
                     }}
                     className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all transform hover:scale-105 hover:shadow-lg text-sm sm:text-base"
                   >
@@ -850,6 +872,7 @@ export default function HomePage() {
 
       {/* Cart Panel */}
       <CartPanel isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
     </div>
   );
 }

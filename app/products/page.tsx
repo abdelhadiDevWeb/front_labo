@@ -13,6 +13,8 @@ import {
   Filter,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { getAuthToken } from "@/lib/api";
+import LoginAlert from "@/components/LoginAlert";
 
 interface Product {
   id: number;
@@ -118,6 +120,25 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [compareItems, setCompareItems] = useState<number[]>([]);
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Check user role
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || null);
+      } catch {
+        setUserRole(null);
+      }
+    } else {
+      setUserRole(null);
+    }
+  }, []);
+
+  const isClientUser = userRole === "client";
 
   // Get unique categories
   const categories = ["all", ...Array.from(new Set(allProducts.map((p) => p.category)))];
@@ -163,12 +184,16 @@ export default function ProductsPage() {
   };
 
   const addToCart = (product: Product) => {
-    addToCartContext({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-    });
-    alert(`${product.name} ajouté au panier !`);
+    if (isClientUser) {
+      addToCartContext({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      });
+      alert(`${product.name} ajouté au panier !`);
+    } else {
+      setLoginAlertOpen(true);
+    }
   };
 
   return (
@@ -325,6 +350,7 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+      <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
     </div>
   );
 }

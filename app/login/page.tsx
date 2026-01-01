@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react";
+import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock } from "lucide-react";
 import { loginClient } from "@/lib/api";
 
 export default function LoginPage() {
@@ -12,10 +12,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showWaitingAlert, setShowWaitingAlert] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showWaitingAlert) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showWaitingAlert]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +43,26 @@ export default function LoginPage() {
       });
 
       if (result.success) {
-        setSuccess("Connexion réussie ! Redirection...");
-        // Redirect to home page after 1 second
-        setTimeout(() => {
-          router.push("/home");
-        }, 1000);
+        const userRole = result.data?.role || "client";
+        const userStatus = result.data?.status;
+
+        // Check if supplier and status is false
+        if (userRole === "supplier" && userStatus === false) {
+          // Remove token if supplier account is not yet confirmed
+          localStorage.removeItem("authToken");
+          setShowWaitingAlert(true);
+        } else {
+          setSuccess("Connexion réussie ! Redirection...");
+          setTimeout(() => {
+            if (userRole === "admin") {
+              router.push("/dashboard");
+            } else if (userRole === "supplier") {
+              router.push("/dashboard-supplier");
+            } else {
+              router.push("/home");
+            }
+          }, 1000);
+        }
       } else {
         setError(result.message || "Email ou mot de passe incorrect");
       }
@@ -209,6 +237,66 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Waiting Alert Modal */}
+      {showWaitingAlert && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
+            onClick={() => setShowWaitingAlert(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-yellow-100 rounded-xl">
+                    <Clock className="w-8 h-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">En attente de confirmation</h3>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <p className="text-gray-700 mb-2 leading-relaxed">
+                  Votre compte a été créé avec succès.
+                </p>
+                <p className="text-gray-700 mb-6 leading-relaxed">
+                  Vous devez attendre que <strong>l'administrateur confirme votre compte et vos documents</strong> avant de pouvoir accéder à votre tableau de bord.
+                </p>
+                <p className="text-sm text-gray-500 mb-6">
+                  Vous recevrez une notification une fois que votre compte sera approuvé.
+                </p>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("authToken");
+                      router.push("/home");
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    <Home className="w-5 h-5" />
+                    <span>Retour à l'accueil</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("authToken");
+                      setShowWaitingAlert(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

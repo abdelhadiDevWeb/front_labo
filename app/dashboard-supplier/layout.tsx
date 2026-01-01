@@ -6,10 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   LayoutDashboard,
-  Users,
+  Package,
   FileText,
   BarChart3,
-  Shield,
   User,
   ShoppingCart,
   CreditCard,
@@ -17,26 +16,27 @@ import {
   X,
   LogOut,
   Settings,
+  Store,
 } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard" },
-  { icon: ShoppingCart, label: "Commandes", href: "/dashboard/orders" },
-  { icon: Users, label: "Gestion Users", href: "/dashboard/users" },
-  { icon: CreditCard, label: "Gestion Abonnements", href: "/dashboard/subscriptions" },
-  { icon: BarChart3, label: "Statistiques", href: "/dashboard/statistics" },
-  { icon: Shield, label: "Gestion Admin", href: "/dashboard/admins" },
-  { icon: User, label: "Profil", href: "/dashboard/profile" },
+  { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
+  { icon: Package, label: "Mes Produits", href: "/dashboard-supplier/products" },
+  { icon: ShoppingCart, label: "Commandes", href: "/dashboard-supplier/orders" },
+  { icon: BarChart3, label: "Statistiques", href: "/dashboard-supplier/statistics" },
+  { icon: Store, label: "Mon Magasin", href: "/dashboard-supplier/store" },
+  { icon: User, label: "Profil", href: "/dashboard-supplier/profile" },
 ];
 
-export default function DashboardLayout({
+export default function SupplierDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -51,9 +51,10 @@ export default function DashboardLayout({
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const role = payload.role;
+      setUserRole(role);
 
-      // Check if user is admin
-      if (role !== "admin") {
+      // Check if user is supplier
+      if (role !== "supplier") {
         router.push("/home");
         return;
       }
@@ -65,7 +66,7 @@ export default function DashboardLayout({
     }
   }, [router]);
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || userRole !== "supplier") {
     return null;
   }
 
@@ -88,7 +89,7 @@ export default function DashboardLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href="/dashboard-supplier" className="flex items-center gap-2">
               <Image
                 src="/images/logo.jpeg"
                 alt="Market Lab Logo"
@@ -111,8 +112,8 @@ export default function DashboardLayout({
                       href={item.href}
                       className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                         isActive
-                          ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/50"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                          ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/50"
+                          : "text-gray-700 hover:bg-gray-100 hover:text-green-600"
                       }`}
                       onClick={() => setSidebarOpen(false)}
                     >
@@ -128,7 +129,7 @@ export default function DashboardLayout({
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-200 space-y-2">
             <Link
-              href="/dashboard/profile"
+              href="/dashboard-supplier/profile"
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all duration-200"
             >
               <Settings className="w-5 h-5" />
@@ -165,7 +166,7 @@ export default function DashboardLayout({
             </button>
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold text-gray-900">
-                {menuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+                {menuItems.find((item) => item.href === pathname)?.label || "Dashboard Fournisseur"}
               </h1>
             </div>
           </div>

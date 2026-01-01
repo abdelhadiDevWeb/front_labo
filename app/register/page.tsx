@@ -19,9 +19,11 @@ export default function RegisterPage() {
   
   // Supplier form data
   const [supplierFormData, setSupplierFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
+    address: "",
     password: "",
     confirmPassword: "",
   });
@@ -48,8 +50,59 @@ export default function RegisterPage() {
       return;
     }
 
-    // TODO: Implement supplier registration when backend is ready
-    setError("L'inscription des fournisseurs sera bientôt disponible");
+    // Validate password strength (at least 8 chars, uppercase, lowercase, number)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+    if (!passwordRegex.test(supplierFormData.password)) {
+      setError("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const response = await fetch(`${API_BASE_URL}/supplier/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: supplierFormData.firstName,
+          lastName: supplierFormData.lastName,
+          email: supplierFormData.email,
+          password: supplierFormData.password,
+          phone: supplierFormData.phone,
+          address: supplierFormData.address,
+          role: "supplier",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.message || "Une erreur est survenue lors de l'inscription");
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.token) {
+        // Store token
+        localStorage.setItem("authToken", result.token);
+        setSuccess("Compte créé avec succès ! Redirection...");
+        // Redirect to documents upload page after 1.5 seconds
+        setTimeout(() => {
+          router.push("/supplier/upload-documents");
+        }, 1500);
+      } else {
+        setError(result.message || "Une erreur est survenue lors de l'inscription");
+      }
+    } catch (err) {
+      setError("Une erreur est survenue. Veuillez réessayer.");
+      console.error("Registration error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClientSubmit = async (e: React.FormEvent) => {
@@ -80,6 +133,7 @@ export default function RegisterPage() {
         password: clientFormData.password,
         phone: clientFormData.phone,
         address: clientFormData.address,
+        role: "client",
       });
 
       if (result.success) {
@@ -170,25 +224,48 @@ export default function RegisterPage() {
           {/* Supplier Form */}
           {userType === "supplier" && (
             <form className="space-y-5" onSubmit={handleSupplierSubmit}>
-            {/* Name Field */}
+            {/* First Name Field */}
             <div className="space-y-2">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Nom complet
+              <label htmlFor="supplier-firstName" className="block text-sm font-medium text-gray-700">
+                Prénom
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="name"
-                  name="name"
+                  id="supplier-firstName"
+                  name="firstName"
                   type="text"
-                  autoComplete="name"
+                  autoComplete="given-name"
                   required
-                    value={supplierFormData.name}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, name: e.target.value })}
+                  value={supplierFormData.firstName}
+                  onChange={(e) => setSupplierFormData({ ...supplierFormData, firstName: e.target.value })}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
-                  placeholder="Jean Dupont"
+                  placeholder="Jean"
+                />
+              </div>
+            </div>
+
+            {/* Last Name Field */}
+            <div className="space-y-2">
+              <label htmlFor="supplier-lastName" className="block text-sm font-medium text-gray-700">
+                Nom
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="supplier-lastName"
+                  name="lastName"
+                  type="text"
+                  autoComplete="family-name"
+                  required
+                  value={supplierFormData.lastName}
+                  onChange={(e) => setSupplierFormData({ ...supplierFormData, lastName: e.target.value })}
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  placeholder="Dupont"
                 />
               </div>
             </div>
@@ -235,6 +312,29 @@ export default function RegisterPage() {
                     onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: e.target.value })}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                   placeholder="+33 6 12 34 56 78"
+                />
+              </div>
+            </div>
+
+            {/* Address Field */}
+            <div className="space-y-2">
+              <label htmlFor="supplier-address" className="block text-sm font-medium text-gray-700">
+                Adresse
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="supplier-address"
+                  name="address"
+                  type="text"
+                  autoComplete="street-address"
+                  required
+                  value={supplierFormData.address}
+                  onChange={(e) => setSupplierFormData({ ...supplierFormData, address: e.target.value })}
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  placeholder="123 Rue de la République, 75001 Paris"
                 />
               </div>
             </div>

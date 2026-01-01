@@ -12,6 +12,8 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { getAuthToken } from "@/lib/api";
+import LoginAlert from "@/components/LoginAlert";
 
 interface Product {
   id: number;
@@ -133,6 +135,25 @@ function CompareContent() {
   const [product1, setProduct1] = useState<Product | null>(null);
   const [product2, setProduct2] = useState<Product | null>(null);
   const [selectedProduct2, setSelectedProduct2] = useState<string>("");
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Check user role
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || null);
+      } catch {
+        setUserRole(null);
+      }
+    } else {
+      setUserRole(null);
+    }
+  }, []);
+
+  const isClientUser = userRole === "client";
 
   useEffect(() => {
     const id1 = searchParams.get("id1");
@@ -158,12 +179,16 @@ function CompareContent() {
   };
 
   const handleAddToCart = (product: Product) => {
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-    });
-    alert(`${product.name} ajouté au panier !`);
+    if (isClientUser) {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      });
+      alert(`${product.name} ajouté au panier !`);
+    } else {
+      setLoginAlertOpen(true);
+    }
   };
 
   if (!product1) {
@@ -366,6 +391,7 @@ function CompareContent() {
           )}
         </div>
       </div>
+      <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
     </div>
   );
 }

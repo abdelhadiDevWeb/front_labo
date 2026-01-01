@@ -20,6 +20,7 @@ export interface ClientRegisterData {
   password: string;
   phone: string;
   address: string;
+  role?: string;
 }
 
 export interface ClientLoginData {
@@ -34,6 +35,8 @@ export interface ClientData {
   email: string;
   phone: string;
   address: string;
+  role?: string;
+  status?: boolean;
 }
 
 // Helper function to get auth token from localStorage

@@ -16,6 +16,8 @@ import {
   Scale,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { getAuthToken } from "@/lib/api";
+import LoginAlert from "@/components/LoginAlert";
 
 interface Product {
   id: number;
@@ -185,6 +187,25 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Check user role
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || null);
+      } catch {
+        setUserRole(null);
+      }
+    } else {
+      setUserRole(null);
+    }
+  }, []);
+
+  const isClientUser = userRole === "client";
 
   useEffect(() => {
     // In production, fetch from API
@@ -196,15 +217,19 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
 
-    addToCart(
-      {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-      },
-      quantity
-    );
-    alert(`${quantity} ${product.name} ajouté(s) au panier !`);
+    if (isClientUser) {
+      addToCart(
+        {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+        },
+        quantity
+      );
+      alert(`${quantity} ${product.name} ajouté(s) au panier !`);
+    } else {
+      setLoginAlertOpen(true);
+    }
   };
 
   if (isLoading) {
@@ -380,6 +405,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+      <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
     </div>
   );
 }
