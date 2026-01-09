@@ -1,77 +1,80 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import {
-  ArrowLeft,
-  Package,
-  Truck,
-  CheckCircle,
-  Clock,
-  Filter,
-  Loader2,
-  X,
-  Eye,
-  Printer,
-  Phone,
-} from "lucide-react";
+import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
-import { io as socketIO } from "socket.io-client";
-
-interface OrderProduct {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+import Link from "next/link";
 
 interface Order {
   _id: string;
   total: number;
-  products: OrderProduct[];
-  idBuyer: {
+  products: Array<{
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  idBuyer: string;
+  idSupplier: {
     _id: string;
     firstName: string;
     lastName: string;
     email: string;
     phone?: string;
   };
-  idSupplier: string;
   status: "en cours" | "on route" | "arrived";
   createdAt: string;
   updatedAt: string;
 }
 
-export default function SupplierOrdersPage() {
+export default function OrdersPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadOrders();
-    setupSocketConnection();
-  }, []);
-
-  useEffect(() => {
-    filterOrders();
-  }, [orders, statusFilter]);
-
-  const loadOrders = async () => {
-    try {
-      setIsLoading(true);
+    const checkAuth = async () => {
       const token = getAuthToken();
       if (!token) {
         router.push("/login");
         return;
       }
 
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const role = payload.role;
+        
+        // Only allow clients to access this page
+        if (role !== "client") {
+          router.push("/home");
+          return;
+        }
+
+        setIsAuthenticated(true);
+        await loadOrders();
+      } catch (error) {
+        console.error("Error decoding token:", error);
+        router.push("/login");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  const loadOrders = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      const response = await fetch(`${API_BASE_URL}/commandes/supplier`, {
+      const response = await fetch(`${API_BASE_URL}/commandes/client`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -87,36 +90,12 @@ export default function SupplierOrdersPage() {
       }
     } catch (err) {
       console.error("Load orders error:", err);
-      setError("Erreur lors du chargement des commandes");
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const setupSocketConnection = () => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
-      auth: {
-        token: token,
-      },
-      transports: ["websocket", "polling"],
-    });
-
-    socket.on("connect", () => {
-      console.log("Connected to Socket.io for orders");
-    });
-
-    socket.on("newOrder", () => {
-      // Reload orders when new order arrives
-      loadOrders();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  };
+  useEffect(() => {
+    filterOrders();
+  }, [orders, statusFilter]);
 
   const filterOrders = () => {
     if (statusFilter === "all") {
@@ -126,39 +105,9 @@ export default function SupplierOrdersPage() {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: "on route" | "arrived") => {
-    try {
-      setUpdatingStatus(orderId);
-      const token = getAuthToken();
-      if (!token) return;
-
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      const response = await fetch(`${API_BASE_URL}/commandes/${orderId}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-        alert(result.message || "Erreur lors de la mise à jour du statut");
-        return;
-      }
-
-      // Reload orders to get updated data
-      await loadOrders();
-    } catch (err) {
-      console.error("Update status error:", err);
-      alert("Une erreur est survenue");
-    } finally {
-      setUpdatingStatus(null);
-    }
-  };
-
   const handlePrintInvoice = (order: Order) => {
+    if (!printRef.current) return;
+
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
@@ -175,12 +124,12 @@ export default function SupplierOrdersPage() {
               color: #333;
             }
             .invoice-header {
-              border-bottom: 3px solid #16a34a;
+              border-bottom: 3px solid #2563eb;
               padding-bottom: 20px;
               margin-bottom: 30px;
             }
             .invoice-header h1 {
-              color: #16a34a;
+              color: #2563eb;
               font-size: 28px;
               margin-bottom: 10px;
             }
@@ -193,7 +142,7 @@ export default function SupplierOrdersPage() {
               flex: 1;
             }
             .info-section h3 {
-              color: #16a34a;
+              color: #2563eb;
               margin-bottom: 10px;
               font-size: 16px;
             }
@@ -207,7 +156,7 @@ export default function SupplierOrdersPage() {
               margin-bottom: 30px;
             }
             .products-table th {
-              background: #16a34a;
+              background: #2563eb;
               color: white;
               padding: 12px;
               text-align: left;
@@ -227,7 +176,7 @@ export default function SupplierOrdersPage() {
             .total-section .total-amount {
               font-size: 24px;
               font-weight: bold;
-              color: #16a34a;
+              color: #2563eb;
               margin-top: 10px;
             }
             .status-badge {
@@ -255,10 +204,10 @@ export default function SupplierOrdersPage() {
           
           <div class="invoice-info">
             <div class="info-section">
-              <h3>Client</h3>
-              <p><strong>${order.idBuyer.firstName} ${order.idBuyer.lastName}</strong></p>
-              <p>${order.idBuyer.email}</p>
-              ${order.idBuyer.phone ? `<p>Tél: ${order.idBuyer.phone}</p>` : ""}
+              <h3>Fournisseur</h3>
+              <p><strong>${order.idSupplier.firstName} ${order.idSupplier.lastName}</strong></p>
+              <p>${order.idSupplier.email}</p>
+              ${order.idSupplier.phone ? `<p>Tél: ${order.idSupplier.phone}</p>` : ""}
             </div>
             <div class="info-section">
               <h3>Statut</h3>
@@ -332,13 +281,17 @@ export default function SupplierOrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des commandes...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Chargement...</p>
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -349,14 +302,14 @@ export default function SupplierOrdersPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <Link
-                href="/dashboard-supplier"
+                href="/home"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Package className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Mes Commandes</h1>
@@ -376,7 +329,7 @@ export default function SupplierOrdersPage() {
                 onClick={() => setStatusFilter("all")}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   statusFilter === "all"
-                    ? "bg-green-600 text-white shadow-lg"
+                    ? "bg-blue-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -422,23 +375,25 @@ export default function SupplierOrdersPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-xl">
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        )}
+        {/* Hidden print area */}
+        <div ref={printRef} className="hidden" />
 
         {filteredOrders.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {orders.length === 0 ? "Aucune commande" : "Aucune commande trouvée"}
-            </h3>
-            <p className="text-gray-600">
-              {orders.length === 0
-                ? "Aucune commande n'a été passée pour le moment"
-                : "Essayez de modifier vos filtres"}
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package className="w-12 h-12 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Aucune commande</h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Vous n'avez pas encore passé de commande. Parcourez notre marketplace pour découvrir nos services.
             </p>
+            <Link
+              href="/home#marketplace"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Explorer la Marketplace</span>
+            </Link>
           </div>
         ) : (
           <div className="space-y-6">
@@ -459,15 +414,12 @@ export default function SupplierOrdersPage() {
                         {getStatusBadge(order.status)}
                       </div>
                       <p className="text-sm text-gray-600">
-                        Client: {order.idBuyer.firstName} {order.idBuyer.lastName}
+                        Fournisseur: {order.idSupplier.firstName} {order.idSupplier.lastName}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        Email: {order.idBuyer.email}
-                      </p>
-                      {order.idBuyer.phone && (
+                      {order.idSupplier.phone && (
                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                           <Phone className="w-3 h-3" />
-                          {order.idBuyer.phone}
+                          {order.idSupplier.phone}
                         </p>
                       )}
                       <p className="text-sm text-gray-500 mt-1">
@@ -475,7 +427,7 @@ export default function SupplierOrdersPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-2xl font-bold text-blue-600">
                         {order.total.toFixed(2)} DA
                       </p>
                     </div>
@@ -504,63 +456,14 @@ export default function SupplierOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    {/* Status Update Actions */}
-                    <div className="flex items-center gap-3">
-                      {order.status === "en cours" && (
-                        <button
-                          onClick={() => updateOrderStatus(order._id, "on route")}
-                          disabled={updatingStatus === order._id}
-                          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {updatingStatus === order._id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Mise à jour...
-                            </>
-                          ) : (
-                            <>
-                              <Truck className="w-4 h-4" />
-                              Marquer comme "En route"
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {order.status === "on route" && (
-                        <button
-                          onClick={() => updateOrderStatus(order._id, "arrived")}
-                          disabled={updatingStatus === order._id}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {updatingStatus === order._id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Mise à jour...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4" />
-                              Marquer comme "Arrivée"
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {order.status === "arrived" && (
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="font-semibold">Commande livrée</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Print Invoice Button */}
+                  {/* Print Invoice Button */}
+                  <div className="flex justify-end pt-4 border-t border-gray-200">
                     <button
                       onClick={() => handlePrintInvoice(order)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
                     >
                       <Printer className="w-4 h-4" />
-                      Imprimer
+                      Imprimer la facture
                     </button>
                   </div>
                 </div>
@@ -572,3 +475,4 @@ export default function SupplierOrdersPage() {
     </div>
   );
 }
+

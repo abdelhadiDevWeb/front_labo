@@ -1,8 +1,10 @@
 "use client";
 
-import { X, ShoppingCart, Trash2, FileText, CheckCircle } from "lucide-react";
+import { X, ShoppingCart, Trash2, FileText, CheckCircle, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
+import { getAuthToken } from "@/lib/api";
 
 interface CartPanelProps {
   isOpen: boolean;
@@ -12,6 +14,8 @@ interface CartPanelProps {
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
   const [showInvoice, setShowInvoice] = useState(false);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const router = useRouter();
 
   // Reset invoice view when panel closes
   useEffect(() => {
@@ -21,19 +25,62 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   }, [isOpen]);
 
   const subtotal = getTotalPrice();
-  const tax = subtotal * 0.2; // 20% TVA (example)
-  const finalTotal = subtotal + tax;
+  const finalTotal = subtotal; // No TVA
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
     setShowInvoice(true);
   };
 
-  const handleBuy = () => {
-    alert("Le paiement en ligne sera disponible très bientôt ! 🚀\n\nNous travaillons sur l'intégration d'un système de paiement sécurisé.");
-    setShowInvoice(false);
-    clearCart();
-    onClose();
+  const handleBuy = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      alert("Veuillez vous connecter pour confirmer votre achat");
+      return;
+    }
+
+    setIsCreatingOrder(true);
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      
+      // Prepare products for order
+      const products = cartItems.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+      }));
+
+      const response = await fetch(`${API_BASE_URL}/commandes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ products }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.message || "Erreur lors de la création de la commande");
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      if (result.success) {
+        alert("Commande créée avec succès ! Le fournisseur a été notifié.");
+        setShowInvoice(false);
+        clearCart();
+        onClose();
+        // Optionally redirect to orders page
+        router.push("/orders");
+      }
+    } catch (err) {
+      console.error("Create order error:", err);
+      alert("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
   const handleCancelInvoice = () => {
@@ -118,8 +165,23 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Articles commandés</h4>
                 <div className="space-y-3">
                   {cartItems.map((item) => {
-                    const itemPrice = parseFloat(item.price.replace("€", "").replace(",", "."));
+                    // Handle both string and number prices
+                    let itemPrice: number;
+                    if (typeof item.price === "number") {
+                      itemPrice = item.price;
+                    } else if (typeof item.price === "string") {
+                      itemPrice = parseFloat(item.price.replace("€", "").replace("DA", "").replace(",", ".").trim());
+                    } else {
+                      itemPrice = 0;
+                    }
+                    
+                    if (isNaN(itemPrice)) itemPrice = 0;
+                    
                     const itemTotal = itemPrice * item.quantity;
+                    const displayPrice = typeof item.price === "number" 
+                      ? `${item.price.toFixed(2)} DA` 
+                      : item.price;
+                    
                     return (
                       <div
                         key={item.id}
@@ -128,11 +190,11 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         <div className="flex-1">
                           <h5 className="font-semibold text-gray-900">{item.name}</h5>
                           <p className="text-sm text-gray-600">
-                            {item.price} × {item.quantity}
+                            {displayPrice} × {item.quantity}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-blue-600">{itemTotal.toFixed(2)}€</p>
+                          <p className="font-bold text-blue-600">{itemTotal.toFixed(2)} DA</p>
                         </div>
                       </div>
                     );
@@ -141,18 +203,10 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
               </div>
 
               {/* Invoice Totals */}
-              <div className="border-t border-gray-300 pt-4 space-y-3 mb-6">
-                <div className="flex justify-between text-gray-700">
-                  <span>Sous-total</span>
-                  <span className="font-medium">{subtotal.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>TVA (20%)</span>
-                  <span className="font-medium">{tax.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between text-xl font-bold text-gray-900 pt-3 border-t border-gray-300">
+              <div className="border-t border-gray-300 pt-4 mb-6">
+                <div className="flex justify-between text-xl font-bold text-gray-900">
                   <span>Total</span>
-                  <span className="text-blue-600">{finalTotal.toFixed(2)}€</span>
+                  <span className="text-blue-600">{finalTotal.toFixed(2)} DA</span>
                 </div>
               </div>
 
@@ -160,10 +214,20 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
               <div className="space-y-3">
                 <button
                   onClick={handleBuy}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  disabled={isCreatingOrder}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  <CheckCircle className="w-6 h-6" />
-                  Confirmer l'achat
+                  {isCreatingOrder ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      Création de la commande...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-6 h-6" />
+                      Confirmer l'achat
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handleCancelInvoice}
@@ -199,7 +263,9 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         {item.name}
                       </h3>
                       <p className="text-blue-600 font-bold text-lg mb-3">
-                        {item.price}
+                        {typeof item.price === "number" 
+                          ? `${item.price.toFixed(2)} DA` 
+                          : item.price}
                       </p>
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-gray-600">Quantité:</span>
@@ -246,7 +312,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       Total:
                     </span>
                     <span className="text-2xl font-bold text-blue-600">
-                      {subtotal.toFixed(2)}€
+                      {subtotal.toFixed(2)} DA
                     </span>
                   </div>
                   <button

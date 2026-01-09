@@ -21,6 +21,7 @@ export interface ClientRegisterData {
   phone: string;
   address: string;
   role?: string;
+  laboType?: "Labo médical" | "labo d'ana pathologies";
 }
 
 export interface ClientLoginData {
@@ -145,6 +146,7 @@ export const updateProfile = async (data: {
       return {
         success: false,
         message: errorData.message || "Failed to update profile",
+        errors: errorData.errors || [],
       };
     }
 
@@ -187,6 +189,7 @@ export const updatePassword = async (data: {
       return {
         success: false,
         message: errorData.message || "Failed to update password",
+        errors: errorData.errors || [],
       };
     }
 
@@ -362,6 +365,492 @@ export const loginClient = async (
       success: false,
       message: errorMessage,
       errors: [errorMessage],
+    };
+  }
+};
+
+// Product interfaces
+export interface Product {
+  id: string;
+  name: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  quantity: number;
+  category: string;
+  deliveryTime: string;
+  brand: string;
+  productType: "Labo médical" | "labo d'ana pathologies";
+  images: string[];
+  video?: string;
+  supplierId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateProductData {
+  name: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  quantity: number;
+  category: string;
+  deliveryTime: string;
+  brand: string;
+  productType: "Labo médical" | "labo d'ana pathologies";
+  images?: File[];
+  video?: File;
+}
+
+// Create a single product
+export const createProduct = async (
+  data: CreateProductData
+): Promise<ApiResponse<Product>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      // Include errors array if available
+      return {
+        success: false,
+        message: errorData.message || "Failed to create product",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Create product error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Upload products from Excel
+export const uploadProductsFromExcel = async (
+  file: File
+): Promise<ApiResponse<{ imported: number; total: number; errors: number; products: Product[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const formData = new FormData();
+    formData.append("excelFile", file);
+
+    const response = await fetch(`${API_BASE_URL}/products/upload-excel`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to upload Excel file",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Upload Excel error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get supplier products
+export const getSupplierProducts = async (): Promise<ApiResponse<{ products: Product[]; total: number }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/products`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch products",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get products error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update a product
+export const updateProduct = async (
+  productId: string,
+  data: Partial<CreateProductData> & { images?: File[]; video?: File }
+): Promise<ApiResponse<Product>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const formData = new FormData();
+    
+    // Append text fields
+    if (data.name !== undefined) formData.append("name", data.name);
+    if (data.purchasePrice !== undefined) formData.append("purchasePrice", data.purchasePrice.toString());
+    if (data.sellingPrice !== undefined) formData.append("sellingPrice", data.sellingPrice.toString());
+    if (data.quantity !== undefined) formData.append("quantity", data.quantity.toString());
+    if (data.category !== undefined) formData.append("category", data.category);
+    if (data.deliveryTime !== undefined) formData.append("deliveryTime", data.deliveryTime);
+    if (data.brand !== undefined) formData.append("brand", data.brand);
+    if (data.productType !== undefined) formData.append("productType", data.productType);
+
+    // Append files
+    if (data.images && Array.isArray(data.images)) {
+      data.images.forEach((image) => {
+        formData.append("images", image);
+      });
+    }
+    if (data.video) {
+      formData.append("video", data.video);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to update product",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Update product error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Delete a product
+export const deleteProduct = async (productId: string): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to delete product",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Delete product error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Notification interfaces
+export interface Notification {
+  _id: string;
+  idSender: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  idReceiver: string;
+  type: "order_status" | "new_order" | "system";
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Get notifications
+export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiResponse<{ notifications: Notification[]; unreadCount: number }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications?unreadOnly=${unreadOnly}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch notifications",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get notifications error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (notificationId: string): Promise<ApiResponse<Notification>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to mark notification as read",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Mark notification as read error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Mark all notifications as read
+export const markAllNotificationsAsRead = async (): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to mark all notifications as read",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Mark all notifications as read error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Public product interfaces (for clients)
+export interface PublicProduct {
+  id: string;
+  name: string;
+  price: number; // selling price
+  quantity: number;
+  category: string;
+  deliveryTime: string;
+  brand: string;
+  productType: "Labo médical" | "labo d'ana pathologies";
+  images: string[];
+  video?: string;
+  supplier: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Get all products (public - for clients)
+export const getAllProducts = async (): Promise<ApiResponse<{ products: PublicProduct[]; total: number }>> => {
+  try {
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    // Include auth token if available (for laboType filtering)
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/products/public`, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch products",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get all products error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get product by ID (public - for clients)
+export const getProductById = async (id: string): Promise<ApiResponse<PublicProduct>> => {
+  try {
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    // Include auth token if available (for laboType filtering)
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/products/public/${id}`, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch product",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get product by ID error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
     };
   }
 };

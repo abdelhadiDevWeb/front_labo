@@ -3,9 +3,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export interface CartItem {
-  id: number;
+  id: string | number;
   name: string;
-  price: string;
+  price: string | number;
   quantity: number;
 }
 
@@ -66,11 +66,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string | number) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
+  const updateQuantity = (id: string | number, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(id);
       return;
@@ -94,7 +94,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getTotalPrice = () => {
     return cartItems.reduce((total, item) => {
-      const price = parseFloat(item.price.replace("€", "").replace(",", "."));
+      // Handle both string and number prices
+      let price: number;
+      if (typeof item.price === "number") {
+        price = item.price;
+      } else if (typeof item.price === "string") {
+        // Remove currency symbols and convert comma to dot
+        price = parseFloat(item.price.replace("€", "").replace("DA", "").replace(",", ".").trim());
+      } else {
+        price = 0;
+      }
+      
+      // Ensure price is a valid number
+      if (isNaN(price)) {
+        console.warn(`Invalid price for item ${item.id}:`, item.price);
+        price = 0;
+      }
+      
       return total + price * item.quantity;
     }, 0);
   };

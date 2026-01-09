@@ -6,13 +6,9 @@ import Link from "next/link";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X, LogOut, Home } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 
-export default function UploadDocumentsPage() {
+export default function ClientUploadDocumentsPage() {
   const router = useRouter();
-  const [files, setFiles] = useState({
-    Tax_number: null as File | null,
-    identity: null as File | null,
-    commercial_register: null as File | null,
-  });
+  const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -30,21 +26,21 @@ export default function UploadDocumentsPage() {
     };
   }, [showSuccessAlert]);
 
-  const handleFileChange = (field: keyof typeof files, file: File | null) => {
-    if (file && file.type !== "application/pdf") {
+  const handleFileChange = (selectedFile: File | null) => {
+    if (selectedFile && selectedFile.type !== "application/pdf") {
       setError("Seuls les fichiers PDF sont acceptés");
       return;
     }
-    if (file && file.size > 5 * 1024 * 1024) {
+    if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
       setError("La taille du fichier ne doit pas dépasser 5MB");
       return;
     }
-    setFiles((prev) => ({ ...prev, [field]: file }));
+    setFile(selectedFile);
     setError(null);
   };
 
-  const handleRemoveFile = (field: keyof typeof files) => {
-    setFiles((prev) => ({ ...prev, [field]: null }));
+  const handleRemoveFile = () => {
+    setFile(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,23 +48,10 @@ export default function UploadDocumentsPage() {
     setError(null);
     setSuccess(null);
 
-    // Security: Validate all files are selected (suppliers must upload all 3)
-    if (!files.Tax_number || !files.identity || !files.commercial_register) {
-      setError("Veuillez télécharger les trois documents requis : Numéro de Taxe, Pièce d'identité et Registre du Commerce");
+    // Validate file is selected
+    if (!file) {
+      setError("Veuillez télécharger votre pièce d'identité");
       return;
-    }
-
-    // Security: Validate all files are PDF
-    const allFiles = [files.Tax_number, files.identity, files.commercial_register];
-    for (const file of allFiles) {
-      if (file && file.type !== "application/pdf") {
-        setError("Tous les fichiers doivent être au format PDF");
-        return;
-      }
-      if (file && file.size > 5 * 1024 * 1024) {
-        setError("Chaque fichier ne doit pas dépasser 5MB");
-        return;
-      }
     }
 
     setIsLoading(true);
@@ -83,11 +66,9 @@ export default function UploadDocumentsPage() {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
       const formData = new FormData();
-      formData.append("Tax_number", files.Tax_number);
-      formData.append("identity", files.identity);
-      formData.append("commercial_register", files.commercial_register);
+      formData.append("identity", file);
 
-      const response = await fetch(`${API_BASE_URL}/supplier/documents`, {
+      const response = await fetch(`${API_BASE_URL}/client/documents`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -130,10 +111,10 @@ export default function UploadDocumentsPage() {
             <span>Retour</span>
           </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-            Télécharger vos documents
+            Télécharger votre pièce d'identité
           </h1>
           <p className="text-gray-600">
-            Veuillez télécharger les documents suivants pour finaliser votre inscription en tant que fournisseur
+            Veuillez télécharger votre pièce d'identité pour finaliser votre inscription en tant que client
           </p>
         </div>
 
@@ -156,71 +137,26 @@ export default function UploadDocumentsPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Tax Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Numéro de Taxe (PDF)
-              </label>
-              <div className="mt-1">
-                {files.Tax_number ? (
-                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{files.Tax_number.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(files.Tax_number.size / 1024).toFixed(2)} KB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile("Tax_number")}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-10 h-10 mb-3 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Cliquez pour télécharger</span> ou glissez-déposez
-                      </p>
-                      <p className="text-xs text-gray-500">PDF uniquement (MAX. 5MB)</p>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="application/pdf"
-                      onChange={(e) => handleFileChange("Tax_number", e.target.files?.[0] || null)}
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
-
             {/* Identity */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Pièce d'identité (PDF)
               </label>
               <div className="mt-1">
-                {files.identity ? (
+                {file ? (
                   <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
                     <div className="flex items-center gap-3">
                       <FileText className="w-5 h-5 text-blue-600" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{files.identity.name}</p>
+                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
                         <p className="text-xs text-gray-500">
-                          {(files.identity.size / 1024).toFixed(2)} KB
+                          {(file.size / 1024).toFixed(2)} KB
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleRemoveFile("identity")}
+                      onClick={handleRemoveFile}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <X className="w-5 h-5" />
@@ -239,54 +175,7 @@ export default function UploadDocumentsPage() {
                       type="file"
                       className="hidden"
                       accept="application/pdf"
-                      onChange={(e) => handleFileChange("identity", e.target.files?.[0] || null)}
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
-
-            {/* Commercial Register */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Registre du Commerce (PDF)
-              </label>
-              <div className="mt-1">
-                {files.commercial_register ? (
-                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{files.commercial_register.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {(files.commercial_register.size / 1024).toFixed(2)} KB
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile("commercial_register")}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-10 h-10 mb-3 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Cliquez pour télécharger</span> ou glissez-déposez
-                      </p>
-                      <p className="text-xs text-gray-500">PDF uniquement (MAX. 5MB)</p>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="application/pdf"
-                      onChange={(e) =>
-                        handleFileChange("commercial_register", e.target.files?.[0] || null)
-                      }
+                      onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                     />
                   </label>
                 )}
@@ -299,20 +188,17 @@ export default function UploadDocumentsPage() {
                 type="submit"
                 disabled={
                   isLoading || 
-                  !files.Tax_number || 
-                  !files.identity || 
-                  !files.commercial_register ||
-                  (files.Tax_number && files.Tax_number.type !== "application/pdf") ||
-                  (files.identity && files.identity.type !== "application/pdf") ||
-                  (files.commercial_register && files.commercial_register.type !== "application/pdf")
+                  !file ||
+                  (file && file.type !== "application/pdf") ||
+                  (file && file.size > 5 * 1024 * 1024)
                 }
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                {isLoading ? "Téléchargement en cours..." : "Télécharger les documents"}
+                {isLoading ? "Téléchargement en cours..." : "Télécharger le document"}
               </button>
-              {(!files.Tax_number || !files.identity || !files.commercial_register) && (
+              {!file && (
                 <p className="mt-2 text-sm text-gray-500 text-center">
-                  Tous les trois documents sont requis pour les fournisseurs
+                  Seule la pièce d'identité est requise pour les clients
                 </p>
               )}
             </div>
@@ -334,17 +220,17 @@ export default function UploadDocumentsPage() {
                     <div className="p-3 bg-green-100 rounded-xl">
                       <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Documents téléchargés avec succès !</h3>
+                    <h3 className="text-2xl font-bold text-gray-900">Document téléchargé avec succès !</h3>
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="p-6">
                   <p className="text-gray-700 mb-2 leading-relaxed">
-                    Vos documents ont été téléchargés avec succès.
+                    Votre document a été téléchargé avec succès.
                   </p>
                   <p className="text-gray-700 mb-6 leading-relaxed">
-                    Vous devez maintenant attendre la dernière étape : <strong>la confirmation de votre compte et de vos documents par l'administrateur</strong>.
+                    Vous devez maintenant attendre la dernière étape : <strong>la confirmation de votre compte et de votre document par l'administrateur</strong>.
                   </p>
                   <p className="text-sm text-gray-500 mb-6">
                     Vous recevrez une notification une fois que votre compte sera approuvé.

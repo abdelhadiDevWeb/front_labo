@@ -37,6 +37,7 @@ export default function RegisterPage() {
     address: "",
     password: "",
     confirmPassword: "",
+    laboType: "" as "Labo médical" | "labo d'ana pathologies" | "",
   });
 
   const handleSupplierSubmit = async (e: React.FormEvent) => {
@@ -123,6 +124,12 @@ export default function RegisterPage() {
       return;
     }
 
+    // Validate laboType for clients
+    if (!clientFormData.laboType) {
+      setError("Veuillez sélectionner un type de laboratoire");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -134,13 +141,14 @@ export default function RegisterPage() {
         phone: clientFormData.phone,
         address: clientFormData.address,
         role: "client",
+        laboType: clientFormData.laboType as "Labo médical" | "labo d'ana pathologies",
       });
 
       if (result.success) {
         setSuccess("Compte créé avec succès ! Redirection...");
-        // Redirect to home page after 1.5 seconds
+        // Redirect to upload documents page after 1.5 seconds
         setTimeout(() => {
-          router.push("/home");
+          router.push("/client/upload-documents");
         }, 1500);
       } else {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
@@ -216,7 +224,7 @@ export default function RegisterPage() {
                 }`}
               >
                 <User className="w-5 h-5" />
-                <span>Client</span>
+                <span>laboratoire</span>
               </button>
             </div>
           </div>
@@ -554,6 +562,30 @@ export default function RegisterPage() {
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                     placeholder="123 Rue de la République, 75001 Paris"
                   />
+                </div>
+              </div>
+
+              {/* Labo Type Field */}
+              <div className="space-y-2">
+                <label htmlFor="laboType" className="block text-sm font-medium text-gray-700">
+                  Type de laboratoire <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FlaskConical className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <select
+                    id="laboType"
+                    name="laboType"
+                    required
+                    value={clientFormData.laboType}
+                    onChange={(e) => setClientFormData({ ...clientFormData, laboType: e.target.value as "Labo médical" | "labo d'ana pathologies" })}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none appearance-none bg-white"
+                  >
+                    <option value="">Sélectionnez un type de laboratoire</option>
+                    <option value="Labo médical">Labo médical</option>
+                    <option value="labo d'ana pathologies">labo d'ana pathologies</option>
+                  </select>
                 </div>
               </div>
 

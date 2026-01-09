@@ -23,12 +23,18 @@ import {
   Package,
   Menu,
   X,
+  ShoppingBag,
+  Building2,
+  Tag,
+  Clock,
+  Bell,
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, Notification as NotificationType } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
+import { io as socketIO } from "socket.io-client";
 
 export default function HomePage() {
   const { getTotalItems, addToCart } = useCart();
@@ -40,6 +46,12 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [products, setProducts] = useState<PublicProduct[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const cartItemCount = getTotalItems();
   const isClientUser = userRole === "client";
   const [particles, setParticles] = useState<Array<{
@@ -80,6 +92,113 @@ export default function HomePage() {
       setUserRole(null);
     }
   }, []);
+
+  // Fetch products from API
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        setProductsError(null);
+        const result = await getAllProducts();
+        console.log("Products API result:", result); // Debug log
+        if (result.success && result.data && result.data.products) {
+          // Get first 8 products (prioritize in-stock products)
+          const inStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity > 0);
+          const outOfStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity === 0);
+          // Show in-stock products first, then out-of-stock if needed
+          const productsToShow = [...inStockProducts, ...outOfStockProducts].slice(0, 8);
+          console.log("Products to show:", productsToShow.length, "products"); // Debug log
+          setProducts(productsToShow);
+        } else {
+          console.warn("No products found or API error:", result.message);
+          setProductsError(result.message || "Aucun produit trouvé");
+          setProducts([]);
+        }
+      } catch (err) {
+        console.error("Load products error:", err);
+        setProductsError("Erreur lors du chargement des produits");
+        setProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Load notifications for clients
+  useEffect(() => {
+    if (isAuthenticated && isClientUser) {
+      loadNotifications();
+      setupSocketConnection();
+    }
+  }, [isAuthenticated, isClientUser]);
+
+  const loadNotifications = async () => {
+    try {
+      const result = await getNotifications(true); // Only unread
+      if (result.success && result.data) {
+        setNotifications(result.data.notifications || []);
+        setUnreadCount(result.data.unreadCount || 0);
+      }
+    } catch (err) {
+      console.error("Load notifications error:", err);
+    }
+  };
+
+  const setupSocketConnection = () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
+      auth: {
+        token: token,
+      },
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Connected to Socket.io for notifications");
+    });
+
+    socket.on("orderStatusUpdate", async (data: {
+      orderId: string;
+      status: string;
+      message: string;
+      notificationId: string;
+    }) => {
+      // Reload notifications when status update arrives
+      await loadNotifications();
+      
+      // Show browser notification if permission granted
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Mise à jour de commande", {
+          body: data.message,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  };
+
+  const handleNotificationClick = async (notification: NotificationType) => {
+    // Mark as read
+    await markNotificationAsRead(notification._id);
+    // Reload notifications
+    await loadNotifications();
+    // Navigate to orders page
+    window.location.href = "/orders";
+  };
 
 
   useEffect(() => {
@@ -200,16 +319,6 @@ export default function HomePage() {
     },
   ];
 
-  const popularProducts = [
-    { id: 1, name: "Analyse de sang complète", price: "89€" },
-    { id: 2, name: "Test ADN paternité", price: "199€" },
-    { id: 3, name: "Analyse microbiologique", price: "149€" },
-    { id: 4, name: "Test de dépistage", price: "59€" },
-    { id: 5, name: "Analyse environnementale", price: "249€" },
-    { id: 6, name: "Contrôle qualité alimentaire", price: "179€" },
-    { id: 7, name: "Analyse toxicologique", price: "299€" },
-    { id: 8, name: "Test génétique", price: "349€" },
-  ];
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
@@ -220,13 +329,14 @@ export default function HomePage() {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/images/logo.jpeg"
-                  alt="Market Lab Logo"
+                  src="/pi/ima.jpeg"
+                  alt="Marketj Lab Logo"
                   width={120}
                   height={40}
                   className="h-8 sm:h-10 md:h-12 w-auto object-contain"
                   priority
                 />
+             
               </div>
             </Link>
             <div className="hidden md:flex items-center gap-8 lg:gap-10">
@@ -242,10 +352,90 @@ export default function HomePage() {
                 Contact
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
+              {isAuthenticated && isClientUser && (
+                <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Mes Commandes</span>
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              )}
             </div>
             <div className="flex items-center gap-3">
               {isAuthenticated && isClientUser ? (
                 <>
+                  {/* Notifications */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowNotifications(!showNotifications);
+                        if (!showNotifications && unreadCount > 0) {
+                          loadNotifications();
+                        }
+                      }}
+                      className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors group"
+                    >
+                      <Bell className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Notifications Dropdown */}
+                    {showNotifications && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowNotifications(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-96 overflow-y-auto">
+                          <div className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
+                            <h3 className="font-bold text-lg">Notifications</h3>
+                            <p className="text-sm text-blue-100">
+                              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+                            </p>
+                          </div>
+                          <div className="divide-y divide-gray-200">
+                            {notifications.length === 0 ? (
+                              <div className="p-6 text-center text-gray-500">
+                                <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                                <p>Aucune notification</p>
+                              </div>
+                            ) : (
+                              notifications.map((notification) => (
+                                <div
+                                  key={notification._id}
+                                  className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                                    !notification.isRead ? "bg-blue-50" : ""
+                                  }`}
+                                  onClick={() => handleNotificationClick(notification)}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <Truck className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-gray-900">
+                                        {notification.type === "order_status" ? "Mise à jour de commande" : "Notification"}
+                                      </p>
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        {notification.message}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        {new Date(notification.createdAt).toLocaleString("fr-FR")}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
                   {/* Shopping Cart Icon */}
                   <button
                     onClick={() => setCartOpen(true)}
@@ -295,6 +485,12 @@ export default function HomePage() {
                 <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </a>
+                {isAuthenticated && isClientUser && (
+                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Mes Commandes</span>
+                  </Link>
+                )}
                 {isAuthenticated && isClientUser ? (
                   <>
                     <button
@@ -704,7 +900,7 @@ export default function HomePage() {
                 </li>
               </ul>
               <button className="px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base">
-                Devenir laboratoire
+                Créez votre compte en tant que laboratoire
               </button>
             </div>
           </div>
@@ -762,59 +958,159 @@ export default function HomePage() {
               Voir tous les produits
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-            {popularProducts.map((product, index) => (
-              <div
-                key={product.id}
-                className={`bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-2xl transition-all transform hover:scale-110 border border-gray-100 hover-lift scroll-animate-scale`}
-                id={`product-${index}`}
-                style={{ 
-                  transitionDelay: `${index * 50}ms`,
-                  ...(visibleElements.has(`product-${index}`) ? { opacity: 1, transform: "scale(1)" } : {})
-                }}
-              >
-                <Link href={`/products/${product.id}`}>
-                  <div className="aspect-square bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg sm:rounded-xl mb-3 sm:mb-4 flex items-center justify-center transform transition-transform hover:scale-110 cursor-pointer">
-                    <FlaskConical className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 transform transition-transform hover:rotate-12" />
-                  </div>
-                </Link>
-                <div className="flex items-start justify-between mb-2">
-                  <Link href={`/products/${product.id}`}>
-                    <h3 className="font-semibold text-sm sm:text-base text-gray-900 transition-colors hover:text-blue-600 line-clamp-2 cursor-pointer">{product.name}</h3>
-                  </Link>
-                  <button className="text-gray-400 hover:text-red-500 transition-all transform hover:scale-125 flex-shrink-0 ml-2">
-                    <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
+          {isLoadingProducts ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {[...Array(8)].map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
                 </div>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600 mb-3 sm:mb-4">{product.price}</p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => {
-                      if (isClientUser) {
-                        addToCart({
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                        });
-                        setCartOpen(true);
-                      } else {
-                        setLoginAlertOpen(true);
-                      }
+              ))}
+            </div>
+          ) : productsError ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">Erreur lors du chargement</p>
+              <p className="text-sm text-gray-500">{productsError}</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Aucun produit disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {products.map((product, index) => {
+                const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+                const mainImage = product.images && product.images.length > 0 
+                  ? `${API_BASE_URL}/${product.images[0].startsWith('/') ? product.images[0].slice(1) : product.images[0]}`
+                  : null;
+
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
+                    id={`product-${index}`}
+                    style={{ 
+                      transitionDelay: `${index * 50}ms`,
+                      ...(visibleElements.has(`product-${index}`) ? { opacity: 1, transform: "scale(1)" } : {})
                     }}
-                    className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all transform hover:scale-105 hover:shadow-lg text-sm sm:text-base"
                   >
-                    Ajouter
-                  </button>
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all text-sm sm:text-base"
-                  >
-                    Détails
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+                    {/* Image Section */}
+                    <Link href={`/products/${product.id}`}>
+                      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                        {mainImage ? (
+                          <img
+                            src={mainImage}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FlaskConical className="w-16 h-16 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="absolute top-3 right-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              product.productType === "Labo médical"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-purple-100 text-purple-700"
+                            }`}
+                          >
+                            {product.productType}
+                          </span>
+                        </div>
+                        {product.quantity === 0 && (
+                          <div className="absolute top-3 left-3">
+                            <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-semibold">
+                              Rupture de stock
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+
+                    {/* Content Section */}
+                    <div className="p-5">
+                      {/* Product Name */}
+                      <Link href={`/products/${product.id}`}>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {product.name}
+                        </h3>
+                      </Link>
+
+                      {/* Supplier Info */}
+                      {product.supplier && (
+                        <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                          <Building2 className="w-4 h-4" />
+                          <span className="truncate">{product.supplier.name}</span>
+                        </div>
+                      )}
+
+                      {/* Brand and Category */}
+                      <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <Tag className="w-4 h-4" />
+                          <span className="truncate">{product.category}</span>
+                        </div>
+                        <span>•</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{product.brand}</span>
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div className="mb-4">
+                        <p className="text-2xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                          <Clock className="w-3 h-3" />
+                          <span>{product.deliveryTime}</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (isClientUser) {
+                              addToCart({
+                                id: product.id,
+                                name: product.name,
+                                price: product.price,
+                              });
+                              setCartOpen(true);
+                            } else {
+                              setLoginAlertOpen(true);
+                            }
+                          }}
+                          disabled={product.quantity === 0}
+                          className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          <span>{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
+                        </button>
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all flex items-center justify-center"
+                        >
+                          Voir
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -828,7 +1124,7 @@ export default function HomePage() {
                 style={{
                   borderRadius: "3px",
                 }}
-                  src="/images/logo.jpeg"
+                  src="/pi/ima.jpeg"
                   alt="Market Lab Logo"
                   width={80}
                   height={80}

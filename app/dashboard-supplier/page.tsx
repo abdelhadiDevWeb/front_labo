@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { TrendingUp, Users, ShoppingCart, DollarSign, ArrowUpRight, Package } from "lucide-react";
+import { getProfile, ClientData } from "@/lib/api";
 
 const stats = [
   {
@@ -44,12 +46,67 @@ const recentOrders = [
 ];
 
 export default function SupplierDashboardPage() {
+  const [userData, setUserData] = useState<ClientData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      const result = await getProfile();
+      if (result.success && result.data) {
+        setUserData(result.data);
+      }
+      setIsLoading(false);
+    };
+    loadUserData();
+  }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Bonjour";
+    if (hour < 18) return "Bon après-midi";
+    return "Bonsoir";
+  };
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenue dans votre Dashboard</h2>
-        <p className="text-green-100">Gérez vos produits et suivez vos ventes</p>
+      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+        
+        <div className="relative z-10">
+          {isLoading ? (
+            <div className="space-y-2">
+              <div className="h-8 w-64 bg-white/20 rounded animate-pulse"></div>
+              <div className="h-4 w-48 bg-white/10 rounded animate-pulse"></div>
+            </div>
+          ) : userData ? (
+            <>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+                {getGreeting()}, {userData.firstName} {userData.lastName} 👋
+              </h2>
+              <p className="text-green-100 mb-4">Gérez vos produits et suivez vos ventes</p>
+              <div className="flex flex-wrap gap-4 mt-4">
+                <div className="flex items-center gap-2 text-sm bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                  <span className="text-green-200">Email:</span>
+                  <span className="font-medium">{userData.email}</span>
+                </div>
+                {userData.phone && (
+                  <div className="flex items-center gap-2 text-sm bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                    <span className="text-green-200">Téléphone:</span>
+                    <span className="font-medium">{userData.phone}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenue dans votre Dashboard</h2>
+              <p className="text-green-100">Gérez vos produits et suivez vos ventes</p>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
