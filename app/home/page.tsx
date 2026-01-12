@@ -32,7 +32,7 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, Notification as NotificationType } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 
@@ -49,7 +49,7 @@ export default function HomePage() {
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<NotificationType[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const cartItemCount = getTotalItems();
@@ -191,7 +191,7 @@ export default function HomePage() {
     };
   };
 
-  const handleNotificationClick = async (notification: NotificationType) => {
+  const handleNotificationClick = async (notification: NotificationData) => {
     // Mark as read
     await markNotificationAsRead(notification._id);
     // Reload notifications
@@ -407,24 +407,65 @@ export default function HomePage() {
                                 <div
                                   key={notification._id}
                                   className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                    !notification.isRead ? "bg-blue-50" : ""
+                                    !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                                   }`}
                                   onClick={() => handleNotificationClick(notification)}
                                 >
                                   <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                      <Truck className="w-5 h-5 text-white" />
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                      notification.type === "order_status" 
+                                        ? "bg-gradient-to-br from-blue-600 to-cyan-600"
+                                        : notification.type === "new_order"
+                                        ? "bg-gradient-to-br from-green-600 to-emerald-600"
+                                        : "bg-gradient-to-br from-gray-600 to-gray-700"
+                                    }`}>
+                                      {notification.type === "order_status" ? (
+                                        <Truck className="w-5 h-5 text-white" />
+                                      ) : notification.type === "new_order" ? (
+                                        <ShoppingCart className="w-5 h-5 text-white" />
+                                      ) : (
+                                        <Bell className="w-5 h-5 text-white" />
+                                      )}
                                     </div>
                                     <div className="flex-1">
-                                      <p className="font-semibold text-gray-900">
-                                        {notification.type === "order_status" ? "Mise à jour de commande" : "Notification"}
-                                      </p>
-                                      <p className="text-sm text-gray-600 mt-1">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1">
+                                          <p className="font-semibold text-gray-900">
+                                            {notification.type === "order_status" 
+                                              ? "Mise à jour de commande" 
+                                              : notification.type === "new_order"
+                                              ? "Nouvelle commande"
+                                              : "Notification système"}
+                                          </p>
+                                          {notification.idSender && typeof notification.idSender === 'object' && (
+                                            <p className="text-xs text-gray-500 mt-0.5">
+                                              De: {notification.idSender.firstName} {notification.idSender.lastName}
+                                            </p>
+                                          )}
+                                        </div>
+                                        {!notification.isRead && (
+                                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-2">
                                         {notification.message}
                                       </p>
-                                      <p className="text-xs text-gray-400 mt-1">
-                                        {new Date(notification.createdAt).toLocaleString("fr-FR")}
-                                      </p>
+                                      <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-gray-400">
+                                          {new Date(notification.createdAt).toLocaleString("fr-FR", {
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit"
+                                          })}
+                                        </p>
+                                        {notification.type === "order_status" && (
+                                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                            Commande
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

@@ -22,7 +22,7 @@ import {
   Bell,
   ChevronDown,
 } from "lucide-react";
-import { getAuthToken, getProfile, ClientData } from "@/lib/api";
+import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 
 const menuItems = [
@@ -46,15 +46,7 @@ export default function SupplierDashboardLayout({
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Array<{
-    id: string;
-    orderId: string;
-    total: number;
-    buyerName: string;
-    productsCount: number;
-    createdAt: Date;
-    read: boolean;
-  }>>([]);
+  const [notifications, setNotifications] = useState<Array<NotificationData & { orderId?: string; buyerName?: string; productsCount?: number }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
@@ -108,6 +100,27 @@ export default function SupplierDashboardLayout({
     }
   }, []);
 
+  // Fetch notifications from database on load (only unread for supplier)
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!isAuthenticated || userRole !== "supplier") return;
+
+      try {
+        const result = await getNotifications(true); // Get only unread notifications (isRead: false)
+        if (result.success && result.data) {
+          // Filter to show only unread notifications (isRead: false)
+          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
+          setNotifications(unreadNotifications);
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch (error) {
+        console.error("Error loading notifications:", error);
+      }
+    };
+
+    loadNotifications();
+  }, [isAuthenticated, userRole]);
+
   // Socket.io connection for real-time notifications
   useEffect(() => {
     const token = getAuthToken();
@@ -124,29 +137,30 @@ export default function SupplierDashboardLayout({
       console.log("Connected to Socket.io server");
     });
 
-    socket.on("newOrder", (data: {
+    socket.on("newOrder", async (data: {
       orderId: string;
       total: number;
       buyerName: string;
       productsCount: number;
       createdAt: string;
+      notificationId?: string;
     }) => {
-      const newNotification = {
-        id: Date.now().toString(),
-        orderId: data.orderId,
-        total: data.total,
-        buyerName: data.buyerName,
-        productsCount: data.productsCount,
-        createdAt: new Date(data.createdAt),
-        read: false,
-      };
-      
-      setNotifications((prev) => [newNotification, ...prev]);
-      setUnreadCount((prev) => prev + 1);
+      // Reload notifications from database to get the full notification object (only unread)
+      try {
+        const result = await getNotifications(true); // Get only unread notifications
+        if (result.success && result.data) {
+          // Filter to show only unread notifications (isRead: false)
+          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
+          setNotifications(unreadNotifications);
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch (error) {
+        console.error("Error reloading notifications:", error);
+      }
       
       // Show browser notification if permission granted
       if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Nouvelle commande", {
+        new window.Notification("Nouvelle commande", {
           body: `Nouvelle commande de ${data.buyerName} - ${data.total.toFixed(2)} DA`,
           icon: "/favicon.ico",
         });
@@ -333,12 +347,6 @@ export default function SupplierDashboardLayout({
                 <button
                   onClick={() => {
                     setShowNotifications(!showNotifications);
-                    if (!showNotifications && unreadCount > 0) {
-                      setNotifications((prev) =>
-                        prev.map((n) => ({ ...n, read: true }))
-                      );
-                      setUnreadCount(0);
-                    }
                   }}
                   className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
                 >
@@ -361,45 +369,76 @@ export default function SupplierDashboardLayout({
                       <div className="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
                         <h3 className="font-bold text-lg">Notifications</h3>
                         <p className="text-sm text-green-100">
-                          {notifications.length} notification{notifications.length > 1 ? "s" : ""}
+                          {unreadCount > 0 
+                            ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
+                            : "Aucune nouvelle notification"}
                         </p>
                       </div>
                       <div className="divide-y divide-gray-200">
-                        {notifications.length === 0 ? (
+                        {notifications.filter((notification) => !notification.isRead).length === 0 ? (
                           <div className="p-6 text-center text-gray-500">
                             <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                            <p>Aucune notification</p>
+                            <p className="font-medium">Vous n'avez aucune nouvelle notification</p>
+                            <p className="text-xs text-gray-400 mt-1">Toutes vos notifications ont été lues</p>
                           </div>
                         ) : (
-                          notifications.map((notification) => (
+                          notifications
+                            .filter((notification) => !notification.isRead) // Only show unread notifications
+                            .map((notification) => (
                             <div
-                              key={notification.id}
+                              key={notification._id}
                               className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                !notification.read ? "bg-blue-50" : ""
+                                !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                               }`}
-                              onClick={() => {
+                              onClick={async () => {
+                                // Mark notification as read if it's unread
+                                if (!notification.isRead) {
+                                  try {
+                                    const result = await markNotificationAsRead(notification._id);
+                                    if (result.success) {
+                                      // Remove notification from list (only show unread notifications)
+                                      setNotifications((prev) =>
+                                        prev.filter((n) => n._id !== notification._id)
+                                      );
+                                      setUnreadCount((prev) => Math.max(0, prev - 1));
+                                    }
+                                  } catch (error) {
+                                    console.error("Error marking notification as read:", error);
+                                  }
+                                }
+                                // Navigate to orders page
                                 router.push(`/dashboard-supplier/orders`);
                                 setShowNotifications(false);
                               }}
                             >
                               <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <ShoppingCart className="w-5 h-5 text-white" />
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  notification.type === "new_order" 
+                                    ? "bg-gradient-to-br from-green-600 to-emerald-600"
+                                    : notification.type === "order_status"
+                                    ? "bg-gradient-to-br from-blue-600 to-cyan-600"
+                                    : "bg-gradient-to-br from-gray-600 to-gray-700"
+                                }`}>
+                                  {notification.type === "new_order" ? (
+                                    <ShoppingCart className="w-5 h-5 text-white" />
+                                  ) : (
+                                    <Bell className="w-5 h-5 text-white" />
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <p className="font-semibold text-gray-900">
-                                    Nouvelle commande
+                                    {notification.type === "new_order" ? "Nouvelle commande" : "Mise à jour de commande"}
                                   </p>
-                                  <p className="text-sm text-gray-600">
-                                    De {notification.buyerName}
-                                  </p>
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    {notification.productsCount} produit{notification.productsCount > 1 ? "s" : ""} • {notification.total.toFixed(2)} DA
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {notification.message}
                                   </p>
                                   <p className="text-xs text-gray-400 mt-1">
                                     {new Date(notification.createdAt).toLocaleString("fr-FR")}
                                   </p>
                                 </div>
+                                {!notification.isRead && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
+                                )}
                               </div>
                             </div>
                           ))

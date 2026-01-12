@@ -36,7 +36,7 @@ interface Order {
     lastName: string;
     email: string;
     phone?: string;
-  };
+  } | null;
   idSupplier: string;
   status: "en cours" | "on route" | "arrived";
   createdAt: string;
@@ -256,9 +256,13 @@ export default function SupplierOrdersPage() {
           <div class="invoice-info">
             <div class="info-section">
               <h3>Client</h3>
-              <p><strong>${order.idBuyer.firstName} ${order.idBuyer.lastName}</strong></p>
-              <p>${order.idBuyer.email}</p>
-              ${order.idBuyer.phone ? `<p>Tél: ${order.idBuyer.phone}</p>` : ""}
+              ${order.idBuyer ? `
+                <p><strong>${order.idBuyer.firstName} ${order.idBuyer.lastName}</strong></p>
+                <p>${order.idBuyer.email}</p>
+                ${order.idBuyer.phone ? `<p>Tél: ${order.idBuyer.phone}</p>` : ""}
+              ` : `
+                <p><em>Informations client non disponibles</em></p>
+              `}
             </div>
             <div class="info-section">
               <h3>Statut</h3>
@@ -458,16 +462,24 @@ export default function SupplierOrdersPage() {
                         </h3>
                         {getStatusBadge(order.status)}
                       </div>
-                      <p className="text-sm text-gray-600">
-                        Client: {order.idBuyer.firstName} {order.idBuyer.lastName}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Email: {order.idBuyer.email}
-                      </p>
-                      {order.idBuyer.phone && (
-                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                          <Phone className="w-3 h-3" />
-                          {order.idBuyer.phone}
+                      {order.idBuyer ? (
+                        <>
+                          <p className="text-sm text-gray-600">
+                            Client: {order.idBuyer.firstName} {order.idBuyer.lastName}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Email: {order.idBuyer.email}
+                          </p>
+                          {order.idBuyer.phone && (
+                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                              <Phone className="w-3 h-3" />
+                              {order.idBuyer.phone}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">
+                          Informations client non disponibles
                         </p>
                       )}
                       <p className="text-sm text-gray-500 mt-1">

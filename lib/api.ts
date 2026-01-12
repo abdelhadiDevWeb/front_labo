@@ -628,7 +628,7 @@ export const deleteProduct = async (productId: string): Promise<ApiResponse<null
 };
 
 // Notification interfaces
-export interface Notification {
+export interface NotificationData {
   _id: string;
   idSender: {
     _id: string;
@@ -645,7 +645,7 @@ export interface Notification {
 }
 
 // Get notifications
-export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiResponse<{ notifications: Notification[]; unreadCount: number }>> => {
+export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiResponse<{ notifications: NotificationData[]; unreadCount: number }>> => {
   try {
     const token = getAuthToken();
     if (!token) {
@@ -683,7 +683,7 @@ export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiR
 };
 
 // Mark notification as read
-export const markNotificationAsRead = async (notificationId: string): Promise<ApiResponse<Notification>> => {
+export const markNotificationAsRead = async (notificationId: string): Promise<ApiResponse<NotificationData>> => {
   try {
     const token = getAuthToken();
     if (!token) {
@@ -855,3 +855,158 @@ export const getProductById = async (id: string): Promise<ApiResponse<PublicProd
   }
 };
 
+// Supplier Statistics interfaces
+export interface SupplierStatistics {
+  totalRevenue: number;
+  totalProductsSold: number;
+  totalOrders: number;
+  totalClients: number;
+  ordersByStatus: {
+    "en cours": number;
+    "on route": number;
+    "arrived": number;
+  };
+  recentOrders: Array<{
+    _id: string;
+    total: number;
+    status: "en cours" | "on route" | "arrived";
+    productsCount: number;
+    buyer: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+    createdAt: string;
+  }>;
+  ordersGrowth: number;
+}
+
+// Get supplier statistics
+export const getSupplierStatistics = async (): Promise<ApiResponse<SupplierStatistics>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/commandes/supplier/statistics`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch statistics",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get supplier statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Detailed Supplier Statistics interfaces
+export interface DetailedSupplierStatistics {
+  totalRevenue: number;
+  totalProductsSold: number;
+  totalOrders: number;
+  totalClients: number;
+  monthlyRevenue: { [key: string]: number };
+  dailyRevenue: { [key: string]: number };
+  dailyRevenueMonth?: string;
+  bestProducts: Array<{
+    name: string;
+    quantity: number;
+    revenue: number;
+    orders: number;
+  }>;
+  topCustomers: Array<{
+    buyer: {
+      _id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    totalSpent: number;
+    ordersCount: number;
+    productsCount: number;
+  }>;
+  ordersByStatus: {
+    "en cours": number;
+    "on route": number;
+    "arrived": number;
+  };
+  revenueByStatus: {
+    "en cours": number;
+    "on route": number;
+    "arrived": number;
+  };
+  comparison?: {
+    currentMonthRevenue: number;
+    previousMonthRevenue: number;
+    currentMonthOrders: number;
+    previousMonthOrders: number;
+    revenueChange: number;
+    ordersChange: number;
+  };
+  topProductsByRevenue?: Array<{
+    name: string;
+    revenue: number;
+  }>;
+}
+
+// Get detailed supplier statistics
+export const getSupplierDetailedStatistics = async (month?: "current" | "previous"): Promise<ApiResponse<DetailedSupplierStatistics>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const url = month 
+      ? `${API_BASE_URL}/commandes/supplier/statistics/detailed?month=${month}`
+      : `${API_BASE_URL}/commandes/supplier/statistics/detailed`;
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch detailed statistics",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Get detailed supplier statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
