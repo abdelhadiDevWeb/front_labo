@@ -15,14 +15,16 @@ import {
   Menu,
   X,
   LogOut,
-  Settings,
   Mail,
   Phone,
   MapPin,
   Bell,
   ChevronDown,
+  MessageCircle,
+  Send,
+  CheckCircle,
 } from "lucide-react";
-import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
+import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, NotificationData, createProblem } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 
 const menuItems = [
@@ -49,6 +51,15 @@ export default function SupplierDashboardLayout({
   const [notifications, setNotifications] = useState<Array<NotificationData & { orderId?: string; buyerName?: string; productsCount?: number }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportFormData, setSupportFormData] = useState({
+    email: "",
+    phone: "",
+    message: "",
+  });
+  const [supportError, setSupportError] = useState<string | null>(null);
+  const [supportSuccess, setSupportSuccess] = useState(false);
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -176,6 +187,50 @@ export default function SupplierDashboardLayout({
     };
   }, [isAuthenticated, userRole]);
 
+  // Handle support form submission
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSupportError(null);
+    setSupportSuccess(false);
+    setIsSubmittingSupport(true);
+
+    try {
+      const result = await createProblem({
+        email: supportFormData.email.trim(),
+        phone: supportFormData.phone.trim(),
+        message: supportFormData.message.trim(),
+      });
+
+      if (result.success) {
+        setSupportSuccess(true);
+        setSupportFormData({ email: "", phone: "", message: "" });
+        setTimeout(() => {
+          setShowSupportModal(false);
+          setSupportSuccess(false);
+        }, 2000);
+      } else {
+        setSupportError(result.message || "Erreur lors de l'envoi du message");
+      }
+    } catch (err) {
+      console.error("Support submit error:", err);
+      setSupportError("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setIsSubmittingSupport(false);
+    }
+  };
+
+  // Prevent body scroll when support modal is open
+  useEffect(() => {
+    if (showSupportModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showSupportModal]);
+
   const loadProfileImage = async () => {
     try {
       const token = getAuthToken();
@@ -208,18 +263,37 @@ export default function SupplierDashboardLayout({
     }
   };
 
-  // Listen for profile image updates
+  // Listen for profile updates (image and info)
   useEffect(() => {
     const handleProfileImageUpdate = () => {
       loadProfileImage();
     };
 
+    const handleProfileUpdate = async () => {
+      // Reload user data when profile is updated
+      const token = getAuthToken();
+      if (!token) return;
+
+      try {
+        const profileResult = await getProfile();
+        if (profileResult.success && profileResult.data) {
+          setUserData(profileResult.data);
+        }
+        // Also reload profile image
+        await loadProfileImage();
+      } catch (error) {
+        console.error("Error reloading profile:", error);
+      }
+    };
+
     window.addEventListener('profileImageUpdated', handleProfileImageUpdate);
+    window.addEventListener('profileUpdated', handleProfileUpdate);
     
     return () => {
       window.removeEventListener('profileImageUpdated', handleProfileImageUpdate);
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, []);
+  }, [router]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -259,13 +333,13 @@ export default function SupplierDashboardLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
-            <Link href="/dashboard-supplier" className="flex items-center gap-2">
+            <Link href="/dashboard-supplier" className="flex items-center justify-center">
               <Image
-                src="/images/logo.jpeg"
+                src="/pi/ima.jpeg"
                 alt="Market Lab Logo"
-                width={120}
-                height={40}
-                className="h-8 w-auto object-contain"
+                width={150}
+                height={60}
+                className="w-32 h-16 object-contain"
               />
             </Link>
           </div>
@@ -298,13 +372,6 @@ export default function SupplierDashboardLayout({
 
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-200 space-y-2">
-            <Link
-              href="/dashboard-supplier/profile"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-all duration-200"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="font-medium">Paramètres</span>
-            </Link>
             <button
               onClick={() => {
                 localStorage.removeItem("authToken");
@@ -546,14 +613,6 @@ export default function SupplierDashboardLayout({
                           <User className="w-5 h-5 text-gray-600" />
                           <span className="text-sm font-medium">Mon Profil</span>
                         </Link>
-                        <Link
-                          href="/dashboard-supplier/profile"
-                          onClick={() => setUserDropdownOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Settings className="w-5 h-5 text-gray-600" />
-                          <span className="text-sm font-medium">Paramètres</span>
-                        </Link>
                         <button
                           onClick={() => {
                             localStorage.removeItem("authToken");
@@ -577,6 +636,139 @@ export default function SupplierDashboardLayout({
         <main className="p-4 sm:p-6 lg:p-8">
           <div className="animate-fade-in">{children}</div>
         </main>
+
+        {/* Support Button - Fixed Bottom Right */}
+        <button
+          onClick={() => setShowSupportModal(true)}
+          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
+          aria-label="Contacter le support"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+
+        {/* Support Modal */}
+        {showSupportModal && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
+              onClick={() => setShowSupportModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
+                {/* Header */}
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl">
+                        <MessageCircle className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900">Contactez le support</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowSupportModal(false)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSupportSubmit} className="p-6 space-y-4">
+                  {supportError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                      {supportError}
+                    </div>
+                  )}
+
+                  {supportSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Message envoyé avec succès !
+                    </div>
+                  )}
+
+                  {/* Phone Field */}
+                  <div>
+                    <label htmlFor="support-phone-supplier" className="block text-sm font-medium text-gray-700 mb-2">
+                      Numéro de téléphone <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="support-phone-supplier"
+                        type="tel"
+                        required
+                        value={supportFormData.phone}
+                        onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        placeholder="06 12 34 56 78"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email Field */}
+                  <div>
+                    <label htmlFor="support-email-supplier" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        id="support-email-supplier"
+                        type="email"
+                        required
+                        value={supportFormData.email}
+                        onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        placeholder="votre@email.com"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Message Field */}
+                  <div>
+                    <label htmlFor="support-message-supplier" className="block text-sm font-medium text-gray-700 mb-2">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="support-message-supplier"
+                      required
+                      rows={5}
+                      value={supportFormData.message}
+                      onChange={(e) => setSupportFormData({ ...supportFormData, message: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                      placeholder="Décrivez votre problème ou votre question..."
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSupport}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    {isSubmittingSupport ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Envoi en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        <span>Envoyer</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

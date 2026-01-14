@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock } from "lucide-react";
+import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock, XCircle } from "lucide-react";
 import { loginClient } from "@/lib/api";
 
 export default function LoginPage() {
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showWaitingAlert, setShowWaitingAlert] = useState(false);
+  const [showSubscriptionExpiredAlert, setShowSubscriptionExpiredAlert] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (showWaitingAlert) {
+    if (showWaitingAlert || showSubscriptionExpiredAlert) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -28,7 +29,7 @@ export default function LoginPage() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showWaitingAlert]);
+  }, [showWaitingAlert, showSubscriptionExpiredAlert]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,27 +45,27 @@ export default function LoginPage() {
 
       if (result.success) {
         const userRole = result.data?.role || "client";
-        const userStatus = result.data?.status;
-
-        // Check if supplier and status is false
-        if (userRole === "supplier" && userStatus === false) {
-          // Remove token if supplier account is not yet confirmed
+        setSuccess("Connexion réussie ! Redirection...");
+        setTimeout(() => {
+          if (userRole === "admin") {
+            router.push("/dashboard");
+          } else if (userRole === "supplier") {
+            router.push("/dashboard-supplier");
+          } else {
+            router.push("/home");
+          }
+        }, 1000);
+      } else {
+        // Handle specific error cases
+        if (result.message === "account_not_activated") {
           localStorage.removeItem("authToken");
           setShowWaitingAlert(true);
+        } else if (result.message === "subscription_expired" || result.message === "no_subscription") {
+          localStorage.removeItem("authToken");
+          setShowSubscriptionExpiredAlert(true);
         } else {
-          setSuccess("Connexion réussie ! Redirection...");
-          setTimeout(() => {
-            if (userRole === "admin") {
-              router.push("/dashboard");
-            } else if (userRole === "supplier") {
-              router.push("/dashboard-supplier");
-            } else {
-              router.push("/home");
-            }
-          }, 1000);
+          setError(result.message || "Email ou mot de passe incorrect");
         }
-      } else {
-        setError(result.message || "Email ou mot de passe incorrect");
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
@@ -290,6 +291,63 @@ export default function LoginPage() {
                   >
                     <LogOut className="w-5 h-5" />
                     <span>Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Subscription Expired Alert Modal */}
+      {showSubscriptionExpiredAlert && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] transition-opacity animate-fade-in"
+            onClick={() => setShowSubscriptionExpiredAlert(false)}
+          />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-red-100 rounded-xl">
+                    <XCircle className="w-8 h-8 text-red-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">Abonnement expiré</h3>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <p className="text-gray-700 mb-2 leading-relaxed">
+                  Votre abonnement est expiré.
+                </p>
+                <p className="text-gray-700 mb-6 leading-relaxed">
+                  Vous devez <strong>contacter le support</strong> pour renouveler votre abonnement et continuer à utiliser la plateforme.
+                </p>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("authToken");
+                      router.push("/home");
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    <Home className="w-5 h-5" />
+                    <span>Retour à l'accueil</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("authToken");
+                      setShowSubscriptionExpiredAlert(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Fermer</span>
                   </button>
                 </div>
               </div>

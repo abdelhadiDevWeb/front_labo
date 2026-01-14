@@ -1,18 +1,43 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FlaskConical, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { FlaskConical, Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { requestPasswordReset } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle forgot password logic here
-    console.log("Forgot Password:", email);
-    setIsSubmitted(true);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await requestPasswordReset(email);
+      if (result.success) {
+        setIsSubmitted(true);
+        // Store email in sessionStorage for next step
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("resetPasswordEmail", email);
+        }
+        // Redirect to verify code page after 2 seconds
+        setTimeout(() => {
+          router.push("/verify-reset-code");
+        }, 2000);
+      } else {
+        setError(result.message || "Erreur lors de l'envoi du code");
+      }
+    } catch (err) {
+      setError("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -53,7 +78,10 @@ export default function ForgotPasswordPage() {
                   <span className="font-medium text-gray-900">{email}</span>
                 </p>
                 <p className="text-sm text-gray-500">
-                  Vérifiez votre boîte de réception et cliquez sur le lien pour réinitialiser votre mot de passe.
+                  Nous avons envoyé un code de 6 chiffres à{" "}
+                  <span className="font-medium text-gray-900">{email}</span>
+                  <br />
+                  Vérifiez votre boîte de réception et entrez le code pour continuer.
                 </p>
               </div>
               <div className="pt-4">
@@ -94,12 +122,27 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow"
+                disabled={isLoading}
+                className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                Envoyer le lien de réinitialisation
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Envoi en cours...
+                  </>
+                ) : (
+                  "Envoyer le code de réinitialisation"
+                )}
               </button>
             </form>
           )}

@@ -123,6 +123,17 @@ body {
   }
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes scale-in {
   from {
     opacity: 0;
@@ -250,6 +261,10 @@ body {
 
 .animate-slide-in-bottom {
   animation: slide-in-bottom 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }
 
 .animate-scale-in {

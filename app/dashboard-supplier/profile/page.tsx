@@ -175,6 +175,8 @@ export default function SupplierProfilePage() {
       if (result.success) {
         setSuccess("Profil mis à jour avec succès !");
         setUserData(result.data);
+        // Dispatch custom event to notify layout to refresh profile
+        window.dispatchEvent(new CustomEvent("profileUpdated"));
         setTimeout(() => setSuccess(null), 3000);
       }
     } catch (err) {

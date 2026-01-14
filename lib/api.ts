@@ -59,6 +59,22 @@ export const setAuthToken = (token: string): void => {
 export const removeAuthToken = (): void => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("refreshToken");
+  }
+};
+
+// Helper function to get refresh token from localStorage
+export const getRefreshToken = (): string | null => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("refreshToken");
+  }
+  return null;
+};
+
+// Helper function to set refresh token in localStorage
+export const setRefreshToken = (token: string): void => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("refreshToken", token);
   }
 };
 
@@ -204,6 +220,96 @@ export const updatePassword = async (data: {
   }
 };
 
+// Request password reset (send code via email)
+export const requestPasswordReset = async (email: string): Promise<ApiResponse<null>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/client/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to send reset code",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Request password reset error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Verify password reset code
+export const verifyPasswordResetCode = async (email: string, code: string): Promise<ApiResponse<{ resetToken: string }>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/client/verify-reset-code`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to verify code",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Verify password reset code error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Reset password with verified code
+export const resetPassword = async (resetToken: string, newPassword: string): Promise<ApiResponse<null>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/client/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ resetToken, newPassword }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to reset password",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Get connected devices
 export interface Device {
   id: string;
@@ -341,11 +447,14 @@ export const loginClient = async (
       };
     }
 
-    const result: ApiResponse<ClientData> = await response.json();
+    const result: any = await response.json();
 
-    // Store token if provided
+    // Store tokens if provided
     if (result.token) {
       setAuthToken(result.token);
+    }
+    if (result.refreshToken) {
+      setRefreshToken(result.refreshToken);
     }
 
     return result;
@@ -365,6 +474,55 @@ export const loginClient = async (
       success: false,
       message: errorMessage,
       errors: [errorMessage],
+    };
+  }
+};
+
+// Refresh token API
+export const refreshAuthToken = async (): Promise<ApiResponse<{ token: string }>> => {
+  try {
+    const refreshTokenValue = getRefreshToken();
+    if (!refreshTokenValue) {
+      return {
+        success: false,
+        message: "No refresh token available",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/client/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken: refreshTokenValue }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      // If refresh token is invalid, remove tokens
+      if (response.status === 401) {
+        removeAuthToken();
+      }
+      return {
+        success: false,
+        message: errorData.message || "Failed to refresh token",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+
+    // Store new token
+    if (result.token) {
+      setAuthToken(result.token);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
     };
   }
 };
@@ -1007,6 +1165,1204 @@ export const getSupplierDetailedStatistics = async (month?: "current" | "previou
     return {
       success: false,
       message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Admin Statistics interfaces
+export interface AdminStatistics {
+  totalRevenue: number;
+  totalUsers: number;
+  totalClients: number;
+  totalSuppliers: number;
+  totalOrders: number;
+  totalProducts: number;
+  recentOrders: Array<{
+    id: string;
+    customer: string;
+    supplier: string;
+    productCount: number;
+    amount: number;
+    status: "en cours" | "on route" | "arrived";
+    date: string;
+  }>;
+  growth: {
+    revenue: {
+      current: number;
+      previous: number;
+      percentage: number;
+    };
+    orders: {
+      current: number;
+      previous: number;
+      percentage: number;
+    };
+  };
+}
+
+export interface DetailedAdminStatistics {
+  monthlyRevenue: Array<{
+    month: string;
+    revenue: number;
+    orders: number;
+  }>;
+  dailyRevenue: Array<{
+    date: string;
+    revenue: number;
+    orders: number;
+  }>;
+  ordersByStatus: Array<{
+    status: string;
+    count: number;
+    revenue: number;
+  }>;
+  usersByRole: Array<{
+    role: string;
+    count: number;
+  }>;
+  usersByStatus: Array<{
+    status: string;
+    count: number;
+  }>;
+  productsByCategory: Array<{
+    category: string;
+    count: number;
+  }>;
+  productsByType: Array<{
+    type: string;
+    count: number;
+  }>;
+  topSuppliers: Array<{
+    supplierName: string;
+    totalRevenue: number;
+    orderCount: number;
+  }>;
+  topProducts: Array<{
+    name: string;
+    totalQuantity: number;
+    totalRevenue: number;
+  }>;
+}
+
+// Get admin statistics
+export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const url = `${API_BASE_URL}/admin/statistics`;
+    console.log("Fetching admin statistics from:", url);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Admin statistics error response:", response.status, errorData);
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch admin statistics (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get admin statistics error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      API_BASE_URL,
+    });
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection and ensure the server is running.",
+    };
+  }
+};
+
+// Get detailed admin statistics for charts
+export const getDetailedAdminStatistics = async (): Promise<ApiResponse<DetailedAdminStatistics>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/statistics/detailed`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch detailed statistics (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get detailed admin statistics error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Admin Users interfaces
+export interface AdminUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: "client" | "supplier";
+  status: boolean;
+  laboType?: string;
+  ordersCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    limit: number;
+  };
+  filters: {
+    roleCounts: {
+      [key: string]: number;
+    };
+  };
+}
+
+// Get all users for admin with filtering
+export const getAdminUsers = async (
+  filters?: {
+    role?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }
+): Promise<ApiResponse<AdminUsersResponse>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    // Build query string
+    const params = new URLSearchParams();
+    if (filters?.role) params.append("role", filters.role);
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.page) params.append("page", filters.page.toString());
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.sortBy) params.append("sortBy", filters.sortBy);
+    if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
+
+    const url = `${API_BASE_URL}/admin/users${params.toString() ? `?${params.toString()}` : ""}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch admin users (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get admin users error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update user status (block/unblock)
+export const updateUserStatus = async (
+  userId: string,
+  status: boolean
+): Promise<ApiResponse<{ id: string; status: boolean }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update user status (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Update user status error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Admin Orders interfaces
+export interface AdminOrder {
+  id: string;
+  orderNumber: string;
+  customer: string;
+  customerEmail: string;
+  supplier: string;
+  supplierEmail: string;
+  products: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  productCount: number;
+  totalAmount: number;
+  status: "en cours" | "on route" | "arrived";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrdersResponse {
+  orders: AdminOrder[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    limit: number;
+  };
+  filters: {
+    statusCounts: {
+      [key: string]: number;
+    };
+  };
+}
+
+// Get all orders for admin with filtering
+export const getAdminOrders = async (
+  filters?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }
+): Promise<ApiResponse<AdminOrdersResponse>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    // Build query string
+    const params = new URLSearchParams();
+    if (filters?.status) params.append("status", filters.status);
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.page) params.append("page", filters.page.toString());
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.sortBy) params.append("sortBy", filters.sortBy);
+    if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
+
+    const url = `${API_BASE_URL}/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
+    console.log("Fetching admin orders from:", url);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Admin orders error response:", response.status, errorData);
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch admin orders (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get admin orders error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection and ensure the server is running.",
+    };
+  }
+};
+
+// Admin Profile interfaces
+export interface AdminProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: string;
+  status: boolean;
+  profileImage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Get admin profile
+export const getAdminProfile = async (): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch admin profile (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get admin profile error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update admin profile
+export const updateAdminProfile = async (data: {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  address?: string;
+}): Promise<ApiResponse<AdminProfile>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update admin profile (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Update admin profile error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update admin password
+export const updateAdminPassword = async (data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/password`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update password (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Update admin password error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Upload admin profile image
+export const uploadAdminProfileImage = async (file: File): Promise<ApiResponse<{ id: string; image: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch(`${API_BASE_URL}/admin/profile-image`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to upload profile image (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Upload admin profile image error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get admin profile image
+export const getAdminProfileImage = async (): Promise<ApiResponse<{ id: string; image: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/profile-image`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch profile image (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get admin profile image error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Admin Management Interfaces
+export interface AdminData {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: string;
+  status: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminListResponse {
+  admins: AdminData[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface CreateAdminData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phone: string;
+  address: string;
+}
+
+// Get all admins
+export const getAllAdmins = async (
+  filters?: {
+    search?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }
+): Promise<ApiResponse<AdminListResponse>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const params = new URLSearchParams();
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.page) params.append("page", filters.page.toString());
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.sortBy) params.append("sortBy", filters.sortBy);
+    if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
+
+    const response = await fetch(`${API_BASE_URL}/admin/admins?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch admins (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get all admins error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Create new admin
+export const createAdmin = async (data: CreateAdminData): Promise<ApiResponse<AdminData>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/admins`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to create admin (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Create admin error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update admin status
+export const updateAdminStatus = async (
+  adminId: string,
+  status: boolean
+): Promise<ApiResponse<AdminData>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update admin status (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Update admin status error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Subscription Interfaces
+export interface SubscriptionUser {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: string;
+  status: boolean;
+  createdAt: string;
+}
+
+export interface Subscription {
+  _id: string;
+  id_user: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  };
+  type: string;
+  price: number;
+  start: string;
+  end: string;
+  status: "active" | "ended";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSubscriptionData {
+  id_user: string;
+  type: string;
+  price: number;
+  start: string;
+  end: string;
+}
+
+export interface UpdateSubscriptionData {
+  type?: string;
+  price?: number;
+  start?: string;
+  end?: string;
+}
+
+// Get users with status false for subscriptions
+export const getUsersForSubscription = async (): Promise<ApiResponse<{ users: SubscriptionUser[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch users (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get users for subscription error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Create subscription
+export const createSubscription = async (data: CreateSubscriptionData): Promise<ApiResponse<Subscription>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to create subscription (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Create subscription error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get all subscriptions
+export const getAllSubscriptions = async (): Promise<ApiResponse<{ subscriptions: Subscription[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch subscriptions (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get all subscriptions error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update subscription
+export const updateSubscription = async (
+  subscriptionId: string,
+  data: UpdateSubscriptionData
+): Promise<ApiResponse<Subscription>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/${subscriptionId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update subscription (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Update subscription error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// User Papers and Documents Interfaces
+export interface UserPapers {
+  _id: string;
+  id_user: string;
+  type: string;
+  Tax_number?: string;
+  identity: string;
+  commercial_register?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserDocuments {
+  _id: string;
+  id_user: string;
+  image: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Get user papers (Papier)
+export const getUserPapers = async (userId: string): Promise<ApiResponse<{ papers: UserPapers | null }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users/${userId}/papers`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch papers (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get user papers error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get user documents (Attachment)
+export const getUserDocuments = async (userId: string): Promise<ApiResponse<{ documents: UserDocuments | null }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users/${userId}/documents`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch documents (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get user documents error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Problem interfaces
+export interface Problem {
+  _id: string;
+  email: string;
+  phone: string;
+  message: string;
+  is_read: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Create support problem (public)
+export const createProblem = async (data: {
+  email: string;
+  phone: string;
+  message: string;
+}): Promise<ApiResponse<Problem>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/client/support`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to submit problem",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Create problem error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get all problems (admin only)
+export const getAllProblems = async (): Promise<ApiResponse<Problem[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/problems`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch problems",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get all problems error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Mark problem as read (admin only)
+export const markProblemAsRead = async (problemId: string): Promise<ApiResponse<Problem>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/problems/${problemId}/read`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to mark problem as read",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Mark problem as read error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
     };
   }
 };

@@ -671,8 +671,8 @@ export default function SupplierStatisticsPage() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Top Produits par Revenus</h2>
                 <p className="text-sm text-gray-500">Comparaison des revenus générés par produit</p>
-              </div>
-            </div>
+        </div>
+      </div>
           </div>
           <div className="space-y-4">
             {statistics.topProductsByRevenue.map((product, index) => {
