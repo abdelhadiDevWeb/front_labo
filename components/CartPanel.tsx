@@ -44,36 +44,109 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
     try {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
       
-      // Prepare products for order
-      const products = cartItems.map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-      }));
+      // First, fetch product details for items missing supplierId
+      const productsWithSupplierId = await Promise.all(
+        cartItems.map(async (item) => {
+          if (item.supplierId) {
+            return { ...item, supplierId: item.supplierId };
+          }
+          
+          // Fetch product details to get supplier ID
+          try {
+            const productResponse = await fetch(`${API_BASE_URL}/products/public/${item.id}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (productResponse.ok) {
+              const productData = await productResponse.json();
+              if (productData.success && productData.data && productData.data.supplier?.id) {
+                return { ...item, supplierId: productData.data.supplier.id };
+              }
+            }
+          } catch (err) {
+            console.error("Error fetching product:", err);
+          }
+          return null;
+        })
+      );
 
-      const response = await fetch(`${API_BASE_URL}/commandes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ products }),
-      });
+      // Filter out any null values (products that couldn't be fetched)
+      const validProducts = productsWithSupplierId.filter((p): p is typeof cartItems[0] & { supplierId: string } => p !== null && !!p.supplierId);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        alert(result.message || "Erreur lors de la création de la commande");
+      if (validProducts.length === 0) {
+        alert("Impossible de récupérer les informations des produits. Veuillez réessayer.");
         setIsCreatingOrder(false);
         return;
       }
 
-      if (result.success) {
-        alert("Commande créée avec succès ! Le fournisseur a été notifié.");
+      // Group products by supplier
+      const productsBySupplier: { [supplierId: string]: Array<{ id: string | number; quantity: number }> } = {};
+      
+      validProducts.forEach((item) => {
+        const supplierId = item.supplierId;
+        if (!productsBySupplier[supplierId]) {
+          productsBySupplier[supplierId] = [];
+        }
+        productsBySupplier[supplierId].push({
+          id: item.id,
+          quantity: item.quantity,
+        });
+      });
+
+      // Create an order for each supplier
+      const orderIds: string[] = [];
+      const errors: string[] = [];
+      
+      for (const [supplierId, products] of Object.entries(productsBySupplier)) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/commandes`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ products }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            errors.push(result.message || `Erreur pour le fournisseur ${supplierId}`);
+            continue;
+          }
+
+          if (result.success && result.orderId) {
+            orderIds.push(result.orderId);
+          }
+        } catch (err) {
+          console.error(`Error creating order for supplier ${supplierId}:`, err);
+          errors.push(`Erreur lors de la création de la commande pour le fournisseur ${supplierId}`);
+        }
+      }
+
+      if (orderIds.length > 0) {
+        const message = orderIds.length === 1
+          ? "Commande créée avec succès ! Vous pouvez maintenant uploader la preuve de paiement."
+          : `${orderIds.length} commandes créées avec succès ! Vous pouvez maintenant uploader les preuves de paiement.`;
+        
+        if (errors.length > 0) {
+          alert(`${message}\n\nNote: ${errors.length} erreur(s) lors de la création de certaines commandes.`);
+        } else {
+          alert(message);
+        }
+        
         setShowInvoice(false);
         clearCart();
         onClose();
-        // Optionally redirect to orders page
-        router.push("/orders");
+        
+        // Redirect to orders page with all order IDs for payment upload
+        const orderIdsParam = orderIds.join(",");
+        router.push(`/orders?orderIds=${orderIdsParam}&uploadPayment=true`);
+      } else {
+        alert(errors.length > 0 
+          ? `Aucune commande n'a pu être créée:\n${errors.join("\n")}`
+          : "Aucune commande n'a pu être créée. Veuillez réessayer.");
       }
     } catch (err) {
       console.error("Create order error:", err);

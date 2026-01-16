@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone } from "lucide-react";
-import { getAuthToken } from "@/lib/api";
+import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail } from "lucide-react";
+import { getAuthToken, createPayment, getPaymentByCommande, Payment } from "@/lib/api";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Order {
   _id: string;
@@ -35,6 +36,19 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [payments, setPayments] = useState<{ [commandeId: string]: Payment }>({});
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [pendingOrderIds, setPendingOrderIds] = useState<string[]>([]);
+  const [currentPendingOrderIndex, setCurrentPendingOrderIndex] = useState(0);
+  const [uploadFiles, setUploadFiles] = useState<{ [orderId: string]: File | null }>({});
+  const [uploadingOrders, setUploadingOrders] = useState<Set<string>>(new Set());
+  const [uploadErrors, setUploadErrors] = useState<{ [orderId: string]: string | null }>({});
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +81,59 @@ export default function OrdersPage() {
 
     checkAuth();
   }, [router]);
+  
+  // Check URL params for payment upload (single or multiple orders)
+  useEffect(() => {
+    if (typeof window !== "undefined" && orders.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const orderId = params.get("orderId"); // Single order (backward compatibility)
+      const orderIdsParam = params.get("orderIds"); // Multiple orders (comma-separated)
+      const uploadPayment = params.get("uploadPayment");
+      
+      if (uploadPayment === "true") {
+        // Clean URL first
+        router.replace("/orders");
+        
+        if (orderIdsParam) {
+          // Multiple orders - store pending order IDs and show all at once
+          const orderIds = orderIdsParam.split(",").filter(id => id.trim());
+          setPendingOrderIds(orderIds);
+          setShowUploadModal(true);
+          // Initialize upload files and errors for all orders
+          const files: { [orderId: string]: File | null } = {};
+          const errors: { [orderId: string]: string | null } = {};
+          orderIds.forEach(id => {
+            files[id] = null;
+            errors[id] = null;
+          });
+          setUploadFiles(files);
+          setUploadErrors(errors);
+        } else if (orderId) {
+          // Single order (backward compatibility)
+          const order = orders.find(o => o._id === orderId);
+          if (order) {
+            setSelectedOrder(order);
+            setPendingOrderIds([orderId]);
+            setUploadFiles({ [orderId]: null });
+            setUploadErrors({ [orderId]: null });
+            setShowUploadModal(true);
+          }
+        }
+      }
+    }
+  }, [orders, router]);
+
+  // Prevent body scroll when modals are open
+  useEffect(() => {
+    if (showUploadModal || showPaymentModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showUploadModal, showPaymentModal]);
 
   const loadOrders = async () => {
     try {
@@ -86,7 +153,23 @@ export default function OrdersPage() {
 
       const result = await response.json();
       if (result.success && result.data) {
-        setOrders(result.data.orders || []);
+        const ordersList = result.data.orders || [];
+        setOrders(ordersList);
+        
+        // Load payments for all orders
+        const paymentsMap: { [commandeId: string]: Payment } = {};
+        for (const order of ordersList) {
+          try {
+            const paymentResult = await getPaymentByCommande(order._id);
+            if (paymentResult.success && paymentResult.data) {
+              paymentsMap[order._id] = paymentResult.data;
+            }
+          } catch (err) {
+            // Payment doesn't exist for this order, that's okay
+            console.log(`No payment found for order ${order._id}`);
+          }
+        }
+        setPayments(paymentsMap);
       }
     } catch (err) {
       console.error("Load orders error:", err);
@@ -456,6 +539,42 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
+                  {/* Payment Section */}
+                  <div className="mb-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">Preuve de paiement:</h4>
+                    {payments[order._id] ? (
+                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium">Preuve de paiement uploadée</span>
+                        <button
+                          onClick={() => {
+                            setSelectedPayment(payments[order._id]);
+                            setShowPaymentModal(true);
+                          }}
+                          className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir la preuve
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <FileText className="w-5 h-5 text-yellow-600" />
+                        <span className="text-sm text-yellow-700 flex-1">Aucune preuve de paiement uploadée</span>
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowUploadModal(true);
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-all"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Uploader
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Print Invoice Button */}
                   <div className="flex justify-end pt-4 border-t border-gray-200">
                     <button
@@ -472,6 +591,370 @@ export default function OrdersPage() {
           </div>
         )}
       </main>
+
+      {/* Upload Payment Modal - Show all orders at once */}
+      {showUploadModal && pendingOrderIds.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-xl">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Uploader les preuves de paiement</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {pendingOrderIds.length} commande{pendingOrderIds.length > 1 ? "s" : ""} nécessite{pendingOrderIds.length > 1 ? "nt" : ""} une preuve de paiement
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setSelectedOrder(null);
+                  setUploadFiles({});
+                  setUploadErrors({});
+                  setUploadingOrders(new Set());
+                  setPendingOrderIds([]);
+                  setCurrentPendingOrderIndex(0);
+                }}
+                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {pendingOrderIds.map((orderId, index) => {
+                const order = orders.find(o => o._id === orderId);
+                if (!order) return null;
+                
+                const isUploadingOrder = uploadingOrders.has(orderId);
+                const orderUploadError = uploadErrors[orderId];
+                const orderUploadFile = uploadFiles[orderId];
+                
+                return (
+                  <div
+                    key={orderId}
+                    className="border-2 border-gray-200 rounded-xl p-6 bg-gradient-to-br from-gray-50 to-white hover:border-blue-300 transition-all"
+                  >
+                    {/* Order Header with Supplier Details */}
+                    <div className="mb-4 pb-4 border-b border-gray-200">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center text-white font-bold">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-gray-900">
+                                Commande #{order._id.slice(-8).toUpperCase()}
+                              </h4>
+                              <p className="text-sm text-gray-500">
+                                Date: {new Date(order.createdAt).toLocaleDateString("fr-FR")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-blue-600">
+                            {order.total.toFixed(2)} DA
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Supplier Details */}
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Building2 className="w-5 h-5 text-blue-600" />
+                          <h5 className="font-semibold text-gray-900">Fournisseur</h5>
+                        </div>
+                        <p className="text-gray-900 font-medium">
+                          {order.idSupplier.firstName} {order.idSupplier.lastName}
+                        </p>
+                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Mail className="w-4 h-4" />
+                            <span>{order.idSupplier.email}</span>
+                          </div>
+                          {order.idSupplier.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="w-4 h-4" />
+                              <span>{order.idSupplier.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Products Summary */}
+                      <div className="mt-3">
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-semibold">{order.products.length}</span> produit{order.products.length > 1 ? "s" : ""}
+                        </p>
+                        <div className="text-xs text-gray-500">
+                          {order.products.slice(0, 2).map(p => p.name).join(", ")}
+                          {order.products.length > 2 && ` +${order.products.length - 2} autre${order.products.length - 2 > 1 ? "s" : ""}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Upload Section */}
+                    {payments[orderId] ? (
+                      <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium">Preuve de paiement déjà uploadée</span>
+                        <button
+                          onClick={() => {
+                            setSelectedPayment(payments[orderId]);
+                            setShowPaymentModal(true);
+                          }}
+                          className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-500">
+                          Veuillez uploader le PDF de la preuve de paiement de la Poste Algérienne
+                        </p>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fichier PDF (max 10MB)
+                          </label>
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            disabled={isUploadingOrder}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 10 * 1024 * 1024) {
+                                  setUploadErrors(prev => ({
+                                    ...prev,
+                                    [orderId]: "Le fichier ne doit pas dépasser 10MB"
+                                  }));
+                                  return;
+                                }
+                                setUploadFiles(prev => ({
+                                  ...prev,
+                                  [orderId]: file
+                                }));
+                                setUploadErrors(prev => ({
+                                  ...prev,
+                                  [orderId]: null
+                                }));
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          {orderUploadFile && (
+                            <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              {orderUploadFile.name}
+                            </p>
+                          )}
+                        </div>
+
+                        {orderUploadError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm text-red-700">{orderUploadError}</p>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            if (!orderUploadFile) return;
+                            
+                            setUploadingOrders(prev => new Set(prev).add(orderId));
+                            setUploadErrors(prev => ({ ...prev, [orderId]: null }));
+                            
+                            try {
+                              const result = await createPayment(order._id, order.total, orderUploadFile);
+                              
+                              if (result.success && result.data) {
+                                setPayments(prev => ({
+                                  ...prev,
+                                  [order._id]: result.data!
+                                }));
+                                setUploadFiles(prev => ({ ...prev, [orderId]: null }));
+                                
+                                // Check if all orders are processed
+                                const allProcessed = pendingOrderIds.every(id => payments[id] || (id === orderId));
+                                if (allProcessed) {
+                                  setTimeout(() => {
+                                    setShowUploadModal(false);
+                                    setUploadFiles({});
+                                    setUploadErrors({});
+                                    setUploadingOrders(new Set());
+                                    setPendingOrderIds([]);
+                                    alert(`Toutes les preuves de paiement ont été uploadées avec succès ! (${pendingOrderIds.length} commande${pendingOrderIds.length > 1 ? "s" : ""})`);
+                                  }, 500);
+                                }
+                              } else {
+                                setUploadErrors(prev => ({
+                                  ...prev,
+                                  [orderId]: result.message || "Erreur lors de l'upload"
+                                }));
+                              }
+                            } catch (err) {
+                              console.error("Upload payment error:", err);
+                              setUploadErrors(prev => ({
+                                ...prev,
+                                [orderId]: "Une erreur est survenue. Veuillez réessayer."
+                              }));
+                            } finally {
+                              setUploadingOrders(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(orderId);
+                                return newSet;
+                              });
+                            }
+                          }}
+                          disabled={!orderUploadFile || isUploadingOrder}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isUploadingOrder ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Upload en cours...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              Uploader pour ce fournisseur
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setSelectedOrder(null);
+                  setUploadFiles({});
+                  setUploadErrors({});
+                  setUploadingOrders(new Set());
+                  setPendingOrderIds([]);
+                  setCurrentPendingOrderIndex(0);
+                }}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Payment Modal */}
+      {showPaymentModal && selectedPayment && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => {
+          setShowPaymentModal(false);
+          setSelectedPayment(null);
+        }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Preuve de paiement</h3>
+                  <p className="text-sm text-gray-600">Document de paiement de la Poste Algérienne</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPayment(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Payment Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Montant</p>
+                  <p className="text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                  <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Date d'upload</p>
+                  <p className="text-lg font-semibold text-purple-900">
+                    {new Date(selectedPayment.createdAt).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric"
+                    })}
+                  </p>
+                  <p className="text-sm text-purple-700 mt-1">
+                    {new Date(selectedPayment.createdAt).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Statut</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-lg font-semibold text-green-900">Confirmé</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PDF Viewer */}
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
+                    <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
+                  </div>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Télécharger
+                  </a>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
+                  <iframe
+                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    className="w-full h-[600px] rounded-lg border border-gray-300"
+                    title="Payment proof"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPayment(null);
+                }}
+                className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

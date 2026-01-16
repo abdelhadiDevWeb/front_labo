@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,8 +15,11 @@ import {
   Eye,
   Printer,
   Phone,
+  FileText,
+  AlertCircle,
+  CreditCard,
 } from "lucide-react";
-import { getAuthToken } from "@/lib/api";
+import { getAuthToken, getPaymentByCommande, Payment } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 
 interface OrderProduct {
@@ -51,11 +54,38 @@ export default function SupplierOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [payments, setPayments] = useState<{ [commandeId: string]: Payment }>({});
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [showPaymentAlert, setShowPaymentAlert] = useState(false);
+  const [alertPayment, setAlertPayment] = useState<Payment | null>(null);
+  const [showConfirmStatusModal, setShowConfirmStatusModal] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ orderId: string; newStatus: "on route" | "arrived" } | null>(null);
+
+  // Memoize modal states to ensure consistent dependency array
+  const modalStates = useMemo(() => ({
+    showPaymentModal,
+    showPaymentAlert,
+    showConfirmStatusModal,
+  }), [showPaymentModal, showPaymentAlert, showConfirmStatusModal]);
 
   useEffect(() => {
     loadOrders();
     setupSocketConnection();
   }, []);
+
+  // Prevent body scroll when modals are open
+  useEffect(() => {
+    const hasOpenModal = modalStates.showPaymentModal || modalStates.showPaymentAlert || modalStates.showConfirmStatusModal;
+    if (hasOpenModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [modalStates]);
 
   useEffect(() => {
     filterOrders();
@@ -83,7 +113,23 @@ export default function SupplierOrdersPage() {
 
       const result = await response.json();
       if (result.success && result.data) {
-        setOrders(result.data.orders || []);
+        const ordersList = result.data.orders || [];
+        setOrders(ordersList);
+        
+        // Load payments for all orders
+        const paymentsMap: { [commandeId: string]: Payment } = {};
+        for (const order of ordersList) {
+          try {
+            const paymentResult = await getPaymentByCommande(order._id);
+            if (paymentResult.success && paymentResult.data) {
+              paymentsMap[order._id] = paymentResult.data;
+            }
+          } catch (err) {
+            // Payment doesn't exist for this order, that's okay
+            console.log(`No payment found for order ${order._id}`);
+          }
+        }
+        setPayments(paymentsMap);
       }
     } catch (err) {
       console.error("Load orders error:", err);
@@ -127,29 +173,53 @@ export default function SupplierOrdersPage() {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: "on route" | "arrived") => {
+    // Store the pending status change and show confirmation modal
+    setPendingStatusChange({ orderId, newStatus });
+    setShowConfirmStatusModal(true);
+  };
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatusChange) return;
+
     try {
-      setUpdatingStatus(orderId);
+      setUpdatingStatus(pendingStatusChange.orderId);
       const token = getAuthToken();
       if (!token) return;
 
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-      const response = await fetch(`${API_BASE_URL}/commandes/${orderId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/commandes/${pendingStatusChange.orderId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: pendingStatusChange.newStatus }),
       });
 
       if (!response.ok) {
         const result = await response.json();
         alert(result.message || "Erreur lors de la mise à jour du statut");
+        setShowConfirmStatusModal(false);
+        setPendingStatusChange(null);
+        setUpdatingStatus(null);
         return;
       }
 
       // Reload orders to get updated data
       await loadOrders();
+      
+      // Close confirmation modal
+      setShowConfirmStatusModal(false);
+      setPendingStatusChange(null);
+
+      // If changing to "on route" and payment exists, show success alert
+      if (pendingStatusChange.newStatus === "on route") {
+        const payment = payments[pendingStatusChange.orderId];
+        if (payment) {
+          setAlertPayment(payment);
+          setShowPaymentAlert(true);
+        }
+      }
     } catch (err) {
       console.error("Update status error:", err);
       alert("Une erreur est survenue");
@@ -516,6 +586,32 @@ export default function SupplierOrdersPage() {
                     </div>
                   </div>
 
+                  {/* Payment Section */}
+                  <div className="mb-4 pt-4 border-t border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">Preuve de paiement:</h4>
+                    {payments[order._id] ? (
+                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-green-700 font-medium flex-1">Preuve de paiement reçue</span>
+                        <button
+                          onClick={() => {
+                            setSelectedPayment(payments[order._id]);
+                            setShowPaymentModal(true);
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir les détails
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <AlertCircle className="w-5 h-5 text-yellow-600" />
+                        <span className="text-sm text-yellow-700">Le paiement n'a pas encore été effectué</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     {/* Status Update Actions */}
@@ -581,6 +677,340 @@ export default function SupplierOrdersPage() {
           </div>
         )}
       </main>
+
+      {/* Payment Details Modal */}
+      {showPaymentModal && selectedPayment && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
+            onClick={() => {
+              setShowPaymentModal(false);
+              setSelectedPayment(null);
+            }}
+          />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Détails de la preuve de paiement</h3>
+                  <p className="text-sm text-gray-600">Document de paiement de la Poste Algérienne</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPayment(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Payment Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Montant</p>
+                  <p className="text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                  <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Date d'upload</p>
+                  <p className="text-lg font-semibold text-purple-900">
+                    {new Date(selectedPayment.createdAt).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric"
+                    })}
+                  </p>
+                  <p className="text-sm text-purple-700 mt-1">
+                    {new Date(selectedPayment.createdAt).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Statut</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-lg font-semibold text-green-900">Confirmé</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PDF Viewer */}
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
+                    <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
+                  </div>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Télécharger
+                  </a>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
+                  <iframe
+                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    className="w-full h-[600px] rounded-lg border border-gray-300"
+                    title="Payment proof"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPayment(null);
+                }}
+                className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+          </div>
+        </>
+      )}
+
+      {/* Confirmation Modal Before Status Change */}
+      {showConfirmStatusModal && pendingStatusChange && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
+            onClick={() => {
+              setShowConfirmStatusModal(false);
+              setPendingStatusChange(null);
+            }}
+          />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className={`px-6 py-5 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm`}>
+                  {payments[pendingStatusChange.orderId] ? (
+                    <CheckCircle className="w-7 h-7 text-white" />
+                  ) : (
+                    <AlertCircle className="w-7 h-7 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Confirmer le changement de statut
+                  </h3>
+                  <p className="text-sm text-white/90 mt-1">
+                    {pendingStatusChange.newStatus === "on route" ? "Mettre la commande en route" : "Marquer la commande comme arrivée"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Payment Info if exists */}
+              {payments[pendingStatusChange.orderId] ? (
+                <>
+                  <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                      <p className="font-semibold text-green-900">Preuve de paiement disponible</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2 border-b border-green-200">
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-green-600" />
+                          Montant:
+                        </span>
+                        <span className="text-lg font-bold text-green-900">{payments[pendingStatusChange.orderId].total.toFixed(2)} DA</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-green-600" />
+                          Date d'upload:
+                        </span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {new Date(payments[pendingStatusChange.orderId].createdAt).toLocaleString("fr-FR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedPayment(payments[pendingStatusChange.orderId]);
+                        setShowPaymentModal(true);
+                        setShowConfirmStatusModal(false);
+                      }}
+                      className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Voir le document complet
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 text-center">
+                    La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir {pendingStatusChange.newStatus === "on route" ? "mettre cette commande en route" : "marquer cette commande comme arrivée"} ?
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="bg-yellow-50 rounded-xl p-5 border-2 border-yellow-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <AlertCircle className="w-6 h-6 text-yellow-600" />
+                      <p className="font-semibold text-yellow-900">Aucune preuve de paiement</p>
+                    </div>
+                    <p className="text-sm text-yellow-800">
+                      Aucune preuve de paiement n'a été uploadée pour cette commande. Voulez-vous quand même {pendingStatusChange.newStatus === "on route" ? "mettre la commande en route" : "marquer la commande comme arrivée"} ?
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowConfirmStatusModal(false);
+                    setPendingStatusChange(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmStatusChange}
+                  disabled={updatingStatus === pendingStatusChange.orderId}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                    payments[pendingStatusChange.orderId]
+                      ? "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-yellow-600 text-white hover:bg-yellow-700"
+                  }`}
+                >
+                  {updatingStatus === pendingStatusChange.orderId ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Mise à jour...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Oui, confirmer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+          </div>
+        </>
+      )}
+
+      {/* Payment Alert Modal (when confirming order to on route) */}
+      {showPaymentAlert && alertPayment && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
+            onClick={() => {
+              setShowPaymentAlert(false);
+              setAlertPayment(null);
+            }}
+          />
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                  <CheckCircle className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Preuve de paiement confirmée</h3>
+                  <p className="text-sm text-green-100 mt-1">
+                    Commande mise en route avec succès
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                La commande a été confirmée et mise en route. Voici les détails de la preuve de paiement :
+              </p>
+              
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-green-200">
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-green-600" />
+                    Montant:
+                  </span>
+                  <span className="text-lg font-bold text-green-900">{alertPayment.total.toFixed(2)} DA</span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-green-600" />
+                    Date d'upload:
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {new Date(alertPayment.createdAt).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowPaymentAlert(false);
+                    setAlertPayment(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  OK
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedPayment(alertPayment);
+                    setShowPaymentModal(true);
+                    setShowPaymentAlert(false);
+                    setAlertPayment(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Eye className="w-4 h-4" />
+                  Voir le document
+                </button>
+              </div>
+            </div>
+          </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

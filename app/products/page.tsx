@@ -509,10 +509,13 @@ export default function ProductsPage() {
 
                     {/* Supplier Info */}
                     {product.supplier && (
-                      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
-                        <Building2 className="w-4 h-4" />
-                        <span className="truncate">{product.supplier.name}</span>
-                      </div>
+                      <Link
+                        href={`/supplier/${product.supplier.id}`}
+                        className="flex items-center gap-2 mb-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+                      >
+                        <Building2 className="w-4 h-4 group-hover:text-blue-600" />
+                        <span className="truncate group-hover:underline">{product.supplier.name}</span>
+                      </Link>
                     )}
 
                     {/* Brand and Category */}

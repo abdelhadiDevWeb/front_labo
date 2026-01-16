@@ -45,16 +45,16 @@ export default function LoginPage() {
 
       if (result.success) {
         const userRole = result.data?.role || "client";
-        setSuccess("Connexion réussie ! Redirection...");
-        setTimeout(() => {
-          if (userRole === "admin") {
-            router.push("/dashboard");
-          } else if (userRole === "supplier") {
-            router.push("/dashboard-supplier");
-          } else {
-            router.push("/home");
-          }
-        }, 1000);
+          setSuccess("Connexion réussie ! Redirection...");
+          setTimeout(() => {
+            if (userRole === "admin") {
+              router.push("/dashboard");
+            } else if (userRole === "supplier") {
+              router.push("/dashboard-supplier");
+            } else {
+              router.push("/home");
+            }
+          }, 1000);
       } else {
         // Handle specific error cases
         if (result.message === "account_not_activated") {
@@ -63,8 +63,8 @@ export default function LoginPage() {
         } else if (result.message === "subscription_expired" || result.message === "no_subscription") {
           localStorage.removeItem("authToken");
           setShowSubscriptionExpiredAlert(true);
-        } else {
-          setError(result.message || "Email ou mot de passe incorrect");
+      } else {
+        setError(result.message || "Email ou mot de passe incorrect");
         }
       }
     } catch (err) {

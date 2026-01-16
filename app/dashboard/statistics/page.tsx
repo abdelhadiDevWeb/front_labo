@@ -25,8 +25,9 @@ import {
   Package,
   Loader2,
   Activity,
+  CreditCard,
 } from "lucide-react";
-import { getAdminStatistics, getDetailedAdminStatistics, AdminStatistics, DetailedAdminStatistics } from "@/lib/api";
+import { getAdminStatistics, getDetailedAdminStatistics, AdminStatistics, DetailedAdminStatistics, getAllSubscriptions, Subscription } from "@/lib/api";
 
 // Register Chart.js components
 ChartJS.register(
@@ -45,6 +46,7 @@ ChartJS.register(
 export default function StatisticsPage() {
   const [basicStats, setBasicStats] = useState<AdminStatistics | null>(null);
   const [detailedStats, setDetailedStats] = useState<DetailedAdminStatistics | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +58,10 @@ export default function StatisticsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [basicResult, detailedResult] = await Promise.all([
+      const [basicResult, detailedResult, subscriptionsResult] = await Promise.all([
         getAdminStatistics(),
         getDetailedAdminStatistics(),
+        getAllSubscriptions(),
       ]);
 
       if (basicResult.success && basicResult.data) {
@@ -67,6 +70,10 @@ export default function StatisticsPage() {
 
       if (detailedResult.success && detailedResult.data) {
         setDetailedStats(detailedResult.data);
+      }
+
+      if (subscriptionsResult.success && subscriptionsResult.data) {
+        setSubscriptions(subscriptionsResult.data.subscriptions || []);
       }
 
       if (!basicResult.success && !detailedResult.success) {
@@ -133,7 +140,7 @@ export default function StatisticsPage() {
             ],
             borderWidth: 2,
           },
-        ],
+  ],
       }
     : null;
 
@@ -220,6 +227,103 @@ export default function StatisticsPage() {
           },
         ],
       }
+    : null;
+
+  // Users by Role - Bar Chart (alternative visualization)
+  const usersByRoleBarConfig = detailedStats?.usersByRole && detailedStats.usersByRole.length > 0
+    ? {
+        labels: detailedStats.usersByRole.map((item) => {
+          const roleNames: { [key: string]: string } = {
+            client: "Clients",
+            supplier: "Fournisseurs",
+            admin: "Admins",
+          };
+          return roleNames[item.role] || item.role;
+        }),
+        datasets: [
+          {
+            label: "Nombre d'utilisateurs",
+            data: detailedStats.usersByRole.map((item) => item.count),
+            backgroundColor: [
+              "rgba(59, 130, 246, 0.8)",
+              "rgba(16, 185, 129, 0.8)",
+              "rgba(139, 92, 246, 0.8)",
+            ],
+            borderColor: [
+              "rgba(59, 130, 246, 1)",
+              "rgba(16, 185, 129, 1)",
+              "rgba(139, 92, 246, 1)",
+            ],
+            borderWidth: 2,
+          },
+        ],
+      }
+    : null;
+
+  // Subscription Revenue Chart
+  const subscriptionRevenueConfig = subscriptions.length > 0
+    ? (() => {
+        // Calculate total revenue from active subscriptions
+        const now = new Date();
+        const activeSubscriptions = subscriptions.filter(sub => {
+          const endDate = new Date(sub.end);
+          return endDate >= now && sub.status;
+        });
+
+        // Group by type
+        const revenueByType: { [key: string]: number } = {};
+        activeSubscriptions.forEach(sub => {
+          if (!revenueByType[sub.type]) {
+            revenueByType[sub.type] = 0;
+          }
+          revenueByType[sub.type] += sub.price;
+        });
+
+        // Monthly subscription revenue (if we want to show monthly breakdown)
+        const monthlySubRevenue: { [key: string]: number } = {};
+        activeSubscriptions.forEach(sub => {
+          const month = new Date(sub.start).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+          if (!monthlySubRevenue[month]) {
+            monthlySubRevenue[month] = 0;
+          }
+          monthlySubRevenue[month] += sub.price;
+        });
+
+        return {
+          byType: Object.keys(revenueByType).length > 0
+            ? {
+                labels: Object.keys(revenueByType),
+                datasets: [
+                  {
+                    label: "Revenus (DA)",
+                    data: Object.values(revenueByType),
+                    backgroundColor: "rgba(251, 146, 60, 0.8)",
+                    borderColor: "rgba(251, 146, 60, 1)",
+                    borderWidth: 2,
+                  },
+                ],
+              }
+            : null,
+          monthly: Object.keys(monthlySubRevenue).length > 0
+            ? {
+                labels: Object.keys(monthlySubRevenue).sort(),
+                datasets: [
+                  {
+                    label: "Revenus Mensuels (DA)",
+                    data: Object.keys(monthlySubRevenue)
+                      .sort()
+                      .map(month => monthlySubRevenue[month]),
+                    backgroundColor: "rgba(168, 85, 247, 0.8)",
+                    borderColor: "rgba(168, 85, 247, 1)",
+                    borderWidth: 2,
+                  },
+                ],
+              }
+            : null,
+          total: activeSubscriptions.reduce((sum, sub) => sum + sub.price, 0),
+          count: activeSubscriptions.length,
+        };
+      })()
     : null;
 
   const chartOptions = {
@@ -376,38 +480,46 @@ export default function StatisticsPage() {
 
   const stats = basicStats
     ? [
-        {
+  {
           title: "Revenus Totaux",
           value: `${basicStats.totalRevenue.toLocaleString("fr-FR")} DA`,
           change: `${basicStats.growth.revenue.percentage >= 0 ? "+" : ""}${basicStats.growth.revenue.percentage.toFixed(1)}%`,
           trend: basicStats.growth.revenue.percentage >= 0 ? "up" : "down",
-          icon: DollarSign,
-          color: "bg-green-500",
-        },
-        {
+    icon: DollarSign,
+    color: "bg-green-500",
+  },
+  {
           title: "Total Utilisateurs",
           value: basicStats.totalUsers.toLocaleString("fr-FR"),
           change: `${basicStats.totalClients} clients, ${basicStats.totalSuppliers} fournisseurs`,
-          trend: "up",
-          icon: Users,
-          color: "bg-blue-500",
-        },
-        {
+    trend: "up",
+    icon: Users,
+    color: "bg-blue-500",
+  },
+  {
           title: "Total Commandes",
           value: basicStats.totalOrders.toLocaleString("fr-FR"),
           change: `${basicStats.growth.orders.percentage >= 0 ? "+" : ""}${basicStats.growth.orders.percentage.toFixed(1)}%`,
           trend: basicStats.growth.orders.percentage >= 0 ? "up" : "down",
-          icon: ShoppingCart,
-          color: "bg-purple-500",
-        },
-        {
+    icon: ShoppingCart,
+    color: "bg-purple-500",
+  },
+  {
           title: "Total Produits",
           value: basicStats.totalProducts.toLocaleString("fr-FR"),
           change: "En stock",
           trend: "up",
           icon: Package,
-          color: "bg-orange-500",
-        },
+    color: "bg-orange-500",
+  },
+  ...(subscriptionRevenueConfig ? [{
+          title: "Revenus Abonnements",
+          value: `${subscriptionRevenueConfig.total.toLocaleString("fr-FR")} DA`,
+          change: `${subscriptionRevenueConfig.count} abonnements actifs`,
+          trend: "up" as const,
+          icon: CreditCard,
+          color: "bg-amber-500",
+  }] : []),
       ]
     : [];
 
@@ -478,7 +590,7 @@ export default function StatisticsPage() {
 
         {/* Orders by Status - Pie Chart */}
         {ordersByStatusPieConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingCart className="w-5 h-5 text-red-600" />
               <h3 className="text-lg font-bold text-gray-900">Commandes par Statut</h3>
@@ -486,7 +598,7 @@ export default function StatisticsPage() {
             <div className="h-80">
               <Pie data={ordersByStatusPieConfig} options={chartOptions} />
             </div>
-          </div>
+                </div>
         )}
 
         {/* Users by Role - Doughnut Chart */}
@@ -495,16 +607,45 @@ export default function StatisticsPage() {
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-bold text-gray-900">Utilisateurs par Rôle</h3>
-            </div>
+              </div>
             <div className="h-80">
               <Doughnut data={usersByRoleDoughnutConfig} options={chartOptions} />
+          </div>
+        </div>
+        )}
+
+        {/* Users by Role - Bar Chart */}
+        {usersByRoleBarConfig && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-bold text-gray-900">Répartition des Utilisateurs par Rôle</h3>
+            </div>
+            <div className="h-80">
+              <Bar data={usersByRoleBarConfig} options={barChartOptions} />
+            </div>
+          </div>
+        )}
+
+        {/* Subscription Revenue by Type - Bar Chart */}
+        {subscriptionRevenueConfig?.byType && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-orange-600" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900">Revenus des Abonnements par Type</h3>
+                <p className="text-sm text-gray-500">Total: {subscriptionRevenueConfig.total.toFixed(2)} DA ({subscriptionRevenueConfig.count} abonnements actifs)</p>
+              </div>
+            </div>
+            <div className="h-80">
+              <Bar data={subscriptionRevenueConfig.byType} options={barChartOptions} />
             </div>
           </div>
         )}
 
         {/* Products by Category - Bar Chart */}
         {productsByCategoryBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-orange-600" />
               <h3 className="text-lg font-bold text-gray-900">Produits par Catégorie</h3>
@@ -512,7 +653,7 @@ export default function StatisticsPage() {
             <div className="h-80">
               <Bar data={productsByCategoryBarConfig} options={barChartOptions} />
             </div>
-          </div>
+                </div>
         )}
 
         {/* Daily Revenue - Scatter Plot */}
@@ -521,11 +662,11 @@ export default function StatisticsPage() {
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Quotidiens (30 derniers jours)</h3>
-            </div>
+              </div>
             <div className="h-80">
               <Scatter data={dailyRevenueScatterConfig} options={scatterChartOptions} />
-            </div>
           </div>
+        </div>
         )}
       </div>
 
@@ -533,7 +674,7 @@ export default function StatisticsPage() {
       <div className="grid grid-cols-1 gap-6">
         {/* Top Suppliers - Bar Chart */}
         {topSuppliersBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Top 10 Fournisseurs par Revenus</h3>
@@ -541,7 +682,7 @@ export default function StatisticsPage() {
             <div className="h-80">
               <Bar data={topSuppliersBarConfig} options={barChartOptions} />
             </div>
-          </div>
+              </div>
         )}
 
         {/* Top Products - Bar Chart */}
@@ -553,6 +694,19 @@ export default function StatisticsPage() {
             </div>
             <div className="h-80">
               <Bar data={topProductsBarConfig} options={barChartOptions} />
+        </div>
+          </div>
+        )}
+
+        {/* Monthly Subscription Revenue - Bar Chart */}
+        {subscriptionRevenueConfig?.monthly && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign className="w-5 h-5 text-purple-600" />
+              <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels des Abonnements</h3>
+            </div>
+            <div className="h-80">
+              <Bar data={subscriptionRevenueConfig.monthly} options={barChartOptions} />
             </div>
           </div>
         )}

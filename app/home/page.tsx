@@ -36,7 +36,7 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem, getProfile, ClientData } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 
@@ -50,6 +50,7 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userData, setUserData] = useState<ClientData | null>(null);
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -78,32 +79,45 @@ export default function HomePage() {
 
   // Check authentication status and role
   useEffect(() => {
-    const token = getAuthToken();
-    
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const role = payload.role || null;
-        setUserRole(role);
-        
-        // Only set authenticated and show client features if role is "client"
-        if (role === "client") {
-          setIsAuthenticated(true);
-          setUserEmail(payload.email || "");
-        } else {
-          // Admin or supplier should not see client features on home page
+    const loadUserData = async () => {
+      const token = getAuthToken();
+      
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const role = payload.role || null;
+          setUserRole(role);
+          
+          // Only set authenticated and show client features if role is "client"
+          if (role === "client") {
+            setIsAuthenticated(true);
+            setUserEmail(payload.email || "");
+            
+            // Load user profile data
+            const profileResult = await getProfile();
+            if (profileResult.success && profileResult.data) {
+              setUserData(profileResult.data);
+            }
+          } else {
+            // Admin or supplier should not see client features on home page
+            setIsAuthenticated(false);
+            setUserEmail("");
+            setUserData(null);
+          }
+        } catch {
+          // If token parsing fails, don't show authenticated state
           setIsAuthenticated(false);
-          setUserEmail("");
+          setUserRole(null);
+          setUserData(null);
         }
-      } catch {
-        // If token parsing fails, don't show authenticated state
+      } else {
         setIsAuthenticated(false);
         setUserRole(null);
+        setUserData(null);
       }
-    } else {
-      setIsAuthenticated(false);
-      setUserRole(null);
-    }
+    };
+
+    loadUserData();
   }, []);
 
   // Fetch products from API
@@ -229,7 +243,12 @@ export default function HomePage() {
 
       if (result.success) {
         setSupportSuccess(true);
-        setSupportFormData({ email: "", phone: "", message: "" });
+        // Reset form but keep email and phone if user is authenticated
+        setSupportFormData({
+          email: isAuthenticated && userData ? (userData.email || "") : "",
+          phone: isAuthenticated && userData ? (userData.phone || "") : "",
+          message: "",
+        });
         setTimeout(() => {
           setShowSupportModal(false);
           setSupportSuccess(false);
@@ -477,7 +496,7 @@ export default function HomePage() {
                                         : "bg-gradient-to-br from-gray-600 to-gray-700"
                                     }`}>
                                       {notification.type === "order_status" ? (
-                                        <Truck className="w-5 h-5 text-white" />
+                                      <Truck className="w-5 h-5 text-white" />
                                       ) : notification.type === "new_order" ? (
                                         <ShoppingCart className="w-5 h-5 text-white" />
                                       ) : (
@@ -486,14 +505,14 @@ export default function HomePage() {
                                     </div>
                                     <div className="flex-1">
                                       <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1">
-                                          <p className="font-semibold text-gray-900">
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-gray-900">
                                             {notification.type === "order_status" 
                                               ? "Mise à jour de commande" 
                                               : notification.type === "new_order"
                                               ? "Nouvelle commande"
                                               : "Notification système"}
-                                          </p>
+                                      </p>
                                           {notification.idSender && typeof notification.idSender === 'object' && (
                                             <p className="text-xs text-gray-500 mt-0.5">
                                               De: {notification.idSender.firstName} {notification.idSender.lastName}
@@ -516,7 +535,7 @@ export default function HomePage() {
                                             hour: "2-digit",
                                             minute: "2-digit"
                                           })}
-                                        </p>
+                                      </p>
                                         {notification.type === "order_status" && (
                                           <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
                                             Commande
@@ -1148,10 +1167,13 @@ export default function HomePage() {
 
                       {/* Supplier Info */}
                       {product.supplier && (
-                        <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
-                          <Building2 className="w-4 h-4" />
-                          <span className="truncate">{product.supplier.name}</span>
-                        </div>
+                        <Link
+                          href={`/supplier/${product.supplier.id}`}
+                          className="flex items-center gap-2 mb-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+                        >
+                          <Building2 className="w-4 h-4 group-hover:text-blue-600" />
+                          <span className="truncate group-hover:underline">{product.supplier.name}</span>
+                        </Link>
                       )}
 
                       {/* Brand and Category */}
@@ -1184,6 +1206,7 @@ export default function HomePage() {
                                 id: product.id,
                                 name: product.name,
                                 price: product.price,
+                                supplierId: product.supplier?.id || "",
                               });
                               setCartOpen(true);
                             } else {
@@ -1266,7 +1289,23 @@ export default function HomePage() {
 
       {/* Support Button - Fixed Bottom Right */}
       <button
-        onClick={() => setShowSupportModal(true)}
+        onClick={() => {
+          // Pre-fill form with user data if authenticated
+          if (isAuthenticated && userData) {
+            setSupportFormData({
+              email: userData.email || "",
+              phone: userData.phone || "",
+              message: "",
+            });
+          } else {
+            setSupportFormData({
+              email: "",
+              phone: "",
+              message: "",
+            });
+          }
+          setShowSupportModal(true);
+        }}
         className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
         aria-label="Contacter le support"
       >
@@ -1328,9 +1367,13 @@ export default function HomePage() {
                       id="support-phone"
                       type="tel"
                       required
+                      readOnly={isAuthenticated && userData !== null}
+                      disabled={isAuthenticated && userData !== null}
                       value={supportFormData.phone}
                       onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                      className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                        isAuthenticated && userData ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
                       placeholder="06 12 34 56 78"
                     />
                   </div>
@@ -1349,9 +1392,13 @@ export default function HomePage() {
                       id="support-email"
                       type="email"
                       required
+                      readOnly={isAuthenticated && userData !== null}
+                      disabled={isAuthenticated && userData !== null}
                       value={supportFormData.email}
                       onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                      className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                        isAuthenticated && userData ? "bg-gray-100 cursor-not-allowed" : ""
+                      }`}
                       placeholder="votre@email.com"
                     />
                   </div>

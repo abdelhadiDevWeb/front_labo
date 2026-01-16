@@ -173,24 +173,24 @@ export default function AdminsPage() {
         </div>
       ) : (
         /* Admins Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredAdmins.map((admin) => (
-            <div
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredAdmins.map((admin) => (
+          <div
               key={admin._id}
-              className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-xl">
-                    <Shield className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
+            className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-100 rounded-xl">
+                  <Shield className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
                     <h3 className="text-xl font-bold text-gray-900">
                       {admin.firstName} {admin.lastName}
                     </h3>
-                    <p className="text-sm text-gray-500">{admin.email}</p>
-                  </div>
+                  <p className="text-sm text-gray-500">{admin.email}</p>
                 </div>
+              </div>
                 <div className="flex items-center gap-2">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -200,33 +200,33 @@ export default function AdminsPage() {
                     }`}
                   >
                     {admin.status ? "Actif" : "Inactif"}
-                  </span>
+              </span>
                 </div>
-              </div>
+            </div>
 
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  {admin.phone}
-                </div>
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Phone className="w-4 h-4 text-gray-400" />
+                {admin.phone}
+              </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4 text-gray-400" />
                   {admin.address}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Key className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Key className="w-4 h-4 text-gray-400" />
                   Créé le: {new Date(admin.createdAt).toLocaleDateString("fr-FR")}
-                </div>
               </div>
+            </div>
 
-              <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <div className="flex gap-2 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => handleViewDetails(admin)}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200"
                 >
                   <Eye className="w-4 h-4" />
                   <span>Voir</span>
-                </button>
+              </button>
                 <button
                   onClick={() => handleToggleStatus(admin._id, admin.status)}
                   disabled={isUpdatingStatus === admin._id}
@@ -249,11 +249,11 @@ export default function AdminsPage() {
                       <span>Activer</span>
                     </>
                   )}
-                </button>
-              </div>
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
       )}
 
       {!isLoading && filteredAdmins.length === 0 && (

@@ -46,11 +46,11 @@ export default function ProfilePage() {
       if (result.success && result.data) {
         setProfile(result.data);
         setFormData({
-          firstName: result.data.firstName,
-          lastName: result.data.lastName,
-          email: result.data.email,
-          phone: result.data.phone,
-          address: result.data.address,
+          firstName: result.data.firstName || "",
+          lastName: result.data.lastName || "",
+          email: result.data.email || "",
+          phone: result.data.phone || "",
+          address: result.data.address || "",
         });
       } else {
         setError(result.message || "Erreur lors du chargement du profil");
@@ -324,7 +324,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 name="firstName"
-                value={formData.firstName}
+                value={formData.firstName || ""}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -340,7 +340,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 name="lastName"
-                value={formData.lastName}
+                value={formData.lastName || ""}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -356,7 +356,7 @@ export default function ProfilePage() {
               <input
                 type="email"
                 name="email"
-                value={formData.email}
+                value={formData.email || ""}
                 disabled
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
               />
@@ -372,7 +372,7 @@ export default function ProfilePage() {
               <input
                 type="tel"
                 name="phone"
-                value={formData.phone}
+                value={formData.phone || ""}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -387,7 +387,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 name="address"
-                value={formData.address}
+                value={formData.address || ""}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />

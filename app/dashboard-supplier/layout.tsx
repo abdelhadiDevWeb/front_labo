@@ -203,7 +203,12 @@ export default function SupplierDashboardLayout({
 
       if (result.success) {
         setSupportSuccess(true);
-        setSupportFormData({ email: "", phone: "", message: "" });
+        // Reset form but keep email and phone from user data
+        setSupportFormData({
+          email: userData ? (userData.email || "") : "",
+          phone: userData ? (userData.phone || "") : "",
+          message: "",
+        });
         setTimeout(() => {
           setShowSupportModal(false);
           setSupportSuccess(false);
@@ -245,16 +250,32 @@ export default function SupplierDashboardLayout({
 
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
+        if (result.success && result.data && result.data.image) {
           const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
-          const imagePath = result.data.image.startsWith("/") ? result.data.image.slice(1) : result.data.image;
-          setProfileImage(`${API_BASE}/${imagePath}`);
+          let imagePath = result.data.image;
+          
+          // Handle different path formats
+          // Remove leading slash if present
+          if (imagePath.startsWith("/")) {
+            imagePath = imagePath.slice(1);
+          }
+          
+          // Build the full URL
+          // If path already contains "uploads/profile/", use it as is
+          // Otherwise assume it's just the filename in uploads/profile/
+          if (!imagePath.includes("uploads/profile/") && !imagePath.includes("/")) {
+            imagePath = `uploads/profile/${imagePath}`;
+          }
+          
+          const fullImageUrl = `${API_BASE}/${imagePath}`;
+          setProfileImage(fullImageUrl);
         } else {
-          // If no image found, clear the profile image
           setProfileImage(null);
         }
+      } else if (response.status === 404) {
+        // No profile image exists yet
+        setProfileImage(null);
       } else {
-        // If 404 or error, clear the profile image
         setProfileImage(null);
       }
     } catch (err) {
@@ -389,7 +410,7 @@ export default function SupplierDashboardLayout({
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
+        <header className="sticky top-0 z-[99] bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
             <div className="flex items-center gap-4">
               <button
@@ -429,10 +450,10 @@ export default function SupplierDashboardLayout({
                 {showNotifications && (
                   <>
                     <div
-                      className="fixed inset-0 z-40"
+                      className="fixed inset-0 z-[100]"
                       onClick={() => setShowNotifications(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-96 overflow-y-auto">
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-96 overflow-y-auto">
                       <div className="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
                         <h3 className="font-bold text-lg">Notifications</h3>
                         <p className="text-sm text-green-100">
@@ -524,7 +545,15 @@ export default function SupplierDashboardLayout({
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow overflow-hidden">
                     {profileImage ? (
-                      <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                      <img 
+                        src={profileImage} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error("Failed to load profile image:", profileImage);
+                          setProfileImage(null);
+                        }}
+                      />
                     ) : userData ? (
                       <span className="text-white font-semibold text-sm">
                         {userData.firstName.charAt(0)}{userData.lastName.charAt(0)}
@@ -566,9 +595,19 @@ export default function SupplierDashboardLayout({
                       {userData && (
                         <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
                           <div className="flex items-center gap-3">
+                            S
                             <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-500 rounded-full flex items-center justify-center shadow-md overflow-hidden">
                               {profileImage ? (
-                                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                                <img 
+                                  src={profileImage} 
+                                  alt="Profile" 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    console.error("Failed to load profile image:", profileImage);
+                                    setProfileImage(null);
+                                    
+                                  }}
+                                />
                               ) : (
                                 <span className="text-white font-semibold">
                                   {userData.firstName.charAt(0)}{userData.lastName.charAt(0)}
@@ -639,7 +678,23 @@ export default function SupplierDashboardLayout({
 
         {/* Support Button - Fixed Bottom Right */}
         <button
-          onClick={() => setShowSupportModal(true)}
+          onClick={() => {
+            // Pre-fill form with user data if available
+            if (userData) {
+              setSupportFormData({
+                email: userData.email || "",
+                phone: userData.phone || "",
+                message: "",
+              });
+            } else {
+              setSupportFormData({
+                email: "",
+                phone: "",
+                message: "",
+              });
+            }
+            setShowSupportModal(true);
+          }}
           className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
           aria-label="Contacter le support"
         >
@@ -650,11 +705,11 @@ export default function SupplierDashboardLayout({
         {showSupportModal && (
           <>
             <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
               onClick={() => setShowSupportModal(false)}
             />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200 pointer-events-auto">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
@@ -701,9 +756,13 @@ export default function SupplierDashboardLayout({
                         id="support-phone-supplier"
                         type="tel"
                         required
+                        readOnly={userData !== null}
+                        disabled={userData !== null}
                         value={supportFormData.phone}
                         onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                          userData ? "bg-gray-100 cursor-not-allowed" : ""
+                        }`}
                         placeholder="06 12 34 56 78"
                       />
                     </div>
@@ -722,9 +781,13 @@ export default function SupplierDashboardLayout({
                         id="support-email-supplier"
                         type="email"
                         required
+                        readOnly={userData !== null}
+                        disabled={userData !== null}
                         value={supportFormData.email}
                         onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                          userData ? "bg-gray-100 cursor-not-allowed" : ""
+                        }`}
                         placeholder="votre@email.com"
                       />
                     </div>

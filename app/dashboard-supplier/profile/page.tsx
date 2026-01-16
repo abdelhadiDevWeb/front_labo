@@ -17,6 +17,7 @@ import {
   Loader2,
   Upload,
   X,
+  CreditCard,
 } from "lucide-react";
 import { getProfile, ClientData, getAuthToken } from "@/lib/api";
 
@@ -26,6 +27,9 @@ interface ProfileFormData {
   email: string;
   phone: string;
   address: string;
+  rip_post: string;
+  rip_bank: string;
+  methode_payment: string[];
 }
 
 interface PasswordFormData {
@@ -53,7 +57,11 @@ export default function SupplierProfilePage() {
     email: "",
     phone: "",
     address: "",
+    rip_post: "",
+    rip_bank: "",
+    methode_payment: [],
   });
+  
 
   const [passwordForm, setPasswordForm] = useState<PasswordFormData>({
     currentPassword: "",
@@ -80,6 +88,9 @@ export default function SupplierProfilePage() {
             email: result.data.email || "",
             phone: result.data.phone || "",
             address: result.data.address || "",
+            rip_post: (result.data as any).rip_post || "",
+            rip_bank: (result.data as any).rip_bank || "",
+            methode_payment: (result.data as any).methode_payment || [],
           });
         }
 
@@ -93,32 +104,111 @@ export default function SupplierProfilePage() {
     };
 
     loadUserData();
-  }, [router]);
+  }, [router ]);
+
+  // Listen for profile image updates
+  useEffect(() => {
+    const handleProfileImageUpdate = () => {
+      loadProfileImage();
+    };
+
+    window.addEventListener('profileImageUpdated', handleProfileImageUpdate);
+
+    return () => {
+      window.removeEventListener('profileImageUpdated', handleProfileImageUpdate);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadProfileImage = async () => {
     try {
       const token = getAuthToken();
-      if (!token) return;
+      if (!token) {
+        console.log("No token found, cannot load profile image");
+        return;
+      }
 
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      console.log("Fetching profile image from:", `${API_BASE_URL}/supplier/profile-image`);
+      
       const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log("Profile image response status:", response.status, response.statusText);
+
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
+        console.log("Profile image API response:", result);
+        
+        if (result.success && result.data && result.data.image) {
           const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
-          const imagePath = result.data.image.startsWith("/") ? result.data.image.slice(1) : result.data.image;
-          setProfileImage(`${API_BASE}/${imagePath}`);
+          let imagePath = result.data.image;
+          
+          console.log("Original image path from API:", imagePath);
+          
+          // Remove leading slash if present
+          if (imagePath.startsWith("/")) {
+            imagePath = imagePath.slice(1);
+          }
+          
+          // Normalize Windows paths (backslashes to forward slashes)
+          imagePath = imagePath.replace(/\\/g, "/");
+          
+          // Build full URL
+          // The server stores paths like "uploads/profile/filename.jpg"
+          // Server serves files in two ways:
+          // 1. express.static("uploads/profile") -> accessible at http://localhost:8000/filename.jpg
+          // 2. express.static("/uploads") -> accessible at http://localhost:8000/uploads/profile/filename.jpg
+          
+          let fullImageUrl: string;
+          
+          // Remove leading slash if present
+          if (imagePath.startsWith("/")) {
+            imagePath = imagePath.slice(1);
+          }
+          
+          if (imagePath.startsWith("uploads/")) {
+            // Full path already includes uploads/ - use as is
+            fullImageUrl = `${API_BASE}/${imagePath}`;
+          } else {
+            // Just filename or relative path - add uploads/profile/
+            fullImageUrl = `${API_BASE}/uploads/profile/${imagePath}`;
+          }
+          
+          // Add timestamp for cache-busting
+          fullImageUrl = `${fullImageUrl}?t=${Date.now()}`;
+          
+          console.log("Final profile image URL:", fullImageUrl);
+          setProfileImage(fullImageUrl);
+        } else {
+          console.log("No image data in response:", {
+            success: result.success,
+            hasData: !!result.data,
+            hasImage: !!(result.data && result.data.image),
+            result: result
+          });
+          setProfileImage(null);
         }
+      } else if (response.status === 404) {
+        // No profile image exists yet
+        const errorData = await response.json().catch(() => ({}));
+        console.log("Profile image not found (404):", errorData);
+        setProfileImage(null);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.log("Error loading profile image:", response.status, errorData);
+        setProfileImage(null);
       }
     } catch (err) {
       console.error("Load profile image error:", err);
+      setProfileImage(null);
     }
   };
+  
+  
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -126,6 +216,25 @@ export default function SupplierProfilePage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handlePaymentMethodChange = (method: string) => {
+    setProfileForm((prev) => {
+      const currentMethods = prev.methode_payment || [];
+      if (currentMethods.includes(method)) {
+        // Remove if already selected
+        return {
+          ...prev,
+          methode_payment: currentMethods.filter((m) => m !== method),
+        };
+      } else {
+        // Add if not selected
+        return {
+          ...prev,
+          methode_payment: [...currentMethods, method],
+        };
+      }
+    });
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,6 +249,21 @@ export default function SupplierProfilePage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    // Validate payment methods and required fields
+    const hasByPost = profileForm.methode_payment.includes("by post");
+    const hasBank = profileForm.methode_payment.includes("bank");
+
+    if (hasByPost && !profileForm.rip_post.trim()) {
+      setError("Vous devez renseigner votre RIP Post si vous acceptez les paiements par Poste.");
+      return;
+    }
+
+    if (hasBank && !profileForm.rip_bank.trim()) {
+      setError("Vous devez renseigner votre RIP Bank si vous acceptez les paiements par Banque.");
+      return;
+    }
+
     setIsUpdating(true);
 
     try {
@@ -375,7 +499,15 @@ export default function SupplierProfilePage() {
             <div className="relative">
               {profileImage ? (
                 <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/30 shadow-xl">
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  <img 
+                    src={profileImage} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error("Failed to load profile image:", profileImage);
+                      setProfileImage(null);
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30">
@@ -503,6 +635,95 @@ export default function SupplierProfilePage() {
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none"
               />
             </div>
+             <div className="md:col-span-2">
+               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                 <CreditCard className="w-4 h-4 text-green-600" />
+                 Méthodes de paiement
+               </label>
+               <div className="space-y-3">
+                 <label className="flex items-center gap-3 p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all">
+                   <input
+                     type="checkbox"
+                     checked={profileForm.methode_payment.includes("cash")}
+                     onChange={() => handlePaymentMethodChange("cash")}
+                     className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                   />
+                   <span className="text-gray-700 font-medium">Cash</span>
+                 </label>
+                 <div>
+                   <label className="flex items-center gap-3 p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all">
+                     <input
+                       type="checkbox"
+                       checked={profileForm.methode_payment.includes("by post")}
+                       onChange={() => handlePaymentMethodChange("by post")}
+                       className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                     />
+                     <span className="text-gray-700 font-medium">Par Poste</span>
+                   </label>
+                   {profileForm.methode_payment.includes("by post") && (
+                     <div className="mt-3 ml-8">
+                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                         <CreditCard className="w-4 h-4 text-green-600" />
+                         Numéro RIP Post
+                         <span className="text-red-500">*</span>
+                       </label>
+                       <input
+                         type="text"
+                         name="rip_post"
+                         value={profileForm.rip_post}
+                         onChange={handleProfileChange}
+                         placeholder="Entrez votre numéro RIP Post"
+                         required
+                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                           profileForm.rip_post.trim()
+                             ? "border-gray-300"
+                             : "border-red-300 focus:border-red-500 focus:ring-red-500"
+                         }`}
+                       />
+                       {!profileForm.rip_post.trim() && (
+                         <p className="text-red-500 text-xs mt-1">Veuillez renseigner votre numéro RIP Post</p>
+                       )}
+                     </div>
+                   )}
+                 </div>
+                 <div>
+                   <label className="flex items-center gap-3 p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all">
+                     <input
+                       type="checkbox"
+                       checked={profileForm.methode_payment.includes("bank")}
+                       onChange={() => handlePaymentMethodChange("bank")}
+                       className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                     />
+                     <span className="text-gray-700 font-medium">Banque</span>
+                   </label>
+                   {profileForm.methode_payment.includes("bank") && (
+                     <div className="mt-3 ml-8">
+                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                         <CreditCard className="w-4 h-4 text-green-600" />
+                         Numéro RIP Bank
+                         <span className="text-red-500">*</span>
+                       </label>
+                       <input
+                         type="text"
+                         name="rip_bank"
+                         value={profileForm.rip_bank}
+                         onChange={handleProfileChange}
+                         placeholder="Entrez votre numéro RIP Bank"
+                         required
+                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                           profileForm.rip_bank.trim()
+                             ? "border-gray-300"
+                             : "border-red-300 focus:border-red-500 focus:ring-red-500"
+                         }`}
+                       />
+                       {!profileForm.rip_bank.trim() && (
+                         <p className="text-red-500 text-xs mt-1">Veuillez renseigner votre numéro RIP Bank</p>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
           </div>
           <div className="flex justify-end pt-4 border-t border-gray-200">
             <button

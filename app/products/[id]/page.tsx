@@ -71,6 +71,10 @@ export default function ProductDetailPage() {
           const result = await getProductById(productId);
           if (result.success && result.data) {
             setProduct(result.data);
+            // If product has only video (no images), set selectedImageIndex to -1
+            if (result.data.video && (!result.data.images || result.data.images.length === 0)) {
+              setSelectedImageIndex(-1);
+            }
           } else {
             setError(result.message || "Produit non trouvé");
           }
@@ -138,7 +142,9 @@ export default function ProductDetailPage() {
   }
 
   const mainImage =
-    product.images && product.images.length > 0
+    selectedImageIndex === -1
+      ? null // Video is selected
+      : product.images && product.images.length > 0
       ? getMediaUrl(product.images[selectedImageIndex])
       : null;
 
@@ -164,7 +170,30 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             {/* Main Image/Video */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-              {product.images && product.images.length > 0 ? (
+              {selectedImageIndex === -1 && product.video ? (
+                <div className="relative">
+                  <video 
+                    controls 
+                    src={getMediaUrl(product.video)} 
+                    className="w-full h-96 object-contain bg-black"
+                  />
+                  <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-sm">
+                    <Video className="w-4 h-4" />
+                    <span>Vidéo du produit</span>
+                  </div>
+                  {product.images && product.images.length > 0 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                      {product.images.map((_, index) => (
+                        <span
+                          key={index}
+                          className="w-2.5 h-2.5 rounded-full bg-white/50"
+                        />
+                      ))}
+                      <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                    </div>
+                  )}
+                </div>
+              ) : product.images && product.images.length > 0 ? (
                 <div className="relative">
                   <img
                     src={mainImage || ""}
@@ -175,24 +204,34 @@ export default function ProductDetailPage() {
                       target.style.display = "none";
                     }}
                   />
-                  {product.images.length > 1 && (
+                  {(product.images.length > 1 || product.video) && (
                     <>
                       <button
-                        onClick={() =>
-                          setSelectedImageIndex((prev) =>
-                            prev === 0 ? product.images!.length - 1 : prev - 1
-                          )
-                        }
+                        onClick={() => {
+                          if (product.images && product.images.length > 0) {
+                            setSelectedImageIndex((prev) => {
+                              if (prev === -1) return product.images!.length - 1;
+                              return prev === 0 ? (product.video ? -1 : product.images!.length - 1) : prev - 1;
+                            });
+                          } else if (product.video) {
+                            setSelectedImageIndex(-1);
+                          }
+                        }}
                         className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() =>
-                          setSelectedImageIndex((prev) =>
-                            prev === product.images!.length - 1 ? 0 : prev + 1
-                          )
-                        }
+                        onClick={() => {
+                          if (product.images && product.images.length > 0) {
+                            setSelectedImageIndex((prev) => {
+                              if (prev === product.images!.length - 1) return product.video ? -1 : 0;
+                              return prev + 1;
+                            });
+                          } else if (product.video) {
+                            setSelectedImageIndex(-1);
+                          }
+                        }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
                       >
                         <ChevronRight className="w-5 h-5" />
@@ -208,6 +247,13 @@ export default function ProductDetailPage() {
                         }`}
                       />
                     ))}
+                    {product.video && (
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          selectedImageIndex === -1 ? "bg-white" : "bg-white/50"
+                        }`}
+                      />
+                    )}
                   </div>
                 </div>
               ) : product.video ? (
@@ -219,40 +265,69 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Image Thumbnails */}
-            {product.images && product.images.length > 1 && (
-              <div className="grid grid-cols-5 gap-3">
-                {product.images.map((imagePath, index) => (
+            {/* Image Thumbnails and Video */}
+            {((product.images && product.images.length > 0) || product.video) && (
+              <div 
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: product.video && product.images && product.images.length > 0
+                    ? `repeat(${Math.min(product.images.length + 1, 6)}, minmax(0, 1fr))`
+                    : product.video 
+                      ? "repeat(1, minmax(0, 1fr))"
+                      : product.images && product.images.length > 1
+                        ? "repeat(5, minmax(0, 1fr))"
+                        : "repeat(1, minmax(0, 1fr))"
+                }}
+              >
+                {/* Image Thumbnails */}
+                {product.images && product.images.length > 0 && (
+                  <>
+                    {product.images.map((imagePath, index) => (
+                      <div
+                        key={`img-${index}`}
+                        className={`relative w-full h-20 rounded-lg overflow-hidden cursor-pointer border-2 ${
+                          index === selectedImageIndex ? "border-blue-500" : "border-gray-200"
+                        } hover:border-blue-400 transition-all`}
+                        onClick={() => setSelectedImageIndex(index)}
+                      >
+                        <img
+                          src={getMediaUrl(imagePath)}
+                          alt={`Thumbnail ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
+                
+                {/* Video Thumbnail */}
+                {product.video && (
                   <div
-                    key={index}
                     className={`relative w-full h-20 rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      index === selectedImageIndex ? "border-blue-500" : "border-gray-200"
-                    } hover:border-blue-400 transition-all`}
-                    onClick={() => setSelectedImageIndex(index)}
+                      selectedImageIndex === -1 ? "border-blue-500" : "border-gray-200"
+                    } hover:border-blue-400 transition-all group`}
+                    onClick={() => setSelectedImageIndex(-1)}
                   >
-                    <img
-                      src={getMediaUrl(imagePath)}
-                      alt={`Thumbnail ${index + 1}`}
+                    <video
+                      src={getMediaUrl(product.video)}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                      }}
+                      muted
                     />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                      <Video className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                      Vidéo
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
-            {/* Video */}
-            {product.video && product.images && product.images.length === 0 && (
-              <div className="relative w-full h-48 rounded-lg overflow-hidden shadow-md border border-gray-200">
-                <video controls src={getMediaUrl(product.video)} className="w-full h-full object-cover"></video>
-                <p className="absolute bottom-2 left-2 text-xs text-white bg-black/50 px-2 py-1 rounded-md">
-                  Vidéo du produit
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Right Column - Product Details */}
@@ -314,13 +389,18 @@ export default function ProductDetailPage() {
                   <span>Informations du fournisseur</span>
                 </h2>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-gray-400" />
-                    <div>
+                  <Link
+                    href={`/supplier/${product.supplier.id}`}
+                    className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors group"
+                  >
+                    <Building2 className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+                    <div className="flex-1">
                       <p className="text-sm text-gray-600">Nom</p>
-                      <p className="font-semibold text-gray-900">{product.supplier.name}</p>
+                      <p className="font-semibold text-gray-900 group-hover:text-blue-600 group-hover:underline">
+                        {product.supplier.name}
+                      </p>
                     </div>
-                  </div>
+                  </Link>
                   {product.supplier.email && (
                     <div className="flex items-center gap-3">
                       <Mail className="w-5 h-5 text-gray-400" />

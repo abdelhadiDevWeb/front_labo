@@ -7,6 +7,7 @@ export interface CartItem {
   name: string;
   price: string | number;
   quantity: number;
+  supplierId?: string;
 }
 
 interface CartContextType {

@@ -2243,6 +2243,207 @@ export const getUserDocuments = async (userId: string): Promise<ApiResponse<{ do
   }
 };
 
+// Payment interfaces
+export interface Payment {
+  _id: string;
+  id_commande: string;
+  id_owner: string;
+  total: number;
+  image: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Create payment (upload payment proof)
+export const createPayment = async (
+  commandeId: string,
+  total: number,
+  imageFile: File
+): Promise<ApiResponse<Payment>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const formData = new FormData();
+    formData.append("id_commande", commandeId);
+    // Ensure total is a number and convert to string for FormData
+    const totalValue = typeof total === "number" ? total : parseFloat(total.toString());
+    formData.append("total", totalValue.toString());
+    formData.append("image", imageFile);
+
+    const response = await fetch(`${API_BASE_URL}/payments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to upload payment proof",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Create payment error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get payment by commande ID
+export const getPaymentByCommande = async (commandeId: string): Promise<ApiResponse<Payment>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/payments/commande/${commandeId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch payment",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get payment by commande error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get all payments for current user
+export const getUserPayments = async (): Promise<ApiResponse<Payment[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/payments/user`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch payments",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get user payments error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Supplier Details interfaces
+export interface SupplierDetails {
+  supplier: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    status: boolean;
+    profileImage: string | null;
+    rip_post?: string;
+    rip_bank?: string;
+    methode_payment?: string[];
+    createdAt: string;
+  };
+  stats: {
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+    displayedProducts: number;
+  };
+  products: Array<{
+    _id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    category: string;
+    brand: string;
+    productType: string;
+    images: string[];
+    createdAt: string;
+  }>;
+}
+
+// Get supplier details by ID (public)
+export const getSupplierDetails = async (supplierId: string): Promise<ApiResponse<SupplierDetails>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/supplier/${supplierId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch supplier details",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get supplier details error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Problem interfaces
 export interface Problem {
   _id: string;
@@ -2360,6 +2561,152 @@ export const markProblemAsRead = async (problemId: string): Promise<ApiResponse<
     return result;
   } catch (error: any) {
     console.error("Mark problem as read error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Rate interfaces
+export interface Rate {
+  id: string;
+  rater: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  message: string;
+  number: number;
+  createdAt: string;
+}
+
+export interface SupplierRatingsResponse {
+  ratings: Rate[];
+  averageRating: string;
+  totalRatings: number;
+}
+
+export interface CanRateResponse {
+  canRate: boolean;
+  hasRated: boolean;
+  existingRate: {
+    id: string;
+    message: string;
+    number: number;
+    createdAt: string;
+  } | null;
+}
+
+// Create a rating for a supplier
+export const createRate = async (
+  supplierId: string,
+  message: string,
+  number: number
+): Promise<ApiResponse<Rate>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/client/rates`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id_supplier: supplierId,
+        message: message.trim(),
+        number: number,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to create rating",
+        errors: errorData.errors || [],
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Create rate error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get all ratings for a supplier
+export const getSupplierRatings = async (supplierId: string): Promise<ApiResponse<SupplierRatingsResponse>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/client/rates/supplier/${supplierId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch ratings",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Get supplier ratings error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Check if user can rate a supplier
+export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<CanRateResponse>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/client/rates/can-rate/${supplierId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to check rating status",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Check can rate supplier error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
