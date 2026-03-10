@@ -1,6 +1,18 @@
-import { getApiUrl } from "./api-config";
+import { getApiUrl, getBaseUrl } from "./api-config";
 
 const API_BASE_URL = getApiUrl();
+
+// Helper function to get appropriate error message based on environment
+const getConnectionErrorMessage = (): string => {
+  const baseUrl = getBaseUrl();
+  const isDevelopment = process.env.NODE_ENV === 'development' || baseUrl.includes('localhost');
+  
+  if (isDevelopment) {
+    return `Impossible de se connecter au serveur. Vérifiez que le serveur backend est démarré sur ${baseUrl}. Ouvrez un terminal et exécutez: cd server && bun run dev`;
+  } else {
+    return `Impossible de se connecter au serveur backend. Veuillez vérifier votre connexion internet ou contacter le support si le problème persiste. (Serveur: ${baseUrl})`;
+  }
+};
 
 // Log API URL on module load (for debugging)
 if (typeof window !== "undefined") {
@@ -142,11 +154,14 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
     } catch (fetchError) {
       console.error("Fetch error for endpoint:", endpoint, fetchError);
       // Return error with helpful message
+      const isDevelopment = process.env.NODE_ENV === 'development' || API_BASE_URL.includes('localhost');
+      const errorMsg = fetchError instanceof Error ? fetchError.message : 'Network error';
+      
       return {
         success: false,
-        message: fetchError instanceof Error 
-          ? `Network error: ${fetchError.message}. Please check if the server is running at ${API_BASE_URL}`
-          : `Network error. Please check if the server is running at ${API_BASE_URL}`,
+        message: isDevelopment
+          ? `Network error: ${errorMsg}. Please check if the server is running at ${API_BASE_URL}`
+          : `Network error: ${errorMsg}. Please check your connection or contact support.`,
       };
     }
   } catch (error) {
@@ -429,7 +444,7 @@ export const registerClient = async (
     let errorMessage = "Une erreur réseau est survenue.";
     
     if (error instanceof TypeError && error.message === "Failed to fetch") {
-      errorMessage = `Impossible de se connecter au serveur. Vérifiez que le serveur backend est démarré sur ${API_BASE_URL.replace('/api', '')}. Ouvrez un terminal et exécutez: cd server && bun run dev`;
+      errorMessage = getConnectionErrorMessage();
     } else if (error instanceof Error) {
       errorMessage = error.message;
     }
@@ -491,7 +506,7 @@ export const loginClient = async (
     let errorMessage = "Une erreur réseau est survenue.";
     
     if (error instanceof TypeError && error.message === "Failed to fetch") {
-      errorMessage = `Impossible de se connecter au serveur. Vérifiez que le serveur backend est démarré sur ${API_BASE_URL.replace('/api', '')}. Ouvrez un terminal et exécutez: cd server && bun run dev`;
+      errorMessage = getConnectionErrorMessage();
     } else if (error instanceof Error) {
       errorMessage = error.message;
     }
