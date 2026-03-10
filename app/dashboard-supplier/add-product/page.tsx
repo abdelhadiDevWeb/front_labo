@@ -919,10 +919,10 @@ export default function AddProductPage() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-bold text-blue-900 mb-2 text-lg">Format Excel requis</h3>
+                  <h3 className="font-bold text-blue-900 mb-2 text-lg">Format Excel requis</h3>
                       <p className="text-sm text-blue-700">
-                        Votre fichier Excel doit contenir les colonnes suivantes (dans l'ordre) :
-                      </p>
+                    Votre fichier Excel doit contenir les colonnes suivantes (dans l'ordre) :
+                  </p>
                     </div>
                     <button
                       type="button"

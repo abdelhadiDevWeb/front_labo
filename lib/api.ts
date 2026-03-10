@@ -120,23 +120,23 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
     
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return {
-          success: false,
-          message: errorData.message || "Failed to fetch profile",
-        };
-      }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch profile",
+      };
+    }
 
-      const result = await response.json();
-      return result;
+    const result = await response.json();
+    return result;
     } catch (fetchError) {
       console.error("Fetch error for endpoint:", endpoint, fetchError);
       // Return error with helpful message
@@ -2295,9 +2295,8 @@ export const createPayment = async (
 
     const formData = new FormData();
     formData.append("id_commande", commandeId);
-    // Ensure total is a number and convert to string for FormData
-    const totalValue = typeof total === "number" ? total : parseFloat(total.toString());
-    formData.append("total", totalValue.toString());
+    // Convert total to string for FormData
+    formData.append("total", total.toString());
     formData.append("image", imageFile);
 
     const response = await fetch(`${API_BASE_URL}/payments`, {

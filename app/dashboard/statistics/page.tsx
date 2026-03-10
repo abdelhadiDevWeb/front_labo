@@ -335,7 +335,7 @@ export default function StatisticsPage() {
         labels: {
           font: {
             size: 12,
-            weight: "600",
+            weight: 600,
           },
           padding: 15,
         },
@@ -345,7 +345,7 @@ export default function StatisticsPage() {
         padding: 12,
         titleFont: {
           size: 14,
-          weight: "bold",
+          weight: "bold" as const,
         },
         bodyFont: {
           size: 13,
@@ -418,7 +418,7 @@ export default function StatisticsPage() {
           text: "Revenus (DA)",
           font: {
             size: 12,
-            weight: "bold",
+            weight: "bold" as const,
           },
         },
         ticks: {
@@ -436,7 +436,7 @@ export default function StatisticsPage() {
           text: "Jour",
           font: {
             size: 12,
-            weight: "bold",
+            weight: "bold" as const,
           },
         },
         ticks: {

@@ -226,7 +226,7 @@ export default function SupplierStatisticsPage() {
         labels: {
           font: {
             size: 12,
-            weight: "600",
+            weight: 600,
           },
           padding: 15,
         },
@@ -236,7 +236,7 @@ export default function SupplierStatisticsPage() {
         padding: 12,
         titleFont: {
           size: 14,
-          weight: "bold",
+          weight: "bold" as const,
         },
         bodyFont: {
           size: 13,
@@ -309,7 +309,7 @@ export default function SupplierStatisticsPage() {
           text: "Revenus (DA)",
           font: {
             size: 12,
-            weight: "bold",
+            weight: "bold" as const,
           },
         },
         ticks: {
@@ -327,7 +327,7 @@ export default function SupplierStatisticsPage() {
           text: "Jour",
           font: {
             size: 12,
-            weight: "bold",
+            weight: "bold" as const,
           },
         },
         ticks: {

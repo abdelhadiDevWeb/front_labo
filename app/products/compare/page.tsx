@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -26,7 +26,7 @@ const getMediaUrl = (mediaPath: string) => {
   return `${API_BASE_URL}/${path}`;
 };
 
-export default function CompareProductsPage() {
+function CompareProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<PublicProduct[]>([]);
@@ -343,5 +343,22 @@ export default function CompareProductsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CompareProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Chargement de la comparaison...</p>
+          </div>
+        </div>
+      }
+    >
+      <CompareProductsContent />
+    </Suspense>
   );
 }
