@@ -445,7 +445,7 @@ export default function SupplierStatisticsPage() {
             </div>
             <div className="h-80">
               <Bar data={monthlyRevenueBarConfig} options={barChartOptions} />
-            </div>
+                </div>
           </div>
         )}
 
@@ -455,41 +455,41 @@ export default function SupplierStatisticsPage() {
             <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-purple-600" />
-                <div>
+            <div>
                   <h3 className="text-lg font-bold text-gray-900">Revenus Quotidiens</h3>
-                  <p className="text-sm text-gray-500">
-                    {statistics.dailyRevenueMonth || "Ce mois"}
-                  </p>
+              <p className="text-sm text-gray-500">
+                {statistics.dailyRevenueMonth || "Ce mois"}
+              </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedMonth("current")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedMonth === "current"
-                      ? "bg-green-600 text-white shadow-md"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  Ce mois
-                </button>
-                <button
-                  onClick={() => setSelectedMonth("previous")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedMonth === "previous"
-                      ? "bg-green-600 text-white shadow-md"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  Mois précédent
-                </button>
-              </div>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedMonth("current")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedMonth === "current"
+                    ? "bg-green-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Ce mois
+              </button>
+              <button
+                onClick={() => setSelectedMonth("previous")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedMonth === "previous"
+                    ? "bg-green-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Mois précédent
+              </button>
+            </div>
+          </div>
             <div className="h-80">
               <Scatter data={dailyRevenueScatterConfig} options={scatterChartOptions} />
             </div>
-          </div>
-        )}
+              </div>
+            )}
       </div>
 
       {/* Orders by Status and Revenue by Status Charts */}
@@ -738,8 +738,8 @@ export default function SupplierStatisticsPage() {
             </div>
             <div className="h-80">
               <Bar data={topCustomersBarConfig} options={barChartOptions} />
-            </div>
-          </div>
+              </div>
+        </div>
         )}
       </div>
 
@@ -753,7 +753,7 @@ export default function SupplierStatisticsPage() {
             <div>
               <h2 className="text-xl font-bold text-gray-900">Meilleurs Produits (Ventes Détaillées)</h2>
               <p className="text-sm text-gray-500">Vos produits les plus vendus avec statistiques complètes</p>
-            </div>
+      </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -840,14 +840,14 @@ export default function SupplierStatisticsPage() {
                     {statistics.bestProducts.reduce((sum, p) => sum + p.orders, 0)}
                   </p>
                 </div>
-              </div>
-            </div>
+                    </div>
+                  </div>
             
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <div className="bg-green-500 p-2 rounded-lg">
                   <DollarSign className="w-5 h-5 text-white" />
-                </div>
+                  </div>
                 <div>
                   <p className="text-sm text-gray-600">Revenus Totaux</p>
                   <p className="text-xl font-bold text-gray-900">

@@ -47,7 +47,9 @@ export default function AddProductPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
@@ -157,6 +159,19 @@ export default function AddProductPage() {
     }
   };
 
+  const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const imageFilesArray = Array.from(files).filter((file) => file.type.startsWith("image/"));
+      if (imageFilesArray.length !== files.length) {
+        setError("Seuls les fichiers image sont acceptés");
+        return;
+      }
+      setImageFiles(imageFilesArray);
+      setError(null);
+    }
+  };
+
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -253,6 +268,39 @@ export default function AddProductPage() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const response = await fetch(`${API_BASE_URL}/products/download-template`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        setError("Erreur lors du téléchargement du modèle");
+        return;
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "modele_produits.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setSuccess("Modèle Excel téléchargé avec succès !");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error("Download template error:", err);
+      setError("Erreur lors du téléchargement du modèle");
+    }
+  };
+
   const handleExcelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -277,6 +325,11 @@ export default function AddProductPage() {
 
       const formData = new FormData();
       formData.append("excelFile", excelFile);
+      
+      // Append all image files
+      imageFiles.forEach((imageFile) => {
+        formData.append("images", imageFile);
+      });
 
       const response = await fetch(`${API_BASE_URL}/products/upload-excel`, {
         method: "POST",
@@ -300,22 +353,55 @@ export default function AddProductPage() {
       }
 
       if (result.success) {
-        setSuccess(
-          `Importation réussie ! ${result.data.imported} produit(s) importé(s) sur ${result.data.total}`
-        );
+        let successMessage = `Importation réussie ! ${result.data.imported} produit(s) importé(s) sur ${result.data.total}`;
+        
+        // Show column mapping if available
+        if (result.data.columnMapping) {
+          const mappings = Object.entries(result.data.columnMapping)
+            .map(([eng, fr]) => `${fr} = ${eng}`)
+            .join(", ");
+          successMessage += `\n\nColonnes mappées: ${mappings}`;
+        }
+        
+        setSuccess(successMessage);
         setExcelFile(null);
         // Reset file input
         const fileInput = document.getElementById("excelFile") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
 
+        // Display errors if any
         if (result.errorDetails && result.errorDetails.length > 0) {
-          console.warn("Import errors:", result.errorDetails);
+          setUploadErrors(result.errorDetails);
+        } else {
+          setUploadErrors([]);
         }
       } else {
-        setError(result.message || "Erreur lors de l'upload du fichier");
+        // Display errors from backend with column mapping info
+        let errorMessage = result.message || "Erreur lors de l'upload du fichier";
+        
+        if (result.columnMapping) {
+          const mappings = Object.entries(result.columnMapping)
+            .map(([eng, fr]) => `${fr} = ${eng}`)
+            .join(", ");
+          errorMessage += `\n\nColonnes détectées: ${mappings}`;
+        }
+        
+        if (result.foundColumns) {
+          errorMessage += `\n\nColonnes trouvées dans le fichier: ${result.foundColumns.join(", ")}`;
+        }
+        
+        // Display errors from backend
+        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+          setUploadErrors(result.errors);
+          setError(errorMessage);
+        } else {
+          setError(errorMessage);
+          setUploadErrors([]);
+        }
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
+      setUploadErrors([]);
       console.error("Upload Excel error:", err);
     } finally {
       setIsLoading(false);
@@ -433,7 +519,7 @@ export default function AddProductPage() {
           </div>
           <div className="flex-1">
             <p className="font-semibold text-green-900 mb-1">Succès !</p>
-            <p className="text-sm text-green-700">{success}</p>
+            <p className="text-sm text-green-700 whitespace-pre-line">{success}</p>
           </div>
         </div>
       )}
@@ -445,7 +531,7 @@ export default function AddProductPage() {
           </div>
           <div className="flex-1">
             <p className="font-semibold text-red-900 mb-1">Erreur</p>
-            <p className="text-sm text-red-700">{error}</p>
+            <p className="text-sm text-red-700 whitespace-pre-line">{error}</p>
           </div>
         </div>
       )}
@@ -831,20 +917,34 @@ export default function AddProductPage() {
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-blue-900 mb-2 text-lg">Format Excel requis</h3>
-                  <p className="text-sm text-blue-700 mb-4">
-                    Votre fichier Excel doit contenir les colonnes suivantes (dans l'ordre) :
-                  </p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-blue-900 mb-2 text-lg">Format Excel requis</h3>
+                      <p className="text-sm text-blue-700">
+                        Votre fichier Excel doit contenir les colonnes suivantes (dans l'ordre) :
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-semibold"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Télécharger le modèle
+                    </button>
+                  </div>
                   <div className="grid sm:grid-cols-2 gap-2">
                     {[
-                      { label: "name", desc: "Nom du produit" },
-                      { label: "purchasePrice", desc: "Prix d'achat en DA" },
-                      { label: "sellingPrice", desc: "Prix de vente en DA" },
-                      { label: "quantity", desc: "Quantité" },
-                      { label: "category", desc: "Catégorie" },
-                      { label: "deliveryTime", desc: "Délai de livraison" },
-                      { label: "brand", desc: "Marque" },
-                      { label: "productType", desc: 'Type: "Labo médical" ou "labo d\'ana pathologies"' },
+                      { label: "nom", desc: "Nom du produit", english: "name" },
+                      { label: "brand", desc: "Marque", english: "brand" },
+                      { label: "quantité", desc: "Quantité", english: "quantity" },
+                      { label: "prix d'achat", desc: "Prix d'achat en DA", english: "purchasePrice" },
+                      { label: "délai de livraison", desc: "Délai de livraison (optionnel)", english: "deliveryTime" },
+                      { label: "prix vente", desc: "Prix de vente en DA", english: "sellingPrice" },
+                      { label: "category", desc: "Catégorie", english: "category" },
+                      { label: "type", desc: 'Type: "Labo médical" ou "labo d\'ana pathologies"', english: "productType" },
+                      { label: "conditionnement", desc: "Conditionnement", english: "conditionnement" },
+                      { label: "images", desc: "Noms des images (séparés par virgule, optionnel)", english: "images" },
                     ].map((col, idx) => (
                       <div
                         key={idx}
@@ -853,9 +953,12 @@ export default function AddProductPage() {
                         <div className="w-6 h-6 bg-blue-600 text-white rounded text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {idx + 1}
                         </div>
-                        <div>
-                          <span className="text-xs font-mono font-semibold text-blue-900">{col.label}</span>
+                        <div className="flex-1">
+                          <span className="text-xs font-semibold text-blue-900">{col.label}</span>
                           <p className="text-xs text-blue-700">{col.desc}</p>
+                          {col.english !== col.label && (
+                            <p className="text-xs text-gray-500 italic">({col.english})</p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -920,6 +1023,75 @@ export default function AddProductPage() {
                       name="excelFile"
                       accept=".xlsx,.xls"
                       onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Images Folder Upload */}
+              <div>
+                <label htmlFor="productImages" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                  <ImageIcon className="w-4 h-4 text-blue-600" />
+                  <span>Dossier d'images (optionnel)</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Sélectionnez toutes les images qui correspondent aux noms dans la colonne "images" de votre fichier Excel
+                </p>
+                {imageFiles.length > 0 ? (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-blue-600" />
+                        <span className="text-sm font-semibold text-gray-900">
+                          {imageFiles.length} image(s) sélectionnée(s)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFiles([]);
+                          const imagesInput = document.getElementById("productImages") as HTMLInputElement;
+                          if (imagesInput) imagesInput.value = "";
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-40 overflow-y-auto">
+                      {imageFiles.map((file, idx) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={file.name}
+                            className="w-full h-20 object-cover rounded-lg border-2 border-gray-200"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                            <span className="text-xs text-white text-center px-1 truncate w-full">{file.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:from-blue-50 hover:to-cyan-50 hover:border-blue-400 transition-all duration-300 group">
+                    <div className="flex flex-col items-center justify-center pt-3 pb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-all duration-300">
+                        <ImageIcon className="w-8 h-8 text-blue-600 group-hover:text-green-600 transition-colors" />
+                      </div>
+                      <p className="mb-1 text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">
+                        Cliquez pour sélectionner les images
+                      </p>
+                      <p className="text-xs text-gray-500">ou glissez-déposez plusieurs images</p>
+                    </div>
+                    <input
+                      type="file"
+                      id="productImages"
+                      name="productImages"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImagesChange}
                       className="hidden"
                     />
                   </label>

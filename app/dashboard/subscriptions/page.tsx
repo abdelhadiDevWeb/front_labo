@@ -244,11 +244,19 @@ export default function SubscriptionsPage() {
   const suppliers = filteredUsers.filter((user) => user.role === "supplier");
 
   const filteredSubscriptions = subscriptions.filter(
-    (subscription) =>
-      subscription.id_user.firstName.toLowerCase().includes(searchSubscriptions.toLowerCase()) ||
-      subscription.id_user.lastName.toLowerCase().includes(searchSubscriptions.toLowerCase()) ||
-      subscription.id_user.email.toLowerCase().includes(searchSubscriptions.toLowerCase()) ||
-      subscription.type.toLowerCase().includes(searchSubscriptions.toLowerCase())
+    (subscription) => {
+      if (!subscription.id_user) {
+        // If id_user is null, only filter by type
+        return subscription.type.toLowerCase().includes(searchSubscriptions.toLowerCase());
+      }
+      const searchLower = searchSubscriptions.toLowerCase();
+      return (
+        (subscription.id_user.firstName?.toLowerCase() || "").includes(searchLower) ||
+        (subscription.id_user.lastName?.toLowerCase() || "").includes(searchLower) ||
+        (subscription.id_user.email?.toLowerCase() || "").includes(searchLower) ||
+        subscription.type.toLowerCase().includes(searchLower)
+      );
+    }
   );
 
   return (
@@ -462,7 +470,9 @@ export default function SubscriptionsPage() {
                 <div>
                       <h4 className="font-semibold text-gray-900">{subscription.type}</h4>
                       <p className="text-sm text-gray-500">
-                        {subscription.id_user.firstName} {subscription.id_user.lastName}
+                        {subscription.id_user 
+                          ? `${subscription.id_user.firstName} ${subscription.id_user.lastName}`
+                          : "Utilisateur supprimé"}
                       </p>
                 </div>
               </div>
@@ -488,7 +498,7 @@ export default function SubscriptionsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Mail className="w-4 h-4" />
-                    {subscription.id_user.email}
+                    {subscription.id_user?.email || "N/A"}
                   </div>
                 </div>
                 <button

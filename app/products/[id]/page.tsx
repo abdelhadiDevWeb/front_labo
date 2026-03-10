@@ -164,8 +164,8 @@ export default function ProductDetailPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
           {/* Left Column - Images and Video */}
           <div className="space-y-4">
             {/* Main Image/Video */}
@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
                   <video 
                     controls 
                     src={getMediaUrl(product.video)} 
-                    className="w-full h-96 object-contain bg-black"
+                    className="w-full h-64 sm:h-80 md:h-96 object-contain bg-black"
                   />
                   <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-sm">
                     <Video className="w-4 h-4" />
@@ -198,7 +198,7 @@ export default function ProductDetailPage() {
                   <img
                     src={mainImage || ""}
                     alt={product.name}
-                    className="w-full h-96 object-cover"
+                    className="w-full h-64 sm:h-80 md:h-96 object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";
@@ -257,10 +257,10 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               ) : product.video ? (
-                <video controls src={getMediaUrl(product.video)} className="w-full h-96 object-cover"></video>
+                <video controls src={getMediaUrl(product.video)} className="w-full h-64 sm:h-80 md:h-96 object-cover"></video>
               ) : (
-                <div className="w-full h-96 flex items-center justify-center bg-gray-200 text-gray-400">
-                  <ImageIcon className="w-24 h-24" />
+                <div className="w-full h-64 sm:h-80 md:h-96 flex items-center justify-center bg-gray-200 text-gray-400">
+                  <ImageIcon className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24" />
                 </div>
               )}
             </div>
@@ -268,15 +268,15 @@ export default function ProductDetailPage() {
             {/* Image Thumbnails and Video */}
             {((product.images && product.images.length > 0) || product.video) && (
               <div 
-                className="grid gap-3"
+                className="grid gap-2 sm:gap-3 overflow-x-auto"
                 style={{
                   gridTemplateColumns: product.video && product.images && product.images.length > 0
-                    ? `repeat(${Math.min(product.images.length + 1, 6)}, minmax(0, 1fr))`
+                    ? `repeat(${Math.min(product.images.length + 1, 6)}, minmax(80px, 1fr))`
                     : product.video 
-                      ? "repeat(1, minmax(0, 1fr))"
+                      ? "repeat(1, minmax(80px, 1fr))"
                       : product.images && product.images.length > 1
-                        ? "repeat(5, minmax(0, 1fr))"
-                        : "repeat(1, minmax(0, 1fr))"
+                        ? "repeat(5, minmax(80px, 1fr))"
+                        : "repeat(1, minmax(80px, 1fr))"
                 }}
               >
                 {/* Image Thumbnails */}
@@ -285,7 +285,7 @@ export default function ProductDetailPage() {
                     {product.images.map((imagePath, index) => (
                       <div
                         key={`img-${index}`}
-                        className={`relative w-full h-20 rounded-lg overflow-hidden cursor-pointer border-2 ${
+                        className={`relative w-full h-16 sm:h-20 rounded-lg overflow-hidden cursor-pointer border-2 flex-shrink-0 ${
                           index === selectedImageIndex ? "border-blue-500" : "border-gray-200"
                         } hover:border-blue-400 transition-all`}
                         onClick={() => setSelectedImageIndex(index)}
@@ -307,7 +307,7 @@ export default function ProductDetailPage() {
                 {/* Video Thumbnail */}
                 {product.video && (
                   <div
-                    className={`relative w-full h-20 rounded-lg overflow-hidden cursor-pointer border-2 ${
+                    className={`relative w-full h-16 sm:h-20 rounded-lg overflow-hidden cursor-pointer border-2 flex-shrink-0 ${
                       selectedImageIndex === -1 ? "border-blue-500" : "border-gray-200"
                     } hover:border-blue-400 transition-all group`}
                     onClick={() => setSelectedImageIndex(-1)}
@@ -331,9 +331,9 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Right Column - Product Details */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Product Header */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -350,21 +350,21 @@ export default function ProductDetailPage() {
                       {product.productType}
                     </span>
                   </div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                  <div className="flex items-center gap-3 text-gray-600 text-sm mb-4">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-gray-600 text-xs sm:text-sm mb-4">
                     <div className="flex items-center gap-1">
-                      <Tag className="w-4 h-4" />
+                      <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{product.brand}</span>
                     </div>
-                    <span>•</span>
+                    <span className="hidden sm:inline">•</span>
                     <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
+                      <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{product.deliveryTime}</span>
                     </div>
                   </div>
                 </div>
                 <span
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
+                  className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold ${
                     product.quantity > 0
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
@@ -376,16 +376,16 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Price */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Prix</h2>
-              <p className="text-4xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Prix</h2>
+              <p className="text-3xl sm:text-4xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
             </div>
 
             {/* Supplier Information */}
             {product.supplier && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <span>Informations du fournisseur</span>
                 </h2>
                 <div className="space-y-3">
@@ -433,9 +433,9 @@ export default function ProductDetailPage() {
             )}
 
             {/* Stock & Delivery */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Stock & Livraison</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Stock & Livraison</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <Package className="w-5 h-5 text-blue-600" />
@@ -458,21 +458,21 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Quantity and Add to Cart */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg"
                     disabled={quantity <= 1}
                   >
                     −
                   </button>
-                  <span className="w-16 text-center text-lg font-semibold">{quantity}</span>
+                  <span className="w-14 sm:w-16 text-center text-base sm:text-lg font-semibold">{quantity}</span>
                   <button
                     onClick={() => setQuantity(Math.min(product.quantity, quantity + 1))}
-                    className="w-10 h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg"
                     disabled={quantity >= product.quantity}
                   >
                     +
@@ -488,10 +488,11 @@ export default function ProductDetailPage() {
               <button
                 onClick={handleAddToCart}
                 disabled={product.quantity === 0}
-                className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                <ShoppingCart className="w-6 h-6" />
-                {product.quantity === 0 ? "Rupture de stock" : "Ajouter au panier"}
+                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+                <span className="hidden sm:inline">{product.quantity === 0 ? "Rupture de stock" : "Ajouter au panier"}</span>
+                <span className="sm:hidden">{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
               </button>
             </div>
           </div>

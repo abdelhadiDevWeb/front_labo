@@ -308,7 +308,7 @@ export default function DashboardLayout({
                         className="fixed inset-0 z-40"
                         onClick={() => setShowProblemsDropdown(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                      <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
                           <div className="flex items-center justify-between">

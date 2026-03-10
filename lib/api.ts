@@ -105,29 +105,53 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/profile`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        message: errorData.message || "Failed to fetch profile",
-      };
+    // Detect user role from token
+    let userRole: string | null = null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      userRole = payload.role;
+    } catch (decodeError) {
+      console.error("Error decoding token:", decodeError);
+      // Continue with default endpoint
     }
 
-    const result = await response.json();
-    return result;
+    // Use appropriate endpoint based on role
+    const endpoint = userRole === "supplier" ? "/supplier/profile" : "/client/profile";
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || "Failed to fetch profile",
+        };
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (fetchError) {
+      console.error("Fetch error for endpoint:", endpoint, fetchError);
+      // Return error with helpful message
+      return {
+        success: false,
+        message: fetchError instanceof Error 
+          ? `Network error: ${fetchError.message}. Please check if the server is running at ${API_BASE_URL}`
+          : `Network error. Please check if the server is running at ${API_BASE_URL}`,
+      };
+    }
   } catch (error) {
     console.error("Get profile error:", error);
     return {
       success: false,
-      message: "Network error. Please check your connection.",
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
     };
   }
 };

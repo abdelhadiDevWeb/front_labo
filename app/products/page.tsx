@@ -182,22 +182,22 @@ export default function ProductsPage() {
           {/* Search Bar */}
           <div className="mb-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un produit, marque, catégorie ou fournisseur..."
+                placeholder="Rechercher un produit..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-32 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-base"
+                className="w-full pl-10 sm:pl-12 pr-24 sm:pr-32 py-2.5 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm sm:text-base"
               />
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 font-medium"
+                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm"
               >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span>Filtres</span>
+                <SlidersHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Filtres</span>
                 {showFilters && (
-                  <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  <span className="ml-1 px-1.5 sm:px-2 py-0.5 bg-white/20 rounded-full text-xs">
                     {[
                       filterCategory !== "all",
                       filterBrand !== "all",
@@ -234,7 +234,7 @@ export default function ProductsPage() {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -363,35 +363,35 @@ export default function ProductsPage() {
       {/* Comparison Bar */}
       {selectedForComparison.length > 0 && (
         <div className="sticky top-16 z-30 bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg border-b border-blue-700">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Scale className="w-5 h-5" />
-                <span className="font-semibold">
-                  {selectedForComparison.length} produit{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""} pour comparaison
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <Scale className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="font-semibold text-sm sm:text-base">
+                  {selectedForComparison.length} produit{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""}
                 </span>
                 {selectedForComparison.length < 5 && (
-                  <span className="text-sm text-blue-100">
+                  <span className="text-xs sm:text-sm text-blue-100 hidden sm:inline">
                     (Vous pouvez en sélectionner jusqu'à {5 - selectedForComparison.length} de plus)
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 {selectedForComparison.length >= 2 && (
                   <button
                     onClick={handleCompare}
-                    className="px-4 py-2 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-white text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2 text-sm"
                   >
                     <Scale className="w-4 h-4" />
-                    Comparer
+                    <span>Comparer</span>
                   </button>
                 )}
                 <button
                   onClick={clearComparison}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors flex-shrink-0"
                   title="Effacer la sélection"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -420,7 +420,7 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((product) => {
               const mainImage =
                 product.images && product.images.length > 0

@@ -639,8 +639,8 @@ export default function StatisticsPage() {
             </div>
             <div className="h-80">
               <Bar data={subscriptionRevenueConfig.byType} options={barChartOptions} />
-            </div>
           </div>
+        </div>
         )}
 
         {/* Products by Category - Bar Chart */}
@@ -707,7 +707,7 @@ export default function StatisticsPage() {
             </div>
             <div className="h-80">
               <Bar data={subscriptionRevenueConfig.monthly} options={barChartOptions} />
-            </div>
+        </div>
           </div>
         )}
       </div>

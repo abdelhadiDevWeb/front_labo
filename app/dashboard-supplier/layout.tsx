@@ -86,9 +86,17 @@ export default function SupplierDashboardLayout({
         setIsAuthenticated(true);
 
         // Fetch user profile data
-        const profileResult = await getProfile();
-        if (profileResult.success && profileResult.data) {
-          setUserData(profileResult.data);
+        try {
+          const profileResult = await getProfile();
+          if (profileResult.success && profileResult.data) {
+            setUserData(profileResult.data);
+          } else {
+            console.error("Failed to load profile:", profileResult.message);
+            // Don't redirect on profile load failure, just log the error
+          }
+        } catch (profileError) {
+          console.error("Error loading profile:", profileError);
+          // Don't redirect on profile load failure, just log the error
         }
 
         // Load profile image
@@ -453,7 +461,7 @@ export default function SupplierDashboardLayout({
                       className="fixed inset-0 z-[100]"
                       onClick={() => setShowNotifications(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-96 overflow-y-auto">
+                    <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-96 overflow-y-auto">
                       <div className="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
                         <h3 className="font-bold text-lg">Notifications</h3>
                         <p className="text-sm text-green-100">
@@ -590,7 +598,7 @@ export default function SupplierDashboardLayout({
                       className="fixed inset-0 z-40"
                       onClick={() => setUserDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up">
+                    <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up">
                       {/* User Info Header */}
                       {userData && (
                         <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">

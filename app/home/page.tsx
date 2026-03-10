@@ -80,41 +80,41 @@ export default function HomePage() {
   // Check authentication status and role
   useEffect(() => {
     const loadUserData = async () => {
-      const token = getAuthToken();
-      
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const role = payload.role || null;
-          setUserRole(role);
-          
-          // Only set authenticated and show client features if role is "client"
-          if (role === "client") {
-            setIsAuthenticated(true);
-            setUserEmail(payload.email || "");
+    const token = getAuthToken();
+    
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const role = payload.role || null;
+        setUserRole(role);
+        
+        // Only set authenticated and show client features if role is "client"
+        if (role === "client") {
+          setIsAuthenticated(true);
+          setUserEmail(payload.email || "");
             
             // Load user profile data
             const profileResult = await getProfile();
             if (profileResult.success && profileResult.data) {
               setUserData(profileResult.data);
             }
-          } else {
-            // Admin or supplier should not see client features on home page
-            setIsAuthenticated(false);
-            setUserEmail("");
-            setUserData(null);
-          }
-        } catch {
-          // If token parsing fails, don't show authenticated state
+        } else {
+          // Admin or supplier should not see client features on home page
           setIsAuthenticated(false);
-          setUserRole(null);
-          setUserData(null);
+          setUserEmail("");
+            setUserData(null);
         }
-      } else {
+      } catch {
+        // If token parsing fails, don't show authenticated state
         setIsAuthenticated(false);
         setUserRole(null);
-        setUserData(null);
+          setUserData(null);
       }
+    } else {
+      setIsAuthenticated(false);
+      setUserRole(null);
+        setUserData(null);
+    }
     };
 
     loadUserData();
