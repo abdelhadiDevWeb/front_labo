@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+import { getApiUrl } from "./api-config";
+
+const API_BASE_URL = getApiUrl();
 
 // Log API URL on module load (for debugging)
 if (typeof window !== "undefined") {

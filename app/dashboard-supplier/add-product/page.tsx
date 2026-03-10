@@ -26,6 +26,7 @@ import {
   Percent,
 } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
+import { getApiUrl } from "@/lib/api-config";
 
 interface ProductFormData {
   name: string;
@@ -185,7 +186,7 @@ export default function AddProductPage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
 
       // Create FormData for file uploads
       const formDataToSend = new FormData();
@@ -270,7 +271,7 @@ export default function AddProductPage() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/products/download-template`, {
         method: "GET",
       });
@@ -321,7 +322,7 @@ export default function AddProductPage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
 
       const formData = new FormData();
       formData.append("excelFile", excelFile);

@@ -20,6 +20,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { getProfile, ClientData, getAuthToken } from "@/lib/api";
+import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
 interface ProfileFormData {
   firstName: string;
@@ -128,7 +129,7 @@ export default function SupplierProfilePage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       console.log("Fetching profile image from:", `${API_BASE_URL}/supplier/profile-image`);
       
       const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
@@ -144,7 +145,7 @@ export default function SupplierProfilePage() {
         console.log("Profile image API response:", result);
         
         if (result.success && result.data && result.data.image) {
-          const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+          const API_BASE = getBaseUrl();
           let imagePath = result.data.image;
           
           console.log("Original image path from API:", imagePath);
@@ -273,7 +274,7 @@ export default function SupplierProfilePage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/supplier/profile`, {
         method: "PUT",
         headers: {
@@ -335,7 +336,7 @@ export default function SupplierProfilePage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/supplier/password`, {
         method: "PUT",
         headers: {
@@ -411,7 +412,7 @@ export default function SupplierProfilePage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const formData = new FormData();
       formData.append("image", selectedImage);
 

@@ -33,6 +33,7 @@ import {
   UpdateSubscriptionData,
   UserPapers,
 } from "@/lib/api";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function SubscriptionsPage() {
   const [users, setUsers] = useState<SubscriptionUser[]>([]);
@@ -229,7 +230,7 @@ export default function SubscriptionsPage() {
   };
 
   const getFileUrl = (filePath: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000";
+    const baseUrl = getBaseUrl();
     return `${baseUrl}/${filePath}`;
   };
 

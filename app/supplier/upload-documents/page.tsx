@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X, LogOut, Home } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
+import { getApiUrl } from "@/lib/api-config";
 
 export default function UploadDocumentsPage() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function UploadDocumentsPage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
 
       const formData = new FormData();
       formData.append("Tax_number", files.Tax_number);

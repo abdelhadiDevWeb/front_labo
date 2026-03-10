@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { getAuthToken } from "@/lib/api";
+import { getApiUrl } from "@/lib/api-config";
 
 interface CartPanelProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
     setIsCreatingOrder(true);
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       
       // First, fetch product details for items missing supplierId
       const productsWithSupplierId = await Promise.all(

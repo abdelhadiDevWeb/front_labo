@@ -6,6 +6,7 @@ import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Fi
 import { getAuthToken, createPayment, getPaymentByCommande, Payment } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
+import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
 interface Order {
   _id: string;
@@ -140,7 +141,7 @@ export default function OrdersPage() {
       const token = getAuthToken();
       if (!token) return;
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/commandes/client`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -921,7 +922,7 @@ export default function OrdersPage() {
                     <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
@@ -932,7 +933,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
-                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     className="w-full h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />

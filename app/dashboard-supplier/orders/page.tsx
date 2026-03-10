@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { getAuthToken, getPaymentByCommande, Payment } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
+import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
 interface OrderProduct {
   productId: string;
@@ -100,7 +101,7 @@ export default function SupplierOrdersPage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/commandes/supplier`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -143,7 +144,7 @@ export default function SupplierOrdersPage() {
     const token = getAuthToken();
     if (!token) return;
 
-    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
+    const socket = socketIO(getBaseUrl(), {
       auth: {
         token: token,
       },
@@ -186,7 +187,7 @@ export default function SupplierOrdersPage() {
       const token = getAuthToken();
       if (!token) return;
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/commandes/${pendingStatusChange.orderId}/status`, {
         method: "PUT",
         headers: {
@@ -753,7 +754,7 @@ export default function SupplierOrdersPage() {
                     <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
@@ -764,7 +765,7 @@ export default function SupplierOrdersPage() {
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
-                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000"}/uploads/payments/${selectedPayment.image}`}
+                    src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     className="w-full h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />

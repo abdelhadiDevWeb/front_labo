@@ -39,6 +39,7 @@ import LoginAlert from "@/components/LoginAlert";
 import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem, getProfile, ClientData } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function HomePage() {
   const { getTotalItems, addToCart } = useCart();
@@ -184,7 +185,7 @@ export default function HomePage() {
     const token = getAuthToken();
     if (!token) return;
 
-    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
+    const socket = socketIO(getBaseUrl(), {
       auth: {
         token: token,
       },
@@ -1102,7 +1103,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {products.map((product, index) => {
-                const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+                const API_BASE_URL = getBaseUrl();
                 const mainImage = product.images && product.images.length > 0 
                   ? `${API_BASE_URL}/${product.images[0].startsWith('/') ? product.images[0].slice(1) : product.images[0]}`
                   : null;

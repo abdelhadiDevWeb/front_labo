@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
+import { getBaseUrl } from "@/lib/api-config";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard" },
@@ -134,7 +135,7 @@ export default function DashboardLayout({
     const token = getAuthToken();
     if (!token) return;
 
-    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
+    const socket = socketIO(getBaseUrl(), {
       auth: {
         token: token,
       },
@@ -185,7 +186,7 @@ export default function DashboardLayout({
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http")) return imagePath;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000";
+    const baseUrl = getBaseUrl();
     // Add cache-busting parameter using imageKey to ensure fresh image loads
     return `${baseUrl}/${imagePath}?v=${imageKey}`;
   };

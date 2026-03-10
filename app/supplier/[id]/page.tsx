@@ -26,8 +26,9 @@ import {
 } from "lucide-react";
 import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getAuthToken, SupplierRatingsResponse, CanRateResponse } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
+import { getBaseUrl } from "@/lib/api-config";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+const API_BASE_URL = getBaseUrl();
 
 const getImageUrl = (imagePath: string | null) => {
   if (!imagePath) return null;

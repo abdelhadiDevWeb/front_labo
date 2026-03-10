@@ -26,6 +26,7 @@ import {
 import { getAllProducts, PublicProduct, getAuthToken } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -154,7 +155,7 @@ export default function ProductsPage() {
     );
   }
 
-  const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+  const API_BASE_URL = getBaseUrl();
 
   return (
     <div className="min-h-screen bg-gray-50">

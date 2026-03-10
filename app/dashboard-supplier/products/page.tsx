@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getSupplierProducts, Product } from "@/lib/api";
 import { getAuthToken } from "@/lib/api";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -201,7 +202,7 @@ export default function ProductsPage() {
             const profit = calculateProfit(product);
             // Use base URL without /api for static files
             // Use base URL without /api for static files
-            const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace('/api', '');
+            const API_BASE_URL = getBaseUrl();
             // Fix image path - remove leading slash if present and ensure correct path
             let mainImage = null;
             if (product.images && product.images.length > 0) {

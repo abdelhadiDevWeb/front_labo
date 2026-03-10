@@ -23,8 +23,9 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { getProductById, PublicProduct, getAuthToken } from "@/lib/api";
 import LoginAlert from "@/components/LoginAlert";
+import { getBaseUrl } from "@/lib/api-config";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+const API_BASE_URL = getBaseUrl();
 
 const getMediaUrl = (mediaPath: string) => {
   const path = mediaPath.startsWith("/") ? mediaPath.slice(1) : mediaPath;

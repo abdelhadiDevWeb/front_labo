@@ -22,6 +22,7 @@ import {
   Play,
 } from "lucide-react";
 import { getSupplierProducts, Product, getAuthToken, updateProduct, deleteProduct } from "@/lib/api";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -130,7 +131,7 @@ export default function ProductDetailPage() {
   }
 
   // Use base URL without /api for static files
-  const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace('/api', '');
+  const API_BASE_URL = getBaseUrl();
   const profit = product.sellingPrice - product.purchasePrice;
   const profitPercentage = product.purchasePrice > 0 ? ((profit / product.purchasePrice) * 100).toFixed(2) : "0";
   

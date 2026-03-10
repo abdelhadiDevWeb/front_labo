@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { User, Mail, Phone, MapPin, Save, Camera, Lock, Loader2, Eye, EyeOff, CheckCircle, X } from "lucide-react";
 import { getAdminProfile, updateAdminProfile, updateAdminPassword, uploadAdminProfileImage, AdminProfile } from "@/lib/api";
 import Image from "next/image";
+import { getBaseUrl } from "@/lib/api-config";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<AdminProfile | null>(null);
@@ -198,7 +199,7 @@ export default function ProfilePage() {
     // If it's already a full URL, return it
     if (imagePath.startsWith("http")) return imagePath;
     // Otherwise, construct the URL
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000";
+    const baseUrl = getBaseUrl();
     return `${baseUrl}/${imagePath}`;
   };
 

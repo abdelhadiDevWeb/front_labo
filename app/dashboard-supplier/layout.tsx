@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, NotificationData, createProblem } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
+import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
@@ -145,7 +146,7 @@ export default function SupplierDashboardLayout({
     const token = getAuthToken();
     if (!token || !isAuthenticated || userRole !== "supplier") return;
 
-    const socket = socketIO(process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000", {
+    const socket = socketIO(getBaseUrl(), {
       auth: {
         token: token,
       },
@@ -249,7 +250,7 @@ export default function SupplierDashboardLayout({
       const token = getAuthToken();
       if (!token) return;
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -259,7 +260,7 @@ export default function SupplierDashboardLayout({
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data && result.data.image) {
-          const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace("/api", "");
+          const API_BASE = getBaseUrl();
           let imagePath = result.data.image;
           
           // Handle different path formats

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, MapPin, Building2, AlertCircle, CheckCircle } from "lucide-react";
 import { registerClient } from "@/lib/api";
+import { getApiUrl } from "@/lib/api-config";
 
 type UserType = "supplier" | "client";
 
@@ -61,7 +62,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const API_BASE_URL = getApiUrl();
       const response = await fetch(`${API_BASE_URL}/supplier/register`, {
         method: "POST",
         headers: {
