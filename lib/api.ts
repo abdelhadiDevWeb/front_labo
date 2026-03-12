@@ -1,6 +1,7 @@
 import { getApiUrl, getBaseUrl } from "./api-config";
 
-const API_BASE_URL = getApiUrl();
+// Use a getter function instead of a constant to ensure env vars are read dynamically
+const getApiBaseUrl = () => getApiUrl();
 
 // Helper function to get appropriate error message based on environment
 const getConnectionErrorMessage = (): string => {
@@ -16,7 +17,7 @@ const getConnectionErrorMessage = (): string => {
 
 // Log API URL on module load (for debugging)
 if (typeof window !== "undefined") {
-  console.log("API Base URL:", API_BASE_URL);
+  console.log("API Base URL:", getApiBaseUrl());
 }
 
 export interface ApiResponse<T> {
@@ -95,7 +96,7 @@ export const setRefreshToken = (token: string): void => {
 // Health check function to test backend connection
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await fetch(`${getApiBaseUrl()}/health`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -133,7 +134,7 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
     const endpoint = userRole === "supplier" ? "/supplier/profile" : "/client/profile";
     
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -154,13 +155,13 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
     } catch (fetchError) {
       console.error("Fetch error for endpoint:", endpoint, fetchError);
       // Return error with helpful message
-      const isDevelopment = process.env.NODE_ENV === 'development' || API_BASE_URL.includes('localhost');
+      const isDevelopment = process.env.NODE_ENV === 'development' || getApiBaseUrl().includes('localhost');
       const errorMsg = fetchError instanceof Error ? fetchError.message : 'Network error';
       
       return {
         success: false,
         message: isDevelopment
-          ? `Network error: ${errorMsg}. Please check if the server is running at ${API_BASE_URL}`
+          ? `Network error: ${errorMsg}. Please check if the server is running at ${getApiBaseUrl()}`
           : `Network error: ${errorMsg}. Please check your connection or contact support.`,
       };
     }
@@ -189,7 +190,7 @@ export const updateProfile = async (data: {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/profile`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -232,7 +233,7 @@ export const updatePassword = async (data: {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/password`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -264,7 +265,7 @@ export const updatePassword = async (data: {
 // Request password reset (send code via email)
 export const requestPasswordReset = async (email: string): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/client/forgot-password`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/forgot-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -294,7 +295,7 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse<n
 // Verify password reset code
 export const verifyPasswordResetCode = async (email: string, code: string): Promise<ApiResponse<{ resetToken: string }>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/client/verify-reset-code`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/verify-reset-code`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -324,7 +325,7 @@ export const verifyPasswordResetCode = async (email: string, code: string): Prom
 // Reset password with verified code
 export const resetPassword = async (resetToken: string, newPassword: string): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/client/reset-password`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -371,7 +372,7 @@ export const getDevices = async (): Promise<ApiResponse<{ devices: Device[] }>> 
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/devices`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/devices`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -403,8 +404,8 @@ export const registerClient = async (
   data: ClientRegisterData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    console.log("Sending request to:", `${API_BASE_URL}/client/register`);
-    const response = await fetch(`${API_BASE_URL}/client/register`, {
+    console.log("Sending request to:", `${getApiBaseUrl()}/client/register`);
+    const response = await fetch(`${getApiBaseUrl()}/client/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -462,8 +463,8 @@ export const loginClient = async (
   data: ClientLoginData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    console.log("Sending request to:", `${API_BASE_URL}/client/login`);
-    const response = await fetch(`${API_BASE_URL}/client/login`, {
+    console.log("Sending request to:", `${getApiBaseUrl()}/client/login`);
+    const response = await fetch(`${getApiBaseUrl()}/client/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -530,7 +531,7 @@ export const refreshAuthToken = async (): Promise<ApiResponse<{ token: string }>
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/refresh-token`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -612,7 +613,7 @@ export const createProduct = async (
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/products`, {
+    const response = await fetch(`${getApiBaseUrl()}/products`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -658,7 +659,7 @@ export const uploadProductsFromExcel = async (
     const formData = new FormData();
     formData.append("excelFile", file);
 
-    const response = await fetch(`${API_BASE_URL}/products/upload-excel`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/upload-excel`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -697,7 +698,7 @@ export const getSupplierProducts = async (): Promise<ApiResponse<{ products: Pro
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/products`, {
+    const response = await fetch(`${getApiBaseUrl()}/products`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -760,7 +761,7 @@ export const updateProduct = async (
       formData.append("video", data.video);
     }
 
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/${productId}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -799,7 +800,7 @@ export const deleteProduct = async (productId: string): Promise<ApiResponse<null
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/${productId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -854,7 +855,7 @@ export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiR
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/notifications?unreadOnly=${unreadOnly}`, {
+    const response = await fetch(`${getApiBaseUrl()}/notifications?unreadOnly=${unreadOnly}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -892,7 +893,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<Ap
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+    const response = await fetch(`${getApiBaseUrl()}/notifications/${notificationId}/read`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -930,7 +931,7 @@ export const markAllNotificationsAsRead = async (): Promise<ApiResponse<null>> =
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+    const response = await fetch(`${getApiBaseUrl()}/notifications/read-all`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -993,7 +994,7 @@ export const getAllProducts = async (): Promise<ApiResponse<{ products: PublicPr
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${API_BASE_URL}/products/public`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/public`, {
       method: "GET",
       headers,
     });
@@ -1030,7 +1031,7 @@ export const getProductById = async (id: string): Promise<ApiResponse<PublicProd
       headers.Authorization = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${API_BASE_URL}/products/public/${id}`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/public/${id}`, {
       method: "GET",
       headers,
     });
@@ -1091,7 +1092,7 @@ export const getSupplierStatistics = async (): Promise<ApiResponse<SupplierStati
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/commandes/supplier/statistics`, {
+    const response = await fetch(`${getApiBaseUrl()}/commandes/supplier/statistics`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1180,8 +1181,8 @@ export const getSupplierDetailedStatistics = async (month?: "current" | "previou
     }
 
     const url = month 
-      ? `${API_BASE_URL}/commandes/supplier/statistics/detailed?month=${month}`
-      : `${API_BASE_URL}/commandes/supplier/statistics/detailed`;
+      ? `${getApiBaseUrl()}/commandes/supplier/statistics/detailed?month=${month}`
+      : `${getApiBaseUrl()}/commandes/supplier/statistics/detailed`;
     
     const response = await fetch(url, {
       method: "GET",
@@ -1296,7 +1297,7 @@ export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>
       };
     }
 
-    const url = `${API_BASE_URL}/admin/statistics`;
+    const url = `${getApiBaseUrl()}/admin/statistics`;
     console.log("Fetching admin statistics from:", url);
 
     const response = await fetch(url, {
@@ -1323,7 +1324,7 @@ export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>
     console.error("Error details:", {
       message: error.message,
       stack: error.stack,
-      API_BASE_URL,
+      API_BASE_URL: getApiBaseUrl(),
     });
     return {
       success: false,
@@ -1343,7 +1344,7 @@ export const getDetailedAdminStatistics = async (): Promise<ApiResponse<Detailed
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/statistics/detailed`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/statistics/detailed`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1431,7 +1432,7 @@ export const getAdminUsers = async (
     if (filters?.sortBy) params.append("sortBy", filters.sortBy);
     if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
 
-    const url = `${API_BASE_URL}/admin/users${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${getApiBaseUrl()}/admin/users${params.toString() ? `?${params.toString()}` : ""}`;
 
     const response = await fetch(url, {
       method: "GET",
@@ -1474,7 +1475,7 @@ export const updateUserStatus = async (
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/status`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1566,7 +1567,7 @@ export const getAdminOrders = async (
     if (filters?.sortBy) params.append("sortBy", filters.sortBy);
     if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
 
-    const url = `${API_BASE_URL}/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${getApiBaseUrl()}/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
     console.log("Fetching admin orders from:", url);
 
     const response = await fetch(url, {
@@ -1623,7 +1624,7 @@ export const getAdminProfile = async (): Promise<ApiResponse<AdminProfile>> => {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/profile`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1666,7 +1667,7 @@ export const updateAdminProfile = async (data: {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1708,7 +1709,7 @@ export const updateAdminPassword = async (data: {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/password`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/password`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1750,7 +1751,7 @@ export const uploadAdminProfileImage = async (file: File): Promise<ApiResponse<{
     const formData = new FormData();
     formData.append("image", file);
 
-    const response = await fetch(`${API_BASE_URL}/admin/profile-image`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/profile-image`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1788,7 +1789,7 @@ export const getAdminProfileImage = async (): Promise<ApiResponse<{ id: string; 
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/profile-image`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/profile-image`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1874,7 +1875,7 @@ export const getAllAdmins = async (
     if (filters?.sortBy) params.append("sortBy", filters.sortBy);
     if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
 
-    const response = await fetch(`${API_BASE_URL}/admin/admins?${params.toString()}`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/admins?${params.toString()}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1912,7 +1913,7 @@ export const createAdmin = async (data: CreateAdminData): Promise<ApiResponse<Ad
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/admins`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/admins`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1955,7 +1956,7 @@ export const updateAdminStatus = async (
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/admins/${adminId}/status`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/admins/${adminId}/status`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -2040,7 +2041,7 @@ export const getUsersForSubscription = async (): Promise<ApiResponse<{ users: Su
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2078,7 +2079,7 @@ export const createSubscription = async (data: CreateSubscriptionData): Promise<
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2118,7 +2119,7 @@ export const getAllSubscriptions = async (): Promise<ApiResponse<{ subscriptions
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2159,7 +2160,7 @@ export const updateSubscription = async (
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/${subscriptionId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/${subscriptionId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -2219,7 +2220,7 @@ export const getUserPapers = async (userId: string): Promise<ApiResponse<{ paper
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users/${userId}/papers`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/papers`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2257,7 +2258,7 @@ export const getUserDocuments = async (userId: string): Promise<ApiResponse<{ do
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/users/${userId}/documents`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/documents`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2316,7 +2317,7 @@ export const createPayment = async (
     formData.append("total", total.toString());
     formData.append("image", imageFile);
 
-    const response = await fetch(`${API_BASE_URL}/payments`, {
+    const response = await fetch(`${getApiBaseUrl()}/payments`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -2355,7 +2356,7 @@ export const getPaymentByCommande = async (commandeId: string): Promise<ApiRespo
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/payments/commande/${commandeId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/payments/commande/${commandeId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2393,7 +2394,7 @@ export const getUserPayments = async (): Promise<ApiResponse<Payment[]>> => {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/payments/user`, {
+    const response = await fetch(`${getApiBaseUrl()}/payments/user`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2458,7 +2459,7 @@ export interface SupplierDetails {
 // Get supplier details by ID (public)
 export const getSupplierDetails = async (supplierId: string): Promise<ApiResponse<SupplierDetails>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/supplier/${supplierId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/supplier/${supplierId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2502,7 +2503,7 @@ export const createProblem = async (data: {
   message: string;
 }): Promise<ApiResponse<Problem>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/client/support`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/support`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2541,7 +2542,7 @@ export const getAllProblems = async (): Promise<ApiResponse<Problem[]>> => {
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/problems`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/problems`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2580,7 +2581,7 @@ export const markProblemAsRead = async (problemId: string): Promise<ApiResponse<
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/admin/problems/${problemId}/read`, {
+    const response = await fetch(`${getApiBaseUrl()}/admin/problems/${problemId}/read`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -2654,7 +2655,7 @@ export const createRate = async (
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/rates`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/rates`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2690,7 +2691,7 @@ export const createRate = async (
 // Get all ratings for a supplier
 export const getSupplierRatings = async (supplierId: string): Promise<ApiResponse<SupplierRatingsResponse>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/client/rates/supplier/${supplierId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/rates/supplier/${supplierId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -2727,7 +2728,7 @@ export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<C
       };
     }
 
-    const response = await fetch(`${API_BASE_URL}/client/rates/can-rate/${supplierId}`, {
+    const response = await fetch(`${getApiBaseUrl()}/client/rates/can-rate/${supplierId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
