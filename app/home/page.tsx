@@ -36,7 +36,7 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem, getProfile, ClientData } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
@@ -166,8 +166,67 @@ export default function HomePage() {
     if (isAuthenticated && isClientUser) {
       loadNotifications();
       setupSocketConnection();
+      setupFcmTokenListener();
     }
   }, [isAuthenticated, isClientUser]);
+
+  // Listen for FCM token from React Native WebView (mobile app)
+  const setupFcmTokenListener = () => {
+    // Check if we're running in React Native WebView
+    if (typeof window !== "undefined" && (window as any).ReactNativeWebView) {
+      // Listen for messages from React Native
+      window.addEventListener("message", async (event) => {
+        try {
+          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+          
+          if (message.type === "FCM_TOKEN" && message.token) {
+            console.log("Received FCM token from mobile app:", message.token);
+            // Send FCM token to backend
+            const authToken = getAuthToken();
+            if (authToken) {
+              const result = await saveFcmToken(message.token);
+              if (result.success) {
+                console.log("FCM token saved to backend successfully");
+              } else {
+                console.error("Failed to save FCM token:", result.message);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error handling message from React Native:", error);
+        }
+      });
+
+      // Also listen for postMessage (React Native WebView uses this)
+      const handlePostMessage = async (event: MessageEvent) => {
+        try {
+          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+          
+          if (message.type === "FCM_TOKEN" && message.token) {
+            console.log("Received FCM token from mobile app via postMessage:", message.token);
+            // Send FCM token to backend
+            const authToken = getAuthToken();
+            if (authToken) {
+              const result = await saveFcmToken(message.token);
+              if (result.success) {
+                console.log("FCM token saved to backend successfully");
+              } else {
+                console.error("Failed to save FCM token:", result.message);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error handling postMessage from React Native:", error);
+        }
+      };
+
+      window.addEventListener("message", handlePostMessage);
+      
+      return () => {
+        window.removeEventListener("message", handlePostMessage);
+      };
+    }
+  };
 
   const loadNotifications = async () => {
     try {

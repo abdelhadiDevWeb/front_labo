@@ -2754,3 +2754,42 @@ export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<C
     };
   }
 };
+
+// Save FCM token for push notifications
+export const saveFcmToken = async (token: string): Promise<ApiResponse<null>> => {
+  try {
+    const authToken = getAuthToken();
+    if (!authToken) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/client/fcm-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to save FCM token",
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error("Save FCM token error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
