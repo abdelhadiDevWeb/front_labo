@@ -157,11 +157,22 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
       // Return error with helpful message
       const isDevelopment = process.env.NODE_ENV === 'development' || getApiBaseUrl().includes('localhost');
       const errorMsg = fetchError instanceof Error ? fetchError.message : 'Network error';
+      const apiUrl = getApiBaseUrl();
+      
+      // More detailed error message for local development
+      if (isDevelopment) {
+        console.error(`❌ Failed to connect to: ${apiUrl}${endpoint}`);
+        console.error(`💡 Make sure:`);
+        console.error(`   1. Server is running: cd server && bun run dev`);
+        console.error(`   2. Server is on port 3001`);
+        console.error(`   3. .env.local exists with: NEXT_PUBLIC_API_URL=http://localhost:3001/api`);
+        console.error(`   4. Test server directly: http://localhost:3001/api/health`);
+      }
       
       return {
         success: false,
         message: isDevelopment
-          ? `Network error: ${errorMsg}. Please check if the server is running at ${getApiBaseUrl()}`
+          ? `Network error: ${errorMsg}. Server URL: ${apiUrl}. Check console for details.`
           : `Network error: ${errorMsg}. Please check your connection or contact support.`,
       };
     }

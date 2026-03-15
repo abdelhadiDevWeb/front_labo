@@ -174,6 +174,26 @@ export default function HomePage() {
   const setupFcmTokenListener = () => {
     // Check if we're running in React Native WebView
     if (typeof window !== "undefined" && (window as any).ReactNativeWebView) {
+      // Request FCM token when user is logged in (in case token was removed from database)
+      const requestFcmToken = () => {
+        if (isAuthenticated && isClientUser) {
+          console.log("User is logged in, requesting FCM token from mobile app...");
+          (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'REQUEST_FCM_TOKEN'
+          }));
+        }
+      };
+      
+      // Request token immediately if user is already logged in
+      requestFcmToken();
+      
+      // Also request token periodically (every 30 seconds) to ensure it's always up to date
+      const tokenRequestInterval = setInterval(() => {
+        if (isAuthenticated && isClientUser) {
+          requestFcmToken();
+        }
+      }, 30000); // Every 30 seconds
+      
       // Listen for messages from React Native
       window.addEventListener("message", async (event) => {
         try {
@@ -186,7 +206,9 @@ export default function HomePage() {
             if (authToken) {
               const result = await saveFcmToken(message.token);
               if (result.success) {
-                console.log("FCM token saved to backend successfully");
+                console.log("✅ FCM token saved to backend successfully");
+                // Clear interval once token is saved (we'll request again if needed)
+                clearInterval(tokenRequestInterval);
               } else {
                 console.error("Failed to save FCM token:", result.message);
               }
@@ -224,6 +246,10 @@ export default function HomePage() {
       
       return () => {
         window.removeEventListener("message", handlePostMessage);
+        // Cleanup interval if component unmounts
+        if (tokenRequestInterval) {
+          clearInterval(tokenRequestInterval);
+        }
       };
     }
   };
