@@ -352,88 +352,88 @@ export default function OrdersPage() {
 
       {/* Order Details Modal */}
       {mounted && showModal && selectedOrder && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <ShoppingCart className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-cyan-600 sticky top-0 z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg flex-shrink-0">
+                  <ShoppingCart className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">{selectedOrder.orderNumber}</h3>
-                  <p className="text-sm text-blue-100">Détails de la commande</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white truncate">{selectedOrder.orderNumber}</h3>
+                  <p className="text-xs sm:text-sm text-blue-100">Détails de la commande</p>
                 </div>
               </div>
               <button
                 onClick={closeModal}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+                className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors text-white flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="overflow-y-auto flex-1 p-6">
-              <div className="space-y-6">
+            <div className="overflow-y-auto flex-1 p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Status Badge */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     {getStatusIcon(selectedOrder.status)}
-                    <span className={`px-4 py-2 inline-flex text-sm font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
+                    <span className={`px-3 sm:px-4 py-1.5 sm:py-2 inline-flex text-xs sm:text-sm font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
                       {statusLabels[selectedOrder.status] || selectedOrder.status}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Montant total</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedOrder.totalAmount)}</p>
+                  <div className="text-left sm:text-right">
+                    <p className="text-xs sm:text-sm text-gray-500">Montant total</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(selectedOrder.totalAmount)}</p>
                   </div>
                 </div>
 
                 {/* Customer and Supplier Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {/* Customer Card */}
-                  <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-blue-600 rounded-lg">
-                        <User className="w-5 h-5 text-white" />
+                  <div className="bg-blue-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border border-blue-100">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                      <div className="p-1.5 sm:p-2 bg-blue-600 rounded-lg">
+                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
-                      <h4 className="font-semibold text-gray-900">Client</h4>
+                      <h4 className="font-semibold text-sm sm:text-base text-gray-900">Client</h4>
                     </div>
-                    <p className="text-lg font-medium text-gray-900">{selectedOrder.customer}</p>
-                    <p className="text-sm text-gray-600 mt-1">{selectedOrder.customerEmail}</p>
+                    <p className="text-base sm:text-lg font-medium text-gray-900 break-words">{selectedOrder.customer}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{selectedOrder.customerEmail}</p>
                   </div>
 
                   {/* Supplier Card */}
-                  <div className="bg-green-50 rounded-xl p-5 border border-green-100">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-green-600 rounded-lg">
-                        <Store className="w-5 h-5 text-white" />
+                  <div className="bg-green-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border border-green-100">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                      <div className="p-1.5 sm:p-2 bg-green-600 rounded-lg">
+                        <Store className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
-                      <h4 className="font-semibold text-gray-900">Fournisseur</h4>
+                      <h4 className="font-semibold text-sm sm:text-base text-gray-900">Fournisseur</h4>
                     </div>
-                    <p className="text-lg font-medium text-gray-900">{selectedOrder.supplier}</p>
-                    <p className="text-sm text-gray-600 mt-1">{selectedOrder.supplierEmail}</p>
+                    <p className="text-base sm:text-lg font-medium text-gray-900 break-words">{selectedOrder.supplier}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{selectedOrder.supplierEmail}</p>
                   </div>
                 </div>
 
                 {/* Products List */}
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Package className="w-5 h-5" />
+                <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border border-gray-200">
+                  <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                    <Package className="w-4 h-4 sm:w-5 sm:h-5" />
                     Produits ({selectedOrder.productCount})
                   </h4>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {selectedOrder.products.map((product, index) => (
-                      <div key={index} className="bg-white rounded-lg p-4 border border-gray-200 flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{product.name}</p>
-                          <p className="text-sm text-gray-500 mt-1">Quantité: {product.quantity}</p>
+                      <div key={index} className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base text-gray-900 break-words">{product.name}</p>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Quantité: {product.quantity}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">Prix unitaire</p>
-                          <p className="font-semibold text-gray-900">{formatCurrency(product.price)}</p>
-                          <p className="text-sm text-gray-500 mt-1">Total: {formatCurrency(product.price * product.quantity)}</p>
+                        <div className="text-left sm:text-right w-full sm:w-auto">
+                          <p className="text-xs sm:text-sm text-gray-500">Prix unitaire</p>
+                          <p className="font-semibold text-sm sm:text-base text-gray-900">{formatCurrency(product.price)}</p>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1">Total: {formatCurrency(product.price * product.quantity)}</p>
                         </div>
                       </div>
                     ))}
@@ -441,30 +441,30 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Order Dates */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <p className="text-sm font-medium text-gray-500">Date de création</p>
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                      <p className="text-xs sm:text-sm font-medium text-gray-500">Date de création</p>
                     </div>
-                    <p className="text-gray-900 font-medium">{formatDate(selectedOrder.createdAt)}</p>
+                    <p className="text-sm sm:text-base text-gray-900 font-medium">{formatDate(selectedOrder.createdAt)}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <p className="text-sm font-medium text-gray-500">Dernière mise à jour</p>
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                      <p className="text-xs sm:text-sm font-medium text-gray-500">Dernière mise à jour</p>
                     </div>
-                    <p className="text-gray-900 font-medium">{formatDate(selectedOrder.updatedAt)}</p>
+                    <p className="text-sm sm:text-base text-gray-900 font-medium">{formatDate(selectedOrder.updatedAt)}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-end gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0">
               <button
                 onClick={closeModal}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                className="px-4 sm:px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto"
               >
                 Fermer
               </button>

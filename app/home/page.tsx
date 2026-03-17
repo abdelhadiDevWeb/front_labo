@@ -128,22 +128,18 @@ export default function HomePage() {
         setIsLoadingProducts(true);
         setProductsError(null);
         const result = await getAllProducts();
-        console.log("Products API result:", result); // Debug log
         if (result.success && result.data && result.data.products) {
           // Get first 8 products (prioritize in-stock products)
           const inStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity > 0);
           const outOfStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity === 0);
           // Show in-stock products first, then out-of-stock if needed
           const productsToShow = [...inStockProducts, ...outOfStockProducts].slice(0, 8);
-          console.log("Products to show:", productsToShow.length, "products"); // Debug log
           setProducts(productsToShow);
         } else {
-          console.warn("No products found or API error:", result.message);
           setProductsError(result.message || "Aucun produit trouvé");
           setProducts([]);
         }
       } catch (err) {
-        console.error("Load products error:", err);
         setProductsError("Erreur lors du chargement des produits");
         setProducts([]);
       } finally {
@@ -177,7 +173,6 @@ export default function HomePage() {
       // Request FCM token when user is logged in (in case token was removed from database)
       const requestFcmToken = () => {
         if (isAuthenticated && isClientUser) {
-          console.log("User is logged in, requesting FCM token from mobile app...");
           (window as any).ReactNativeWebView.postMessage(JSON.stringify({
             type: 'REQUEST_FCM_TOKEN'
           }));
@@ -187,12 +182,13 @@ export default function HomePage() {
       // Request token immediately if user is already logged in
       requestFcmToken();
       
-      // Also request token periodically (every 30 seconds) to ensure it's always up to date
+      // Request token periodically (every 5 minutes) to ensure it's always up to date
+      // Reduced frequency to minimize backend requests
       const tokenRequestInterval = setInterval(() => {
         if (isAuthenticated && isClientUser) {
           requestFcmToken();
         }
-      }, 30000); // Every 30 seconds
+      }, 300000); // Every 5 minutes instead of 30 seconds
       
       // Listen for messages from React Native
       window.addEventListener("message", async (event) => {
@@ -200,22 +196,18 @@ export default function HomePage() {
           const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
           
           if (message.type === "FCM_TOKEN" && message.token) {
-            console.log("Received FCM token from mobile app:", message.token);
             // Send FCM token to backend
             const authToken = getAuthToken();
             if (authToken) {
               const result = await saveFcmToken(message.token);
               if (result.success) {
-                console.log("✅ FCM token saved to backend successfully");
                 // Clear interval once token is saved (we'll request again if needed)
                 clearInterval(tokenRequestInterval);
-              } else {
-                console.error("Failed to save FCM token:", result.message);
               }
             }
           }
         } catch (error) {
-          console.error("Error handling message from React Native:", error);
+          // Silent error handling
         }
       });
 
@@ -225,20 +217,14 @@ export default function HomePage() {
           const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
           
           if (message.type === "FCM_TOKEN" && message.token) {
-            console.log("Received FCM token from mobile app via postMessage:", message.token);
             // Send FCM token to backend
             const authToken = getAuthToken();
             if (authToken) {
-              const result = await saveFcmToken(message.token);
-              if (result.success) {
-                console.log("FCM token saved to backend successfully");
-              } else {
-                console.error("Failed to save FCM token:", result.message);
-              }
+              await saveFcmToken(message.token);
             }
           }
         } catch (error) {
-          console.error("Error handling postMessage from React Native:", error);
+          // Silent error handling
         }
       };
 
@@ -262,7 +248,7 @@ export default function HomePage() {
         setUnreadCount(result.data.unreadCount || 0);
       }
     } catch (err) {
-      console.error("Load notifications error:", err);
+      // Silent error handling
     }
   };
 
@@ -278,7 +264,7 @@ export default function HomePage() {
     });
 
     socket.on("connect", () => {
-      console.log("Connected to Socket.io for notifications");
+      // Socket connected
     });
 
     socket.on("orderStatusUpdate", async (data: {
@@ -551,10 +537,10 @@ export default function HomePage() {
                           className="fixed inset-0 z-40"
                           onClick={() => setShowNotifications(false)}
                         />
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-96 overflow-y-auto">
-                          <div className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
-                            <h3 className="font-bold text-lg">Notifications</h3>
-                            <p className="text-sm text-blue-100">
+                        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
+                          <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
+                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                            <p className="text-xs sm:text-sm text-blue-100">
                               {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
                             </p>
                           </div>
@@ -568,13 +554,13 @@ export default function HomePage() {
                               notifications.map((notification) => (
                                 <div
                                   key={notification._id}
-                                  className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                                  className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                     !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                                   }`}
                                   onClick={() => handleNotificationClick(notification)}
                                 >
-                                  <div className="flex items-start gap-3">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  <div className="flex items-start gap-2 sm:gap-3">
+                                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                       notification.type === "order_status" 
                                         ? "bg-gradient-to-br from-blue-600 to-cyan-600"
                                         : notification.type === "new_order"
@@ -589,10 +575,10 @@ export default function HomePage() {
                                         <Bell className="w-5 h-5 text-white" />
                                       )}
                                     </div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                       <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                      <p className="font-semibold text-gray-900">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
                                             {notification.type === "order_status" 
                                               ? "Mise à jour de commande" 
                                               : notification.type === "new_order"
@@ -600,7 +586,7 @@ export default function HomePage() {
                                               : "Notification système"}
                                       </p>
                                           {notification.idSender && typeof notification.idSender === 'object' && (
-                                            <p className="text-xs text-gray-500 mt-0.5">
+                                            <p className="text-xs text-gray-500 mt-0.5 break-words">
                                               De: {notification.idSender.firstName} {notification.idSender.lastName}
                                             </p>
                                           )}
@@ -609,10 +595,10 @@ export default function HomePage() {
                                           <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
                                         )}
                                       </div>
-                                      <p className="text-sm text-gray-600 mt-2">
+                                      <p className="text-xs sm:text-sm text-gray-600 mt-1.5 sm:mt-2 break-words">
                                         {notification.message}
                                       </p>
-                                      <div className="flex items-center justify-between mt-2">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 mt-1.5 sm:mt-2">
                                         <p className="text-xs text-gray-400">
                                           {new Date(notification.createdAt).toLocaleString("fr-FR", {
                                             day: "2-digit",
@@ -1392,10 +1378,10 @@ export default function HomePage() {
           }
           setShowSupportModal(true);
         }}
-        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-3 sm:p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
         aria-label="Contacter le support"
       >
-        <MessageCircle className="w-6 h-6" />
+        <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* Support Modal */}
@@ -1405,49 +1391,49 @@ export default function HomePage() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
             onClick={() => setShowSupportModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto transform transition-all animate-fade-in-up border border-gray-200">
               {/* Header */}
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl">
-                      <MessageCircle className="w-6 h-6 text-white" />
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg sm:rounded-xl">
+                      <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Contactez le support</h3>
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Contactez le support</h3>
                   </div>
                   <button
                     onClick={() => setShowSupportModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                   >
-                    <X className="w-5 h-5 text-gray-500" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                   </button>
                 </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSupportSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleSupportSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                 {supportError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <div className="p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm">
                     {supportError}
                   </div>
                 )}
 
                 {supportSuccess && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
+                  <div className="p-2.5 sm:p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-xs sm:text-sm flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                     Message envoyé avec succès !
                   </div>
                 )}
 
                 {/* Phone Field */}
                 <div>
-                  <label htmlFor="support-phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="support-phone" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Numéro de téléphone <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-gray-400" />
+                      <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                     </div>
                     <input
                       id="support-phone"
@@ -1457,7 +1443,7 @@ export default function HomePage() {
                       disabled={isAuthenticated && userData !== null}
                       value={supportFormData.phone}
                       onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
-                      className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                      className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
                         isAuthenticated && userData ? "bg-gray-100 cursor-not-allowed" : ""
                       }`}
                       placeholder="06 12 34 56 78"
@@ -1467,12 +1453,12 @@ export default function HomePage() {
 
                 {/* Email Field */}
                 <div>
-                  <label htmlFor="support-email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="support-email" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400" />
+                      <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                     </div>
                     <input
                       id="support-email"
@@ -1482,7 +1468,7 @@ export default function HomePage() {
                       disabled={isAuthenticated && userData !== null}
                       value={supportFormData.email}
                       onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
-                      className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                      className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
                         isAuthenticated && userData ? "bg-gray-100 cursor-not-allowed" : ""
                       }`}
                       placeholder="votre@email.com"
@@ -1492,16 +1478,16 @@ export default function HomePage() {
 
                 {/* Message Field */}
                 <div>
-                  <label htmlFor="support-message" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="support-message" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Message <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="support-message"
                     required
-                    rows={5}
+                    rows={4}
                     value={supportFormData.message}
                     onChange={(e) => setSupportFormData({ ...supportFormData, message: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
                     placeholder="Décrivez votre problème ou votre question..."
                   />
                 </div>
@@ -1510,16 +1496,16 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={isSubmittingSupport}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {isSubmittingSupport ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Envoi en cours...</span>
                     </>
                   ) : (
                     <>
-                      <Send className="w-5 h-5" />
+                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span>Envoyer</span>
                     </>
                   )}

@@ -98,7 +98,7 @@ export default function SupplierProfilePage() {
         // Load profile image
         await loadProfileImage();
       } catch (err) {
-        console.error("Load profile error:", err);
+        // Silent error handling
       } finally {
         setIsLoading(false);
       }
@@ -125,12 +125,10 @@ export default function SupplierProfilePage() {
     try {
       const token = getAuthToken();
       if (!token) {
-        console.log("No token found, cannot load profile image");
         return;
       }
 
       const API_BASE_URL = getApiUrl();
-      console.log("Fetching profile image from:", `${API_BASE_URL}/supplier/profile-image`);
       
       const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
         headers: {
@@ -138,17 +136,12 @@ export default function SupplierProfilePage() {
         },
       });
 
-      console.log("Profile image response status:", response.status, response.statusText);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Profile image API response:", result);
         
         if (result.success && result.data && result.data.image) {
           const API_BASE = getBaseUrl();
           let imagePath = result.data.image;
-          
-          console.log("Original image path from API:", imagePath);
           
           // Remove leading slash if present
           if (imagePath.startsWith("/")) {
@@ -159,11 +152,6 @@ export default function SupplierProfilePage() {
           imagePath = imagePath.replace(/\\/g, "/");
           
           // Build full URL
-          // The server stores paths like "uploads/profile/filename.jpg"
-          // Server serves files in two ways:
-          // 1. express.static("uploads/profile") -> accessible at http://localhost:8000/filename.jpg
-          // 2. express.static("/uploads") -> accessible at http://localhost:8000/uploads/profile/filename.jpg
-          
           let fullImageUrl: string;
           
           // Remove leading slash if present
@@ -182,29 +170,17 @@ export default function SupplierProfilePage() {
           // Add timestamp for cache-busting
           fullImageUrl = `${fullImageUrl}?t=${Date.now()}`;
           
-          console.log("Final profile image URL:", fullImageUrl);
           setProfileImage(fullImageUrl);
         } else {
-          console.log("No image data in response:", {
-            success: result.success,
-            hasData: !!result.data,
-            hasImage: !!(result.data && result.data.image),
-            result: result
-          });
           setProfileImage(null);
         }
       } else if (response.status === 404) {
         // No profile image exists yet
-        const errorData = await response.json().catch(() => ({}));
-        console.log("Profile image not found (404):", errorData);
         setProfileImage(null);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.log("Error loading profile image:", response.status, errorData);
         setProfileImage(null);
       }
     } catch (err) {
-      console.error("Load profile image error:", err);
       setProfileImage(null);
     }
   };
@@ -306,7 +282,7 @@ export default function SupplierProfilePage() {
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Update profile error:", err);
+      // Silent error handling
     } finally {
       setIsUpdating(false);
     }
@@ -373,7 +349,7 @@ export default function SupplierProfilePage() {
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Update password error:", err);
+      // Silent error handling
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -444,7 +420,7 @@ export default function SupplierProfilePage() {
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Upload image error:", err);
+      // Silent error handling
     } finally {
       setIsUploadingImage(false);
     }
@@ -505,7 +481,7 @@ export default function SupplierProfilePage() {
                     alt="Profile" 
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      console.error("Failed to load profile image:", profileImage);
+                      // Silent error handling
                       setProfileImage(null);
                     }}
                   />

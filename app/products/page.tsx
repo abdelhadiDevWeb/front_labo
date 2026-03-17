@@ -76,7 +76,6 @@ export default function ProductsPage() {
         }
       } catch (err) {
         setError("Une erreur est survenue");
-        console.error("Load products error:", err);
       } finally {
         setIsLoading(false);
       }

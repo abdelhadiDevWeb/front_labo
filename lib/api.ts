@@ -474,7 +474,6 @@ export const loginClient = async (
   data: ClientLoginData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    console.log("Sending request to:", `${getApiBaseUrl()}/client/login`);
     const response = await fetch(`${getApiBaseUrl()}/client/login`, {
       method: "POST",
       headers: {
@@ -512,8 +511,6 @@ export const loginClient = async (
 
     return result;
   } catch (error) {
-    console.error("Login error:", error);
-    
     // Provide more helpful error messages
     let errorMessage = "Une erreur réseau est survenue.";
     
@@ -2028,10 +2025,11 @@ export interface Subscription {
 
 export interface CreateSubscriptionData {
   id_user: string;
-  type: string;
-  price: number;
+  typeId?: string; // New: subscription type ID (preferred)
+  type?: string; // Old: subscription type name (for backward compatibility)
+  price?: number; // Optional if typeId is provided
   start: string;
-  end: string;
+  end?: string; // Optional if typeId is provided (will be auto-calculated)
 }
 
 export interface UpdateSubscriptionData {
@@ -2193,6 +2191,190 @@ export const updateSubscription = async (
     return result;
   } catch (error: any) {
     console.error("Update subscription error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Subscription Type Interfaces
+export interface SubscriptionType {
+  id: string;
+  name: string;
+  time: number; // Duration in months
+  price: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSubscriptionTypeData {
+  name: string;
+  time: number;
+  price: number;
+}
+
+export interface UpdateSubscriptionTypeData {
+  name?: string;
+  time?: number;
+  price?: number;
+}
+
+// Get all subscription types
+export const getAllSubscriptionTypes = async (): Promise<ApiResponse<{ subscriptionTypes: SubscriptionType[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch subscription types (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    // Transform _id to id for consistency
+    if (result.success && result.data && result.data.subscriptionTypes) {
+      result.data.subscriptionTypes = result.data.subscriptionTypes.map((type: any) => ({
+        ...type,
+        id: type.id || type._id?.toString() || type._id,
+      }));
+    }
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Create subscription type
+export const createSubscriptionType = async (data: CreateSubscriptionTypeData): Promise<ApiResponse<SubscriptionType>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to create subscription type (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update subscription type
+export const updateSubscriptionType = async (
+  typeId: string,
+  data: UpdateSubscriptionTypeData
+): Promise<ApiResponse<SubscriptionType>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update subscription type (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Delete subscription type
+export const deleteSubscriptionType = async (typeId: string): Promise<ApiResponse<void>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete subscription type (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",

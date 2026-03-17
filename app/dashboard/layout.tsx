@@ -20,7 +20,7 @@ import {
   MessageCircle,
   Bell,
 } from "lucide-react";
-import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead } from "@/lib/api";
+import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
 
@@ -47,6 +47,7 @@ export default function DashboardLayout({
   const [problems, setProblems] = useState<Problem[]>([]);
   const [showProblemsDropdown, setShowProblemsDropdown] = useState(false);
   const [unreadProblemsCount, setUnreadProblemsCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -128,6 +129,40 @@ export default function DashboardLayout({
     loadProblems();
   }, [isAuthenticated]);
 
+  // Load pending users count (status false, role client or supplier)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const loadPendingUsersCount = async () => {
+      try {
+        const result = await getUsersForSubscription();
+        if (result.success && result.data) {
+          // getUsersForSubscription already returns users with status false and role client/supplier
+          const count = result.data.users?.length || 0;
+          setPendingUsersCount(count);
+        }
+      } catch (error) {
+        console.error("Error loading pending users count:", error);
+      }
+    };
+
+    loadPendingUsersCount();
+    
+    // Listen for subscription updates
+    const handleSubscriptionUpdate = () => {
+      loadPendingUsersCount();
+    };
+    
+    window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate);
+    
+    // Refresh every 30 seconds to keep count updated
+    const interval = setInterval(loadPendingUsersCount, 30000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("subscriptionUpdated", handleSubscriptionUpdate);
+    };
+  }, [isAuthenticated]);
+
   // Socket.io connection for real-time problem notifications
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -143,7 +178,7 @@ export default function DashboardLayout({
     });
 
     socket.on("connect", () => {
-      console.log("Connected to Socket.io server (admin)");
+      // Socket connected
     });
 
     socket.on("newProblem", async (data: {
@@ -162,7 +197,7 @@ export default function DashboardLayout({
           setUnreadProblemsCount(unreadCount);
         }
       } catch (error) {
-        console.error("Error reloading problems:", error);
+        // Silent error handling
       }
 
       // Show browser notification if permission granted
@@ -175,7 +210,7 @@ export default function DashboardLayout({
     });
 
     socket.on("disconnect", () => {
-      console.log("Disconnected from Socket.io server");
+      // Socket disconnected
     });
 
     return () => {
@@ -231,11 +266,12 @@ export default function DashboardLayout({
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
+                const showBadge = item.href === "/dashboard/subscriptions" && pendingUsersCount > 0;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
                         isActive
                           ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/50"
                           : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
@@ -244,6 +280,15 @@ export default function DashboardLayout({
                     >
                       <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
                       <span className="font-medium">{item.label}</span>
+                      {showBadge && (
+                        <span className={`ml-auto px-2 py-0.5 text-xs font-bold rounded-full ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-red-500 text-white"
+                        }`}>
+                          {pendingUsersCount > 99 ? "99+" : pendingUsersCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );

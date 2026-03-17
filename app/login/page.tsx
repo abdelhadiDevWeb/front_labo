@@ -69,7 +69,6 @@ export default function LoginPage() {
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }

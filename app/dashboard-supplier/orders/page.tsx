@@ -127,13 +127,12 @@ export default function SupplierOrdersPage() {
             }
           } catch (err) {
             // Payment doesn't exist for this order, that's okay
-            console.log(`No payment found for order ${order._id}`);
+            // No payment found for this order
           }
         }
         setPayments(paymentsMap);
       }
     } catch (err) {
-      console.error("Load orders error:", err);
       setError("Erreur lors du chargement des commandes");
     } finally {
       setIsLoading(false);
@@ -152,7 +151,7 @@ export default function SupplierOrdersPage() {
     });
 
     socket.on("connect", () => {
-      console.log("Connected to Socket.io for orders");
+      // Socket connected
     });
 
     socket.on("newOrder", () => {
@@ -222,7 +221,6 @@ export default function SupplierOrdersPage() {
         }
       }
     } catch (err) {
-      console.error("Update status error:", err);
       alert("Une erreur est survenue");
     } finally {
       setUpdatingStatus(null);
@@ -689,17 +687,17 @@ export default function SupplierOrdersPage() {
               setSelectedPayment(null);
             }}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
+            <div className="flex justify-between items-center border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl sm:rounded-t-2xl sticky top-0 z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Détails de la preuve de paiement</h3>
-                  <p className="text-sm text-gray-600">Document de paiement de la Poste Algérienne</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 truncate">Détails de la preuve de paiement</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Document de paiement de la Poste Algérienne</p>
                 </div>
               </div>
               <button
@@ -707,66 +705,66 @@ export default function SupplierOrdersPage() {
                   setShowPaymentModal(false);
                   setSelectedPayment(null);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6 text-gray-600" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
               </button>
             </div>
             
             {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Payment Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-200">
                   <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Montant</p>
-                  <p className="text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
                 </div>
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                <div className="bg-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-purple-200">
                   <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Date d'upload</p>
-                  <p className="text-lg font-semibold text-purple-900">
+                  <p className="text-base sm:text-lg font-semibold text-purple-900">
                     {new Date(selectedPayment.createdAt).toLocaleDateString("fr-FR", {
                       day: "2-digit",
                       month: "long",
                       year: "numeric"
                     })}
                   </p>
-                  <p className="text-sm text-purple-700 mt-1">
+                  <p className="text-xs sm:text-sm text-purple-700 mt-1">
                     {new Date(selectedPayment.createdAt).toLocaleTimeString("fr-FR", {
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
                   </p>
                 </div>
-                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                <div className="bg-green-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-200">
                   <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Statut</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <p className="text-lg font-semibold text-green-900">Confirmé</p>
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                    <p className="text-base sm:text-lg font-semibold text-green-900">Confirmé</p>
                   </div>
                 </div>
               </div>
 
               {/* PDF Viewer */}
-              <div className="border-t border-gray-200 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
-                    <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
+              <div className="border-t border-gray-200 pt-4 sm:pt-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
                     href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-green-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
                   >
                     <FileText className="w-4 h-4" />
                     Télécharger
                   </a>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
+                <div className="bg-gray-50 rounded-lg sm:rounded-xl p-2 sm:p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
                     src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
-                    className="w-full h-[600px] rounded-lg border border-gray-300"
+                    className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />
                 </div>
@@ -774,13 +772,13 @@ export default function SupplierOrdersPage() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+            <div className="flex justify-end gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl sm:rounded-b-2xl sticky bottom-0">
               <button
                 onClick={() => {
                   setShowPaymentModal(false);
                   setSelectedPayment(null);
                 }}
-                className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm sm:text-base hover:bg-gray-300 transition-all w-full sm:w-auto"
               >
                 Fermer
               </button>
@@ -800,23 +798,23 @@ export default function SupplierOrdersPage() {
               setPendingStatusChange(null);
             }}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className={`px-6 py-5 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm`}>
+            <div className={`px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm flex-shrink-0`}>
                   {payments[pendingStatusChange.orderId] ? (
-                    <CheckCircle className="w-7 h-7 text-white" />
+                    <CheckCircle className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
                   ) : (
-                    <AlertCircle className="w-7 h-7 text-white" />
+                    <AlertCircle className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
                   )}
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">
                     Confirmer le changement de statut
                   </h3>
-                  <p className="text-sm text-white/90 mt-1">
+                  <p className="text-xs sm:text-sm text-white/90 mt-1">
                     {pendingStatusChange.newStatus === "on route" ? "Mettre la commande en route" : "Marquer la commande comme arrivée"}
                   </p>
                 </div>
@@ -824,29 +822,29 @@ export default function SupplierOrdersPage() {
             </div>
             
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Payment Info if exists */}
               {payments[pendingStatusChange.orderId] ? (
                 <>
-                  <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <CheckCircle className="w-6 h-6 text-green-600" />
-                      <p className="font-semibold text-green-900">Preuve de paiement disponible</p>
+                  <div className="bg-green-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border-2 border-green-200">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
+                      <p className="font-semibold text-sm sm:text-base text-green-900">Preuve de paiement disponible</p>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-2 border-b border-green-200">
-                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-green-600" />
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 py-2 border-b border-green-200">
+                        <span className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                           Montant:
                         </span>
-                        <span className="text-lg font-bold text-green-900">{payments[pendingStatusChange.orderId].total.toFixed(2)} DA</span>
+                        <span className="text-base sm:text-lg font-bold text-green-900">{payments[pendingStatusChange.orderId].total.toFixed(2)} DA</span>
                       </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-green-600" />
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 py-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                           Date d'upload:
                         </span>
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-900">
                           {new Date(payments[pendingStatusChange.orderId].createdAt).toLocaleString("fr-FR", {
                             day: "2-digit",
                             month: "short",
@@ -863,24 +861,24 @@ export default function SupplierOrdersPage() {
                         setShowPaymentModal(true);
                         setShowConfirmStatusModal(false);
                       }}
-                      className="mt-4 w-full px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                      className="mt-3 sm:mt-4 w-full px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-green-700 transition-all flex items-center justify-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
                       Voir le document complet
                     </button>
                   </div>
-                  <p className="text-sm text-gray-600 text-center">
+                  <p className="text-xs sm:text-sm text-gray-600 text-center">
                     La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir {pendingStatusChange.newStatus === "on route" ? "mettre cette commande en route" : "marquer cette commande comme arrivée"} ?
                   </p>
                 </>
               ) : (
                 <>
-                  <div className="bg-yellow-50 rounded-xl p-5 border-2 border-yellow-200">
-                    <div className="flex items-center gap-3 mb-2">
-                      <AlertCircle className="w-6 h-6 text-yellow-600" />
-                      <p className="font-semibold text-yellow-900">Aucune preuve de paiement</p>
+                  <div className="bg-yellow-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border-2 border-yellow-200">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600 flex-shrink-0" />
+                      <p className="font-semibold text-sm sm:text-base text-yellow-900">Aucune preuve de paiement</p>
                     </div>
-                    <p className="text-sm text-yellow-800">
+                    <p className="text-xs sm:text-sm text-yellow-800">
                       Aucune preuve de paiement n'a été uploadée pour cette commande. Voulez-vous quand même {pendingStatusChange.newStatus === "on route" ? "mettre la commande en route" : "marquer la commande comme arrivée"} ?
                     </p>
                   </div>
@@ -888,20 +886,20 @@ export default function SupplierOrdersPage() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
                 <button
                   onClick={() => {
                     setShowConfirmStatusModal(false);
                     setPendingStatusChange(null);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                  className="flex-1 px-4 py-2 sm:py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm sm:text-base hover:bg-gray-300 transition-all"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={confirmStatusChange}
                   disabled={updatingStatus === pendingStatusChange.orderId}
-                  className={`flex-1 px-4 py-2.5 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                     payments[pendingStatusChange.orderId]
                       ? "bg-green-600 text-white hover:bg-green-700"
                       : "bg-yellow-600 text-white hover:bg-yellow-700"
@@ -936,17 +934,17 @@ export default function SupplierOrdersPage() {
               setAlertPayment(null);
             }}
           />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <CheckCircle className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">Preuve de paiement confirmée</h3>
-                  <p className="text-sm text-green-100 mt-1">
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">Preuve de paiement confirmée</h3>
+                  <p className="text-xs sm:text-sm text-green-100 mt-1">
                     Commande mise en route avec succès
                   </p>
                 </div>
@@ -954,25 +952,25 @@ export default function SupplierOrdersPage() {
             </div>
             
             {/* Content */}
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+              <p className="text-xs sm:text-sm text-gray-600">
                 La commande a été confirmée et mise en route. Voici les détails de la preuve de paiement :
               </p>
               
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200 space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-green-200">
-                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-green-600" />
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border-2 border-green-200 space-y-2 sm:space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 py-2 border-b border-green-200">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                     Montant:
                   </span>
-                  <span className="text-lg font-bold text-green-900">{alertPayment.total.toFixed(2)} DA</span>
+                  <span className="text-base sm:text-lg font-bold text-green-900">{alertPayment.total.toFixed(2)} DA</span>
                 </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-green-600" />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 py-2">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                     Date d'upload:
                   </span>
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-900">
                     {new Date(alertPayment.createdAt).toLocaleString("fr-FR", {
                       day: "2-digit",
                       month: "short",
@@ -984,13 +982,13 @@ export default function SupplierOrdersPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
                 <button
                   onClick={() => {
                     setShowPaymentAlert(false);
                     setAlertPayment(null);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
                 >
                   OK
                 </button>
@@ -1001,7 +999,7 @@ export default function SupplierOrdersPage() {
                     setShowPaymentAlert(false);
                     setAlertPayment(null);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  className="flex-1 px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   <Eye className="w-4 h-4" />
                   Voir le document

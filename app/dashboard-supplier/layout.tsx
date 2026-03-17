@@ -92,18 +92,18 @@ export default function SupplierDashboardLayout({
           if (profileResult.success && profileResult.data) {
             setUserData(profileResult.data);
           } else {
-            console.error("Failed to load profile:", profileResult.message);
+            // Silent error handling
             // Don't redirect on profile load failure, just log the error
           }
         } catch (profileError) {
-          console.error("Error loading profile:", profileError);
+          // Silent error handling
           // Don't redirect on profile load failure, just log the error
         }
 
         // Load profile image
         await loadProfileImage();
       } catch (error) {
-        console.error("Error decoding token:", error);
+        // Silent error handling
         router.push("/login");
       } finally {
         setIsLoadingUser(false);
@@ -134,7 +134,7 @@ export default function SupplierDashboardLayout({
           setUnreadCount(result.data.unreadCount);
         }
       } catch (error) {
-        console.error("Error loading notifications:", error);
+        // Silent error handling
       }
     };
 
@@ -154,7 +154,7 @@ export default function SupplierDashboardLayout({
     });
 
     socket.on("connect", () => {
-      console.log("Connected to Socket.io server");
+      // Socket connected
     });
 
     socket.on("newOrder", async (data: {
@@ -175,7 +175,7 @@ export default function SupplierDashboardLayout({
           setUnreadCount(result.data.unreadCount);
         }
       } catch (error) {
-        console.error("Error reloading notifications:", error);
+        // Silent error handling
       }
       
       // Show browser notification if permission granted
@@ -188,7 +188,7 @@ export default function SupplierDashboardLayout({
     });
 
     socket.on("disconnect", () => {
-      console.log("Disconnected from Socket.io server");
+      // Socket disconnected
     });
 
     return () => {
@@ -226,7 +226,7 @@ export default function SupplierDashboardLayout({
         setSupportError(result.message || "Erreur lors de l'envoi du message");
       }
     } catch (err) {
-      console.error("Support submit error:", err);
+      // Silent error handling
       setSupportError("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setIsSubmittingSupport(false);
@@ -288,7 +288,7 @@ export default function SupplierDashboardLayout({
         setProfileImage(null);
       }
     } catch (err) {
-      console.error("Load profile image error:", err);
+      // Silent error handling
       setProfileImage(null);
     }
   };
@@ -312,7 +312,7 @@ export default function SupplierDashboardLayout({
         // Also reload profile image
         await loadProfileImage();
       } catch (error) {
-        console.error("Error reloading profile:", error);
+        // Silent error handling
       }
     };
 
@@ -462,10 +462,10 @@ export default function SupplierDashboardLayout({
                       className="fixed inset-0 z-[100]"
                       onClick={() => setShowNotifications(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-96 overflow-y-auto">
-                      <div className="p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                        <h3 className="font-bold text-lg">Notifications</h3>
-                        <p className="text-sm text-green-100">
+                    <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 md:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
+                      <div className="p-3 sm:p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
+                        <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                        <p className="text-xs sm:text-sm text-green-100">
                           {unreadCount > 0 
                             ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
                             : "Aucune nouvelle notification"}
@@ -473,9 +473,9 @@ export default function SupplierDashboardLayout({
                       </div>
                       <div className="divide-y divide-gray-200">
                         {notifications.filter((notification) => !notification.isRead).length === 0 ? (
-                          <div className="p-6 text-center text-gray-500">
-                            <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                            <p className="font-medium">Vous n'avez aucune nouvelle notification</p>
+                          <div className="p-4 sm:p-6 text-center text-gray-500">
+                            <Bell className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-300" />
+                            <p className="font-medium text-sm sm:text-base">Vous n'avez aucune nouvelle notification</p>
                             <p className="text-xs text-gray-400 mt-1">Toutes vos notifications ont été lues</p>
                           </div>
                         ) : (
@@ -484,7 +484,7 @@ export default function SupplierDashboardLayout({
                             .map((notification) => (
                             <div
                               key={notification._id}
-                              className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                              className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                 !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                               }`}
                               onClick={async () => {
@@ -500,7 +500,7 @@ export default function SupplierDashboardLayout({
                                       setUnreadCount((prev) => Math.max(0, prev - 1));
                                     }
                                   } catch (error) {
-                                    console.error("Error marking notification as read:", error);
+                                    // Silent error handling
                                   }
                                 }
                                 // Navigate to orders page
@@ -508,8 +508,8 @@ export default function SupplierDashboardLayout({
                                 setShowNotifications(false);
                               }}
                             >
-                              <div className="flex items-start gap-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                   notification.type === "new_order" 
                                     ? "bg-gradient-to-br from-green-600 to-emerald-600"
                                     : notification.type === "order_status"
@@ -522,11 +522,11 @@ export default function SupplierDashboardLayout({
                                     <Bell className="w-5 h-5 text-white" />
                                   )}
                                 </div>
-                                <div className="flex-1">
-                                  <p className="font-semibold text-gray-900">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
                                     {notification.type === "new_order" ? "Nouvelle commande" : "Mise à jour de commande"}
                                   </p>
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
                                     {notification.message}
                                   </p>
                                   <p className="text-xs text-gray-400 mt-1">
@@ -559,7 +559,7 @@ export default function SupplierDashboardLayout({
                         alt="Profile" 
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          console.error("Failed to load profile image:", profileImage);
+                          // Silent error handling
                           setProfileImage(null);
                         }}
                       />
@@ -612,7 +612,7 @@ export default function SupplierDashboardLayout({
                                   alt="Profile" 
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
-                                    console.error("Failed to load profile image:", profileImage);
+                                    // Silent error handling
                                     setProfileImage(null);
                                     
                                   }}

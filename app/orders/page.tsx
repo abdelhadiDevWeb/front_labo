@@ -167,13 +167,13 @@ export default function OrdersPage() {
             }
           } catch (err) {
             // Payment doesn't exist for this order, that's okay
-            console.log(`No payment found for order ${order._id}`);
+            // No payment found for this order
           }
         }
         setPayments(paymentsMap);
       }
     } catch (err) {
-      console.error("Load orders error:", err);
+      // Silent error handling
     }
   };
 
@@ -854,20 +854,20 @@ export default function OrdersPage() {
 
       {/* View Payment Modal */}
       {showPaymentModal && selectedPayment && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => {
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6" onClick={() => {
           setShowPaymentModal(false);
           setSelectedPayment(null);
         }}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
+            <div className="flex justify-between items-center border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-xl sm:rounded-t-2xl sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Preuve de paiement</h3>
-                  <p className="text-sm text-gray-600">Document de paiement de la Poste Algérienne</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 truncate">Preuve de paiement</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Document de paiement de la Poste Algérienne</p>
                 </div>
               </div>
               <button
@@ -875,66 +875,66 @@ export default function OrdersPage() {
                   setShowPaymentModal(false);
                   setSelectedPayment(null);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6 text-gray-600" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
               </button>
             </div>
             
             {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Payment Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                <div className="bg-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-200">
                   <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Montant</p>
-                  <p className="text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
                 </div>
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                <div className="bg-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-purple-200">
                   <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Date d'upload</p>
-                  <p className="text-lg font-semibold text-purple-900">
+                  <p className="text-base sm:text-lg font-semibold text-purple-900">
                     {new Date(selectedPayment.createdAt).toLocaleDateString("fr-FR", {
                       day: "2-digit",
                       month: "long",
                       year: "numeric"
                     })}
                   </p>
-                  <p className="text-sm text-purple-700 mt-1">
+                  <p className="text-xs sm:text-sm text-purple-700 mt-1">
                     {new Date(selectedPayment.createdAt).toLocaleTimeString("fr-FR", {
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
                   </p>
                 </div>
-                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                <div className="bg-green-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-200">
                   <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Statut</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <p className="text-lg font-semibold text-green-900">Confirmé</p>
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                    <p className="text-base sm:text-lg font-semibold text-green-900">Confirmé</p>
                   </div>
                 </div>
               </div>
 
               {/* PDF Viewer */}
-              <div className="border-t border-gray-200 pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
-                    <p className="text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
+              <div className="border-t border-gray-200 pt-4 sm:pt-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
                     href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
                   >
                     <FileText className="w-4 h-4" />
                     Télécharger
                   </a>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 shadow-inner">
+                <div className="bg-gray-50 rounded-lg sm:rounded-xl p-2 sm:p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
                     src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
-                    className="w-full h-[600px] rounded-lg border border-gray-300"
+                    className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />
                 </div>
@@ -942,13 +942,13 @@ export default function OrdersPage() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+            <div className="flex justify-end gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl sm:rounded-b-2xl sticky bottom-0">
               <button
                 onClick={() => {
                   setShowPaymentModal(false);
                   setSelectedPayment(null);
                 }}
-                className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm sm:text-base hover:bg-gray-300 transition-all w-full sm:w-auto"
               >
                 Fermer
               </button>

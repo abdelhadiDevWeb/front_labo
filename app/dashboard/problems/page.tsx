@@ -273,39 +273,39 @@ export default function ProblemsPage() {
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
             onClick={() => setShowModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full transform transition-all animate-fade-in-up border border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-fade-in-up border border-gray-200">
               {/* Header */}
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl">
-                      <MessageCircle className="w-6 h-6 text-white" />
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg sm:rounded-xl flex-shrink-0">
+                      <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Détails du problème</h3>
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Détails du problème</h3>
                   </div>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 ml-2"
                   >
-                    <X className="w-5 h-5 text-gray-500" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                   </button>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Status */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Statut:</span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700">Statut:</span>
                   {selectedProblem.is_read ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <CheckCircle className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                       Lu
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      <AlertCircle className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                       Non lu
                     </span>
                   )}
@@ -313,36 +313,36 @@ export default function ProblemsPage() {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Mail className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-900">{selectedProblem.email}</span>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 rounded-lg">
+                    <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-gray-900 break-words">{selectedProblem.email}</span>
                   </div>
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Phone className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-900">{selectedProblem.phone}</span>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Téléphone</label>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 rounded-lg">
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-gray-900 break-words">{selectedProblem.phone}</span>
                   </div>
                 </div>
 
                 {/* Message */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-900 whitespace-pre-wrap">{selectedProblem.message}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Message</label>
+                  <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-gray-900 whitespace-pre-wrap break-words">{selectedProblem.message}</p>
                   </div>
                 </div>
 
                 {/* Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Clock className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-900">{formatDate(selectedProblem.createdAt)}</span>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date</label>
+                  <div className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-gray-50 rounded-lg">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm text-gray-900">{formatDate(selectedProblem.createdAt)}</span>
                   </div>
                 </div>
               </div>

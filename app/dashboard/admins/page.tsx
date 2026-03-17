@@ -265,33 +265,33 @@ export default function AdminsPage() {
 
       {/* Create Admin Modal */}
       {mounted && showCreateModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 animate-fade-in">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <Shield className="w-6 h-6 text-white" />
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-4 sm:p-6 flex items-center justify-between sticky top-0 z-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0">
+                  <Shield className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">Créer un nouvel Admin</h3>
-                  <p className="text-sm text-blue-100 mt-0.5">Ajoutez un nouvel administrateur au système</p>
+                <div className="min-w-0">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">Créer un nouvel Admin</h3>
+                  <p className="text-xs sm:text-sm text-blue-100 mt-0.5">Ajoutez un nouvel administrateur au système</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-all duration-200"
+                className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 sm:p-2 rounded-lg transition-all duration-200 flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Form Content */}
-            <form onSubmit={handleCreateAdmin} className="p-6 space-y-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <form onSubmit={handleCreateAdmin} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 {/* First Name */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                     Prénom <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -300,13 +300,13 @@ export default function AdminsPage() {
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     placeholder="Entrez le prénom"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
                   />
                 </div>
 
                 {/* Last Name */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                     Nom <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -315,36 +315,36 @@ export default function AdminsPage() {
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     placeholder="Entrez le nom"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
                   />
                 </div>
               </div>
 
               {/* Email */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <input
                     type="email"
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="exemple@email.com"
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
                   />
                 </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                   Mot de passe <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Key className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Key className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <input
                     type="password"
                     required
@@ -352,7 +352,7 @@ export default function AdminsPage() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Minimum 8 caractères"
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
                   />
                 </div>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -362,70 +362,70 @@ export default function AdminsPage() {
               </div>
 
               {/* Phone */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                   Téléphone <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Phone className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <input
                     type="tel"
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+33 6 12 34 56 78"
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
                   />
                 </div>
               </div>
 
               {/* Address */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">
                   Adresse <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
+                  <MapPin className="absolute left-3 sm:left-4 top-3 sm:top-4 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <textarea
                     required
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     rows={3}
                     placeholder="Entrez l'adresse complète"
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none resize-none"
+                    className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none resize-none"
                   />
                 </div>
               </div>
 
               {/* Info Note */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm text-blue-800">
                   <strong>Note:</strong> Le statut de l'admin sera défini sur <strong>Inactif</strong> par défaut. Vous pourrez l'activer après la création.
                 </p>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium text-sm sm:text-base"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                 >
                   {isCreating ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                       Création en cours...
                     </>
                   ) : (
                     <>
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                       Créer l'Admin
                     </>
                   )}
@@ -439,68 +439,68 @@ export default function AdminsPage() {
 
       {/* Admin Details Modal */}
       {mounted && showDetailModal && selectedAdmin && createPortal(
-        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Détails de l'Admin</h3>
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Détails de l'Admin</h3>
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-2 flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <Shield className="w-8 h-8 text-purple-600" />
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+              <div className="flex items-center gap-2 sm:gap-3 pb-3 sm:pb-4 border-b border-gray-200">
+                <div className="p-2 sm:p-3 bg-purple-100 rounded-lg sm:rounded-xl flex-shrink-0">
+                  <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
                 </div>
-                <div>
-                  <h4 className="text-lg font-bold text-gray-900">
+                <div className="min-w-0">
+                  <h4 className="text-base sm:text-lg font-bold text-gray-900 break-words">
                     {selectedAdmin.firstName} {selectedAdmin.lastName}
                   </h4>
-                  <p className="text-sm text-gray-500">{selectedAdmin.email}</p>
+                  <p className="text-xs sm:text-sm text-gray-500 break-words">{selectedAdmin.email}</p>
                 </div>
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">{selectedAdmin.email}</span>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-gray-700 break-words">{selectedAdmin.email}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">{selectedAdmin.phone}</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-gray-700 break-words">{selectedAdmin.phone}</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <span className="text-gray-700">{selectedAdmin.address}</span>
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-gray-700 break-words">{selectedAdmin.address}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">Rôle: {selectedAdmin.role}</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-gray-700">Rôle: {selectedAdmin.role}</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {selectedAdmin.status ? (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                   ) : (
-                    <XCircle className="w-5 h-5 text-gray-400" />
+                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                   )}
-                  <span className="text-gray-700">
+                  <span className="text-xs sm:text-sm text-gray-700">
                     Statut: {selectedAdmin.status ? "Actif" : "Inactif"}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Key className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Key className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm text-gray-700">
                     Créé le: {new Date(selectedAdmin.createdAt).toLocaleString("fr-FR")}
                   </span>
                 </div>
               </div>
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-3 sm:pt-4 border-t border-gray-200">
                 <button
                   onClick={() => handleToggleStatus(selectedAdmin._id, selectedAdmin.status)}
                   disabled={isUpdatingStatus === selectedAdmin._id}
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm sm:text-base ${
                     selectedAdmin.status
                       ? "bg-red-100 text-red-600 hover:bg-red-200"
                       : "bg-green-100 text-green-600 hover:bg-green-200"
