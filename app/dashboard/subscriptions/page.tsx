@@ -88,6 +88,14 @@ export default function SubscriptionsPage() {
     price: 0,
   });
 
+  // Helper function to safely get time value
+  const getUpdateTimeValue = (): number => {
+    if (updateTypeFormData.time !== undefined && updateTypeFormData.time !== null) {
+      return updateTypeFormData.time;
+    }
+    return 1;
+  };
+
   const [durationUnit, setDurationUnit] = useState<"days" | "months">("months");
   const [durationMonths, setDurationMonths] = useState<number>(1);
   const [updateDurationUnit, setUpdateDurationUnit] = useState<"days" | "months">("months");
@@ -305,7 +313,7 @@ export default function SubscriptionsPage() {
 
     try {
       // Convert months to days if needed
-      const timeInDays = updateDurationUnit === "months" ? updateDurationMonths * 30 : updateTypeFormData.time;
+      const timeInDays = updateDurationUnit === "months" ? updateDurationMonths * 30 : getUpdateTimeValue();
       const formDataToSend = {
         ...updateTypeFormData,
         time: timeInDays,
@@ -1582,7 +1590,8 @@ export default function SubscriptionsPage() {
                       onClick={() => {
                         setUpdateDurationUnit("months");
                         if (updateDurationUnit === "days") {
-                          setUpdateDurationMonths(Math.round(updateTypeFormData.time / 30) || 1);
+                          const timeValue = getUpdateTimeValue();
+                          setUpdateDurationMonths(Math.round(timeValue / 30) || 1);
                         }
                       }}
                       className={`px-3 py-1 text-xs rounded-lg transition-colors ${
@@ -1634,7 +1643,7 @@ export default function SubscriptionsPage() {
                     type="number"
                     required
                     min="1"
-                    value={updateTypeFormData.time}
+                    value={getUpdateTimeValue()}
                     onChange={(e) => setUpdateTypeFormData({ ...updateTypeFormData, time: parseInt(e.target.value) || 1 })}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                   />
