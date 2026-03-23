@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -62,6 +63,8 @@ export default function SupplierOrdersPage() {
   const [alertPayment, setAlertPayment] = useState<Payment | null>(null);
   const [showConfirmStatusModal, setShowConfirmStatusModal] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<{ orderId: string; newStatus: "on route" | "arrived" } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [recentPaymentOrderIds, setRecentPaymentOrderIds] = useState<Set<string>>(new Set());
 
   // Memoize modal states to ensure consistent dependency array
   const modalStates = useMemo(() => ({
@@ -72,7 +75,52 @@ export default function SupplierOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-    setupSocketConnection();
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const socket = socketIO(getBaseUrl(), {
+      auth: {
+        token: token,
+      },
+      transports: ["websocket", "polling"],
+    });
+
+    const refreshOrders = () => {
+      loadOrders();
+    };
+
+    socket.on("newOrder", refreshOrders);
+    socket.on("paymentUploaded", (data: { orderId?: string }) => {
+      if (data?.orderId) {
+        setRecentPaymentOrderIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.orderId as string);
+          return next;
+        });
+
+        setTimeout(() => {
+          setRecentPaymentOrderIds((prev) => {
+            const next = new Set(prev);
+            next.delete(data.orderId as string);
+            return next;
+          });
+        }, 5000);
+      }
+      refreshOrders();
+    });
+
+    return () => {
+      socket.off("newOrder", refreshOrders);
+      socket.off("paymentUploaded");
+      socket.disconnect();
+    };
   }, []);
 
   // Prevent body scroll when modals are open
@@ -137,31 +185,6 @@ export default function SupplierOrdersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const setupSocketConnection = () => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = socketIO(getBaseUrl(), {
-      auth: {
-        token: token,
-      },
-      transports: ["websocket", "polling"],
-    });
-
-    socket.on("connect", () => {
-      // Socket connected
-    });
-
-    socket.on("newOrder", () => {
-      // Reload orders when new order arrives
-      loadOrders();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   };
 
   const filterOrders = () => {
@@ -587,7 +610,14 @@ export default function SupplierOrdersPage() {
 
                   {/* Payment Section */}
                   <div className="mb-4 pt-4 border-t border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-3">Preuve de paiement:</h4>
+                    <div className="flex items-center justify-between mb-3 gap-3">
+                      <h4 className="font-semibold text-gray-900">Preuve de paiement:</h4>
+                      {recentPaymentOrderIds.has(order._id) && (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300 animate-pulse">
+                          Preuve recue maintenant
+                        </span>
+                      )}
+                    </div>
                     {payments[order._id] ? (
                       <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
                         <CheckCircle className="w-5 h-5 text-green-600" />
@@ -678,17 +708,20 @@ export default function SupplierOrdersPage() {
       </main>
 
       {/* Payment Details Modal */}
-      {showPaymentModal && selectedPayment && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
-            onClick={() => {
-              setShowPaymentModal(false);
-              setSelectedPayment(null);
-            }}
-          />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+      {isMounted &&
+        showPaymentModal &&
+        selectedPayment &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
+              onClick={() => {
+                setShowPaymentModal(false);
+                setSelectedPayment(null);
+              }}
+            />
+            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex justify-between items-center border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl sm:rounded-t-2xl sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -783,23 +816,27 @@ export default function SupplierOrdersPage() {
                 Fermer
               </button>
             </div>
-          </div>
-          </div>
-        </>
-      )}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* Confirmation Modal Before Status Change */}
-      {showConfirmStatusModal && pendingStatusChange && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
-            onClick={() => {
-              setShowConfirmStatusModal(false);
-              setPendingStatusChange(null);
-            }}
-          />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+      {isMounted &&
+        showConfirmStatusModal &&
+        pendingStatusChange &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
+              onClick={() => {
+                setShowConfirmStatusModal(false);
+                setPendingStatusChange(null);
+              }}
+            />
+            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className={`px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
               <div className="flex items-center gap-2 sm:gap-3">
@@ -919,23 +956,27 @@ export default function SupplierOrdersPage() {
                 </button>
               </div>
             </div>
-          </div>
-          </div>
-        </>
-      )}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* Payment Alert Modal (when confirming order to on route) */}
-      {showPaymentAlert && alertPayment && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity animate-fade-in"
-            onClick={() => {
-              setShowPaymentAlert(false);
-              setAlertPayment(null);
-            }}
-          />
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+      {isMounted &&
+        showPaymentAlert &&
+        alertPayment &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
+              onClick={() => {
+                setShowPaymentAlert(false);
+                setAlertPayment(null);
+              }}
+            />
+            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -1006,10 +1047,11 @@ export default function SupplierOrdersPage() {
                 </button>
               </div>
             </div>
-          </div>
-          </div>
-        </>
-      )}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 }

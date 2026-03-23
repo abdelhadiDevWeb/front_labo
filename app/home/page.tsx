@@ -36,7 +36,7 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
@@ -299,6 +299,18 @@ export default function HomePage() {
     window.location.href = "/orders";
   };
 
+  const handleMarkAllNotificationsAsRead = async () => {
+    try {
+      const result = await markAllNotificationsAsRead();
+      if (result.success) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+  };
+
   // Handle support form submission
   const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -501,6 +513,19 @@ export default function HomePage() {
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
               {isAuthenticated && isClientUser && (
+                <Link href="/suppliers" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
+                  Suppliers
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              )}
+              {isAuthenticated && isClientUser && (
+                <Link href="/favorable" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
+                  <Heart className="w-4 h-4" />
+                  <span>Favorable</span>
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              )}
+              {isAuthenticated && isClientUser && (
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   <span>Mes Commandes</span>
@@ -537,12 +562,24 @@ export default function HomePage() {
                           className="fixed inset-0 z-40"
                           onClick={() => setShowNotifications(false)}
                         />
-                        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
+                        <div className="fixed left-1/2 -translate-x-1/2 top-20 w-[calc(100vw-2rem)] sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-auto sm:mt-2 sm:w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
                           <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
-                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                            <p className="text-xs sm:text-sm text-blue-100">
-                              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
-                            </p>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                                <p className="text-xs sm:text-sm text-blue-100">
+                                  {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+                                </p>
+                              </div>
+                              {unreadCount > 0 && (
+                                <button
+                                  onClick={handleMarkAllNotificationsAsRead}
+                                  className="text-xs sm:text-sm font-semibold px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                                >
+                                  Tout marquer lu
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div className="divide-y divide-gray-200">
                             {notifications.length === 0 ? (
@@ -674,6 +711,18 @@ export default function HomePage() {
                 <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </a>
+                {isAuthenticated && isClientUser && (
+                  <Link href="/suppliers" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    <span>Suppliers</span>
+                  </Link>
+                )}
+                {isAuthenticated && isClientUser && (
+                  <Link href="/favorable" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
+                    <Heart className="w-4 h-4" />
+                    <span>Favorable</span>
+                  </Link>
+                )}
                 {isAuthenticated && isClientUser && (
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
@@ -1245,6 +1294,11 @@ export default function HomePage() {
                         >
                           <Building2 className="w-4 h-4 group-hover:text-blue-600" />
                           <span className="truncate group-hover:underline">{product.supplier.name}</span>
+                          {product.supplier.certife && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                              Certifie
+                            </span>
+                          )}
                         </Link>
                       )}
 

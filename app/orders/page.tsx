@@ -6,6 +6,7 @@ import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Fi
 import { getAuthToken, createPayment, getPaymentByCommande, Payment } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
+import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
 interface Order {
@@ -82,6 +83,32 @@ export default function OrdersPage() {
 
     checkAuth();
   }, [router]);
+
+  // Real-time updates for client orders (status changes/new orders)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    const socket = socketIO(getBaseUrl(), {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+
+    const refreshOrders = () => {
+      loadOrders();
+    };
+
+    socket.on("orderStatusUpdate", refreshOrders);
+    socket.on("newOrder", refreshOrders);
+
+    return () => {
+      socket.off("orderStatusUpdate", refreshOrders);
+      socket.off("newOrder", refreshOrders);
+      socket.disconnect();
+    };
+  }, [isAuthenticated]);
   
   // Check URL params for payment upload (single or multiple orders)
   useEffect(() => {
@@ -565,6 +592,9 @@ export default function OrdersPage() {
                         <button
                           onClick={() => {
                             setSelectedOrder(order);
+                            setPendingOrderIds([order._id]);
+                            setUploadFiles({ [order._id]: null });
+                            setUploadErrors({ [order._id]: null });
                             setShowUploadModal(true);
                           }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-all"

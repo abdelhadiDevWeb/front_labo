@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -109,6 +109,19 @@ export default function DashboardLayout({
     }
   };
 
+  const loadPendingUsersCount = useCallback(async () => {
+    try {
+      const result = await getUsersForSubscription();
+      if (result.success && result.data) {
+        const count = result.data.users?.length || 0;
+        setPendingUsersCount(count);
+        window.dispatchEvent(new CustomEvent("pendingUsersUpdated", { detail: { count } }));
+      }
+    } catch (error) {
+      console.error("Error loading pending users count:", error);
+    }
+  }, []);
+
   // Load problems on mount and when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -133,19 +146,6 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const loadPendingUsersCount = async () => {
-      try {
-        const result = await getUsersForSubscription();
-        if (result.success && result.data) {
-          // getUsersForSubscription already returns users with status false and role client/supplier
-          const count = result.data.users?.length || 0;
-          setPendingUsersCount(count);
-        }
-      } catch (error) {
-        console.error("Error loading pending users count:", error);
-      }
-    };
-
     loadPendingUsersCount();
     
     // Listen for subscription updates
@@ -154,14 +154,11 @@ export default function DashboardLayout({
     };
     
     window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate);
-    
-    // Refresh every 30 seconds to keep count updated
-    const interval = setInterval(loadPendingUsersCount, 30000);
+
     return () => {
-      clearInterval(interval);
       window.removeEventListener("subscriptionUpdated", handleSubscriptionUpdate);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadPendingUsersCount]);
 
   // Socket.io connection for real-time problem notifications
   useEffect(() => {
@@ -209,6 +206,10 @@ export default function DashboardLayout({
       }
     });
 
+    socket.on("pendingUserActivity", async () => {
+      await loadPendingUsersCount();
+    });
+
     socket.on("disconnect", () => {
       // Socket disconnected
     });
@@ -216,7 +217,7 @@ export default function DashboardLayout({
     return () => {
       socket.disconnect();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadPendingUsersCount]);
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;

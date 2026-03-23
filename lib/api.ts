@@ -984,6 +984,7 @@ export interface PublicProduct {
     email: string;
     phone: string;
     address: string;
+    certife?: boolean;
   } | null;
   createdAt?: string;
   updatedAt?: string;
@@ -1390,6 +1391,7 @@ export interface AdminUser {
   address: string;
   role: "client" | "supplier";
   status: boolean;
+  certife?: boolean;
   laboType?: string;
   ordersCount: number;
   createdAt: string;
@@ -1504,6 +1506,46 @@ export const updateUserStatus = async (
     return result;
   } catch (error: any) {
     console.error("Update user status error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Update supplier certife (admin only)
+export const updateUserCertife = async (
+  userId: string,
+  certife: boolean
+): Promise<ApiResponse<{ id: string; certife: boolean }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        message: "Not authenticated",
+      };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/certife`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ certife }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update certife (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2624,6 +2666,7 @@ export interface SupplierDetails {
     phone: string;
     address: string;
     status: boolean;
+    certife?: boolean;
     profileImage: string | null;
     rip_post?: string;
     rip_bank?: string;
@@ -2649,6 +2692,18 @@ export interface SupplierDetails {
   }>;
 }
 
+export interface SupplierCard {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  certife?: boolean;
+  profileImage: string | null;
+  productsCount: number;
+}
+
 // Get supplier details by ID (public)
 export const getSupplierDetails = async (supplierId: string): Promise<ApiResponse<SupplierDetails>> => {
   try {
@@ -2671,6 +2726,139 @@ export const getSupplierDetails = async (supplierId: string): Promise<ApiRespons
     return result;
   } catch (error: any) {
     console.error("Get supplier details error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get all suppliers (public, with optional auth for laboType filtering)
+export const getAllSuppliersPublic = async (): Promise<ApiResponse<{ suppliers: SupplierCard[]; total: number }>> => {
+  try {
+    const token = getAuthToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/supplier/public`, {
+      method: "GET",
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch suppliers",
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Add supplier to favorites (client)
+export const addSupplierToFavorites = async (supplierId: string): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ supplierId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to add supplier to favorites",
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Remove supplier from favorites (client)
+export const removeSupplierFromFavorites = async (supplierId: string): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers/${supplierId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to remove supplier from favorites",
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get current client favorite suppliers
+export const getFavoriteSuppliers = async (): Promise<ApiResponse<{ suppliers: SupplierCard[]; total: number }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch favorite suppliers",
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",

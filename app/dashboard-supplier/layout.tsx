@@ -24,7 +24,7 @@ import {
   Send,
   CheckCircle,
 } from "lucide-react";
-import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, NotificationData, createProblem } from "@/lib/api";
+import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 
@@ -187,6 +187,33 @@ export default function SupplierDashboardLayout({
       }
     });
 
+    socket.on("paymentUploaded", async (data: {
+      orderId: string;
+      total: number;
+      buyerName: string;
+      paymentId: string;
+      notificationId?: string;
+      createdAt: string;
+    }) => {
+      try {
+        const result = await getNotifications(true);
+        if (result.success && result.data) {
+          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
+          setNotifications(unreadNotifications);
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        new window.Notification("Preuve de paiement reçue", {
+          body: `${data.buyerName} a envoyé une preuve de paiement`,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
     socket.on("disconnect", () => {
       // Socket disconnected
     });
@@ -344,6 +371,18 @@ export default function SupplierDashboardLayout({
     return null;
   }
 
+  const handleMarkAllNotificationsAsRead = async () => {
+    try {
+      const result = await markAllNotificationsAsRead();
+      if (result.success) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Sidebar Overlay */}
@@ -462,14 +501,26 @@ export default function SupplierDashboardLayout({
                       className="fixed inset-0 z-[100]"
                       onClick={() => setShowNotifications(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 md:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
+                    <div className="fixed left-1/2 -translate-x-1/2 top-20 w-[calc(100vw-2rem)] sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-auto sm:mt-2 sm:w-72 md:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
                       <div className="p-3 sm:p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                        <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                        <p className="text-xs sm:text-sm text-green-100">
-                          {unreadCount > 0 
-                            ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
-                            : "Aucune nouvelle notification"}
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                            <p className="text-xs sm:text-sm text-green-100">
+                              {unreadCount > 0 
+                                ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
+                                : "Aucune nouvelle notification"}
+                            </p>
+                          </div>
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllNotificationsAsRead}
+                              className="text-xs sm:text-sm font-semibold px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                            >
+                              Tout marquer lu
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="divide-y divide-gray-200">
                         {notifications.filter((notification) => !notification.isRead).length === 0 ? (

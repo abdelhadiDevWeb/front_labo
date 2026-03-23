@@ -23,8 +23,9 @@ import {
   Copy,
   Check,
   Send,
+  Heart,
 } from "lucide-react";
-import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getAuthToken, SupplierRatingsResponse, CanRateResponse } from "@/lib/api";
+import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getAuthToken, SupplierRatingsResponse, CanRateResponse, addSupplierToFavorites, removeSupplierFromFavorites, getFavoriteSuppliers } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { getBaseUrl } from "@/lib/api-config";
 
@@ -52,14 +53,44 @@ export default function SupplierDetailsPage() {
   const [ratingMessage, setRatingMessage] = useState<string>("");
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [isLoadingRatings, setIsLoadingRatings] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [userLaboType, setUserLaboType] = useState<string | null>(null);
 
   useEffect(() => {
     if (supplierId) {
       loadSupplierDetails();
       loadRatings();
       checkCanRate();
+      loadFavoriteState();
+      loadUserLaboType();
     }
   }, [supplierId]);
+
+  const loadUserLaboType = () => {
+    const token = getAuthToken();
+    if (!token) {
+      setUserLaboType(null);
+      return;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setUserLaboType(payload.laboType || null);
+    } catch {
+      setUserLaboType(null);
+    }
+  };
+
+  const loadFavoriteState = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setIsFavorite(false);
+      return;
+    }
+    const result = await getFavoriteSuppliers();
+    if (result.success && result.data) {
+      setIsFavorite((result.data.suppliers || []).some((s) => s.id === supplierId));
+    }
+  };
 
   const loadSupplierDetails = async () => {
     try {
@@ -144,8 +175,23 @@ export default function SupplierDetailsPage() {
       id: productId,
       name: productName,
       price: price,
+      supplierId,
     });
     alert(`${productName} ajouté au panier !`);
+  };
+
+  const toggleFavorite = async () => {
+    if (isFavorite) {
+      const result = await removeSupplierFromFavorites(supplierId);
+      if (result.success) {
+        setIsFavorite(false);
+      }
+      return;
+    }
+    const result = await addSupplierToFavorites(supplierId);
+    if (result.success) {
+      setIsFavorite(true);
+    }
   };
 
   const handleCopyRipPost = async () => {
@@ -203,6 +249,13 @@ export default function SupplierDetailsPage() {
   }
 
   const { supplier, stats, products } = supplierData;
+  const normalizedUserLaboType = (userLaboType || "").trim().toLowerCase();
+  const matchingProducts = normalizedUserLaboType
+    ? products.filter((p) => (p.productType || "").trim().toLowerCase() === normalizedUserLaboType)
+    : products;
+
+  // Fallback to all products if token laboType doesn't match exact stored values.
+  const filteredProducts = matchingProducts.length > 0 ? matchingProducts : products;
   
   // Ensure stats values are numbers (default to 0 if undefined)
   const totalProducts = stats?.totalProducts ?? 0;
@@ -246,7 +299,7 @@ export default function SupplierDetailsPage() {
                     <User className="w-12 h-12 text-white" />
                   </div>
                 )}
-                {supplier.status && (
+                {supplier.certife && (
                   <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
                     <CheckCircle className="w-4 h-4 text-white" />
                   </div>
@@ -259,14 +312,25 @@ export default function SupplierDetailsPage() {
                   <h2 className="text-2xl sm:text-3xl font-bold">
                     {supplier.firstName} {supplier.lastName}
                   </h2>
-                  {supplier.status && (
+                  <button
+                    onClick={toggleFavorite}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                      isFavorite ? "bg-red-500 text-white" : "bg-white/20 text-white"
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isFavorite ? "fill-current" : ""}`} />
+                    {isFavorite ? "Favori" : "Ajouter favori"}
+                  </button>
+                  {supplier.certife && (
                     <span className="px-2 sm:px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold flex items-center gap-1 w-fit">
                       <CheckCircle className="w-3 h-3" />
-                      Vérifié
+                      Certifie
                     </span>
                   )}
                 </div>
-                <p className="text-blue-100 mb-3 sm:mb-4 text-sm sm:text-base">Fournisseur certifié</p>
+                {supplier.certife && (
+                  <p className="text-blue-100 mb-3 sm:mb-4 text-sm sm:text-base">Fournisseur certifie</p>
+                )}
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4" />
@@ -295,7 +359,7 @@ export default function SupplierDetailsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Produits</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredProducts.length}</p>
                   </div>
                 </div>
               </div>
@@ -578,12 +642,12 @@ export default function SupplierDetailsPage() {
             </h2>
             {totalProducts > displayedProducts && (
               <p className="text-sm text-gray-600">
-                Affichage de {displayedProducts} sur {totalProducts} produits
+                Affichage de {filteredProducts.length} sur {totalProducts} produits
               </p>
             )}
           </div>
 
-          {products.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
               <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 text-lg font-medium">Aucun produit disponible</p>
@@ -591,7 +655,7 @@ export default function SupplierDetailsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div
                   key={product._id}
                   className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all group"

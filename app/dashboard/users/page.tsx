@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, Search, Plus, Edit, Trash2, Mail, Phone, Filter, Loader2, Ban, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Tag } from "lucide-react";
-import { getAdminUsers, updateUserStatus, AdminUser } from "@/lib/api";
+import { getAdminUsers, updateUserStatus, updateUserCertife, AdminUser } from "@/lib/api";
 
 const roleLabels: { [key: string]: string } = {
   client: "Client",
@@ -19,6 +19,7 @@ export default function UsersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [roleCounts, setRoleCounts] = useState<{ [key: string]: number }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [updatingCertife, setUpdatingCertife] = useState<string | null>(null);
 
   useEffect(() => {
     // Reset to page 1 when search changes
@@ -96,6 +97,27 @@ export default function UsersPage() {
     }
   };
 
+  const handleToggleCertife = async (userId: string, currentCertife: boolean) => {
+    if (updatingCertife === userId) return;
+    const newCertife = !currentCertife;
+    setUpdatingCertife(userId);
+    try {
+      const result = await updateUserCertife(userId, newCertife);
+      if (result.success) {
+        setUsers((prevUsers) =>
+          prevUsers.map((user) => (user.id === userId ? { ...user, certife: newCertife } : user))
+        );
+      } else {
+        alert(result.message || "Erreur lors de la mise a jour du certife");
+      }
+    } catch (err) {
+      console.error("Update certife error:", err);
+      alert("Une erreur est survenue lors de la mise a jour du certife");
+    } finally {
+      setUpdatingCertife(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -170,6 +192,9 @@ export default function UsersPage() {
                         Statut
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Certifie
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Commandes
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -213,6 +238,7 @@ export default function UsersPage() {
                               {user.status ? "Actif" : "Bloqué"}
                             </span>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.ordersCount}
                           </td>
@@ -276,6 +302,9 @@ export default function UsersPage() {
                         Statut
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Certifie
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Commandes
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -318,6 +347,25 @@ export default function UsersPage() {
                             >
                               {user.status ? "Actif" : "Bloqué"}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => handleToggleCertife(user.id, !!user.certife)}
+                              disabled={updatingCertife === user.id}
+                              className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
+                                user.certife
+                                  ? "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
+                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={user.certife ? "Retirer certifie" : "Marquer certifie"}
+                            >
+                              {updatingCertife === user.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              <span>{user.certife ? "Certifie" : "Non certifie"}</span>
+                            </button>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.ordersCount}

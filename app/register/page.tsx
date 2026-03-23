@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, MapPin, Building2, AlertCircle, CheckCircle } from "lucide-react";
@@ -17,6 +17,12 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Ensure feedback alerts are visible even when user submits from the bottom.
+  useEffect(() => {
+    if (!error && !success) return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [error, success]);
   
   // Supplier form data
   const [supplierFormData, setSupplierFormData] = useState({

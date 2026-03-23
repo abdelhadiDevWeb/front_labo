@@ -945,7 +945,7 @@ export default function AddProductPage() {
                       { label: "category", desc: "Catégorie", english: "category" },
                       { label: "type", desc: 'Type: "Labo médical" ou "labo d\'ana pathologies"', english: "productType" },
                       { label: "conditionnement", desc: "Conditionnement", english: "conditionnement" },
-                      { label: "images", desc: "Noms des images (séparés par virgule, optionnel)", english: "images" },
+                      { label: "image", desc: "Nom image (ou plusieurs noms séparés par virgule)", english: "image" },
                     ].map((col, idx) => (
                       <div
                         key={idx}
@@ -1037,7 +1037,7 @@ export default function AddProductPage() {
                   <span>Dossier d'images (optionnel)</span>
                 </label>
                 <p className="text-xs text-gray-500 mb-3">
-                  Sélectionnez toutes les images qui correspondent aux noms dans la colonne "images" de votre fichier Excel
+                  Sélectionnez toutes les images qui correspondent aux noms dans la colonne "image" de votre fichier Excel
                 </p>
                 {imageFiles.length > 0 ? (
                   <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">

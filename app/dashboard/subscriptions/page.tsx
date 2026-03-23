@@ -115,60 +115,89 @@ export default function SubscriptionsPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const handlePendingUsersUpdated = async () => {
+      await loadUsers(true);
+    };
+    window.addEventListener("pendingUsersUpdated", handlePendingUsersUpdated);
+
+    return () => {
+      window.removeEventListener("pendingUsersUpdated", handlePendingUsersUpdated);
+    };
+  }, []);
+
   const loadData = async () => {
-    await Promise.all([loadUsers(), loadSubscriptions(), loadSubscriptionTypes()]);
+    await Promise.all([loadUsers(false), loadSubscriptions(false), loadSubscriptionTypes(false)]);
   };
 
-  const loadSubscriptionTypes = async () => {
-    setIsLoadingTypes(true);
-    setError(null);
+  const loadSubscriptionTypes = async (silent: boolean = false) => {
+    if (!silent) {
+      setIsLoadingTypes(true);
+      setError(null);
+    }
     try {
       const result = await getAllSubscriptionTypes();
       if (result.success && result.data) {
         setSubscriptionTypes(result.data.subscriptionTypes);
-      } else {
+      } else if (!silent) {
         setError(result.message || "Erreur lors du chargement des types d'abonnement");
       }
     } catch (err) {
-      setError("Une erreur est survenue lors du chargement");
+      if (!silent) {
+        setError("Une erreur est survenue lors du chargement");
+      }
     } finally {
-      setIsLoadingTypes(false);
+      if (!silent) {
+        setIsLoadingTypes(false);
+      }
     }
   };
 
-  const loadUsers = async () => {
-    setIsLoadingUsers(true);
-    setError(null);
+  const loadUsers = async (silent: boolean = false) => {
+    if (!silent) {
+      setIsLoadingUsers(true);
+      setError(null);
+    }
     try {
       const result = await getUsersForSubscription();
       if (result.success && result.data) {
         setUsers(result.data.users);
-      } else {
+      } else if (!silent) {
         setError(result.message || "Erreur lors du chargement des utilisateurs");
       }
     } catch (err) {
-      console.error("Load users error:", err);
-      setError("Une erreur est survenue lors du chargement");
+      if (!silent) {
+        console.error("Load users error:", err);
+        setError("Une erreur est survenue lors du chargement");
+      }
     } finally {
-      setIsLoadingUsers(false);
+      if (!silent) {
+        setIsLoadingUsers(false);
+      }
     }
   };
 
-  const loadSubscriptions = async () => {
-    setIsLoadingSubscriptions(true);
-    setError(null);
+  const loadSubscriptions = async (silent: boolean = false) => {
+    if (!silent) {
+      setIsLoadingSubscriptions(true);
+      setError(null);
+    }
     try {
       const result = await getAllSubscriptions();
       if (result.success && result.data) {
         setSubscriptions(result.data.subscriptions);
-      } else {
+      } else if (!silent) {
         setError(result.message || "Erreur lors du chargement des abonnements");
       }
     } catch (err) {
-      console.error("Load subscriptions error:", err);
-      setError("Une erreur est survenue lors du chargement");
+      if (!silent) {
+        console.error("Load subscriptions error:", err);
+        setError("Une erreur est survenue lors du chargement");
+      }
     } finally {
-      setIsLoadingSubscriptions(false);
+      if (!silent) {
+        setIsLoadingSubscriptions(false);
+      }
     }
   };
 

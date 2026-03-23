@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/**", // Allow all paths from 127.0.0.1:8000
       },
+      {
+        protocol: "http",
+        hostname: "10.142.140.40",
+        port: "8000",
+        pathname: "/**", // Allow all paths from LAN backend:8000
+      },
     ],
   },
 };
