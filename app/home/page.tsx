@@ -489,7 +489,7 @@ export default function HomePage() {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/pi/ima.jpeg"
+                  src="/pi/ima.png"
                   alt="Marketj Lab Logo"
                   width={120}
                   height={40}
@@ -1371,7 +1371,7 @@ export default function HomePage() {
                 style={{
                   borderRadius: "3px",
                 }}
-                  src="/pi/ima.jpeg"
+                  src="/pi/ima.png"
                   alt="Market Lab Logo"
                   width={80}
                   height={80}

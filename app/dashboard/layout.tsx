@@ -252,7 +252,7 @@ export default function DashboardLayout({
           <div className="p-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center justify-center">
               <Image
-                src="/pi/ima.jpeg"
+                src="/pi/ima.png"
                 alt="Market Lab Logo"
                 width={150}
                 height={60}
