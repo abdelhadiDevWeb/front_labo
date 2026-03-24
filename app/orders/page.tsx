@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 interface Order {
   _id: string;
@@ -952,7 +953,7 @@ export default function OrdersPage() {
                     <p className="text-xs sm:text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
-                    href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
+                    href={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
@@ -963,7 +964,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="bg-gray-50 rounded-lg sm:rounded-xl p-2 sm:p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
-                    src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
+                    src={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || ""}
                     className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />

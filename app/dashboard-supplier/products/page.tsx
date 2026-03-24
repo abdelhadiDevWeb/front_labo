@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { getSupplierProducts, Product } from "@/lib/api";
 import { getAuthToken } from "@/lib/api";
-import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -200,19 +200,10 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((product) => {
             const profit = calculateProfit(product);
-            // Use base URL without /api for static files
-            // Use base URL without /api for static files
-            const API_BASE_URL = getBaseUrl();
             // Fix image path - remove leading slash if present and ensure correct path
             let mainImage = null;
             if (product.images && product.images.length > 0) {
-              let imagePath = product.images[0];
-              // Remove leading slash if present
-              if (imagePath.startsWith('/')) {
-                imagePath = imagePath.slice(1);
-              }
-              // Ensure path doesn't have double slashes
-              mainImage = `${API_BASE_URL}/${imagePath}`.replace(/([^:]\/)\/+/g, "$1");
+              mainImage = getMediaUrl(product.images[0]);
             }
 
             return (

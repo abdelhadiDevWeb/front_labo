@@ -132,8 +132,8 @@ export default function SubscriptionsPage() {
 
   const loadSubscriptionTypes = async (silent: boolean = false) => {
     if (!silent) {
-      setIsLoadingTypes(true);
-      setError(null);
+    setIsLoadingTypes(true);
+    setError(null);
     }
     try {
       const result = await getAllSubscriptionTypes();
@@ -144,19 +144,19 @@ export default function SubscriptionsPage() {
       }
     } catch (err) {
       if (!silent) {
-        setError("Une erreur est survenue lors du chargement");
+      setError("Une erreur est survenue lors du chargement");
       }
     } finally {
       if (!silent) {
-        setIsLoadingTypes(false);
+      setIsLoadingTypes(false);
       }
     }
   };
 
   const loadUsers = async (silent: boolean = false) => {
     if (!silent) {
-      setIsLoadingUsers(true);
-      setError(null);
+    setIsLoadingUsers(true);
+    setError(null);
     }
     try {
       const result = await getUsersForSubscription();
@@ -167,20 +167,20 @@ export default function SubscriptionsPage() {
       }
     } catch (err) {
       if (!silent) {
-        console.error("Load users error:", err);
-        setError("Une erreur est survenue lors du chargement");
+      console.error("Load users error:", err);
+      setError("Une erreur est survenue lors du chargement");
       }
     } finally {
       if (!silent) {
-        setIsLoadingUsers(false);
+      setIsLoadingUsers(false);
       }
     }
   };
 
   const loadSubscriptions = async (silent: boolean = false) => {
     if (!silent) {
-      setIsLoadingSubscriptions(true);
-      setError(null);
+    setIsLoadingSubscriptions(true);
+    setError(null);
     }
     try {
       const result = await getAllSubscriptions();
@@ -191,12 +191,12 @@ export default function SubscriptionsPage() {
       }
     } catch (err) {
       if (!silent) {
-        console.error("Load subscriptions error:", err);
-        setError("Une erreur est survenue lors du chargement");
+      console.error("Load subscriptions error:", err);
+      setError("Une erreur est survenue lors du chargement");
       }
     } finally {
       if (!silent) {
-        setIsLoadingSubscriptions(false);
+      setIsLoadingSubscriptions(false);
       }
     }
   };

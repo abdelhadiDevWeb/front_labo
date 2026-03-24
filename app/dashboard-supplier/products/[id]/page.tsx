@@ -22,7 +22,7 @@ import {
   Play,
 } from "lucide-react";
 import { getSupplierProducts, Product, getAuthToken, updateProduct, deleteProduct } from "@/lib/api";
-import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -130,24 +130,18 @@ export default function ProductDetailPage() {
     );
   }
 
-  // Use base URL without /api for static files
-  const API_BASE_URL = getBaseUrl();
   const profit = product.sellingPrice - product.purchasePrice;
   const profitPercentage = product.purchasePrice > 0 ? ((profit / product.purchasePrice) * 100).toFixed(2) : "0";
   
   // Helper function to fix image paths
   const getImageUrl = (imagePath: string) => {
-    let path = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-    // Ensure path doesn't have double slashes
-    return `${API_BASE_URL}/${path}`.replace(/([^:]\/)\/+/g, "$1");
+    return getMediaUrl(imagePath) || "";
   };
   
   // Helper function to fix video path
   const getVideoUrl = (videoPath?: string) => {
     if (!videoPath) return null;
-    let path = videoPath.startsWith('/') ? videoPath.slice(1) : videoPath;
-    // Ensure path doesn't have double slashes
-    return `${API_BASE_URL}/${path}`.replace(/([^:]\/)\/+/g, "$1");
+    return getMediaUrl(videoPath);
   };
 
   const handleDelete = async () => {

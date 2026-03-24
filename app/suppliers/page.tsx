@@ -10,13 +10,7 @@ import {
   removeSupplierFromFavorites,
   SupplierCard,
 } from "@/lib/api";
-import { getBaseUrl } from "@/lib/api-config";
-
-const getImageUrl = (imagePath: string | null) => {
-  if (!imagePath) return null;
-  const path = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-  return `${getBaseUrl()}/${path}`;
-};
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<SupplierCard[]>([]);
@@ -126,7 +120,7 @@ export default function SuppliersPage() {
                     <Link href={`/supplier/${supplier.id}`} className="flex items-center gap-3 min-w-0">
                       {supplier.profileImage ? (
                         <img
-                          src={getImageUrl(supplier.profileImage) || ""}
+                          src={getMediaUrl(supplier.profileImage) || ""}
                           alt={`${supplier.firstName} ${supplier.lastName}`}
                           className="w-14 h-14 rounded-full object-cover border-2 border-blue-100"
                         />

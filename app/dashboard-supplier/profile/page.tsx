@@ -20,7 +20,8 @@ import {
   CreditCard,
 } from "lucide-react";
 import { getProfile, ClientData, getAuthToken } from "@/lib/api";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 interface ProfileFormData {
   firstName: string;
@@ -140,7 +141,6 @@ export default function SupplierProfilePage() {
         const result = await response.json();
         
         if (result.success && result.data && result.data.image) {
-          const API_BASE = getBaseUrl();
           let imagePath = result.data.image;
           
           // Remove leading slash if present
@@ -151,26 +151,15 @@ export default function SupplierProfilePage() {
           // Normalize Windows paths (backslashes to forward slashes)
           imagePath = imagePath.replace(/\\/g, "/");
           
-          // Build full URL
-          let fullImageUrl: string;
-          
-          // Remove leading slash if present
-          if (imagePath.startsWith("/")) {
-            imagePath = imagePath.slice(1);
-          }
-          
-          if (imagePath.startsWith("uploads/")) {
-            // Full path already includes uploads/ - use as is
-            fullImageUrl = `${API_BASE}/${imagePath}`;
-          } else {
-            // Just filename or relative path - add uploads/profile/
-            fullImageUrl = `${API_BASE}/uploads/profile/${imagePath}`;
-          }
-          
-          // Add timestamp for cache-busting
-          fullImageUrl = `${fullImageUrl}?t=${Date.now()}`;
-          
-          setProfileImage(fullImageUrl);
+          const resolvedPath = imagePath.startsWith("uploads/")
+            ? imagePath
+            : `uploads/profile/${imagePath}`;
+          const fullImageUrl = getMediaUrl(resolvedPath);
+          setProfileImage(
+            fullImageUrl
+              ? `${fullImageUrl}${fullImageUrl.includes("?") ? "&" : "?"}t=${Date.now()}`
+              : null
+          );
         } else {
           setProfileImage(null);
         }

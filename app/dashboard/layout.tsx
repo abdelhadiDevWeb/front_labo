@@ -23,6 +23,7 @@ import {
 import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard" },
@@ -154,7 +155,7 @@ export default function DashboardLayout({
     };
     
     window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate);
-
+    
     return () => {
       window.removeEventListener("subscriptionUpdated", handleSubscriptionUpdate);
     };
@@ -221,10 +222,10 @@ export default function DashboardLayout({
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith("http")) return imagePath;
-    const baseUrl = getBaseUrl();
+    const mediaUrl = getMediaUrl(imagePath);
+    if (!mediaUrl) return null;
     // Add cache-busting parameter using imageKey to ensure fresh image loads
-    return `${baseUrl}/${imagePath}?v=${imageKey}`;
+    return `${mediaUrl}${mediaUrl.includes("?") ? "&" : "?"}v=${imageKey}`;
   };
 
   if (!isAuthenticated) {

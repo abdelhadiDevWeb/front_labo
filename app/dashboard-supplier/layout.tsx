@@ -27,6 +27,7 @@ import {
 import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
@@ -287,7 +288,6 @@ export default function SupplierDashboardLayout({
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data && result.data.image) {
-          const API_BASE = getBaseUrl();
           let imagePath = result.data.image;
           
           // Handle different path formats
@@ -303,7 +303,7 @@ export default function SupplierDashboardLayout({
             imagePath = `uploads/profile/${imagePath}`;
           }
           
-          const fullImageUrl = `${API_BASE}/${imagePath}`;
+          const fullImageUrl = getMediaUrl(imagePath);
           setProfileImage(fullImageUrl);
         } else {
           setProfileImage(null);
@@ -505,12 +505,12 @@ export default function SupplierDashboardLayout({
                       <div className="p-3 sm:p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                            <p className="text-xs sm:text-sm text-green-100">
-                              {unreadCount > 0 
-                                ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
-                                : "Aucune nouvelle notification"}
-                            </p>
+                        <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                        <p className="text-xs sm:text-sm text-green-100">
+                          {unreadCount > 0 
+                            ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
+                            : "Aucune nouvelle notification"}
+                        </p>
                           </div>
                           {unreadCount > 0 && (
                             <button

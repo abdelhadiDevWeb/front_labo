@@ -18,13 +18,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { getProductById, PublicProduct } from "@/lib/api";
-import { getBaseUrl } from "@/lib/api-config";
-
-const API_BASE_URL = getBaseUrl();
+import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 
 const getMediaUrl = (mediaPath: string) => {
-  const path = mediaPath.startsWith("/") ? mediaPath.slice(1) : mediaPath;
-  return `${API_BASE_URL}/${path}`;
+  return buildMediaUrl(mediaPath) || "";
 };
 
 function CompareProductsContent() {

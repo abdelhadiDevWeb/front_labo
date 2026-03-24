@@ -40,6 +40,7 @@ import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNoti
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function HomePage() {
   const { getTotalItems, addToCart } = useCart();
@@ -566,10 +567,10 @@ export default function HomePage() {
                           <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                                <p className="text-xs sm:text-sm text-blue-100">
-                                  {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
-                                </p>
+                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
+                            <p className="text-xs sm:text-sm text-blue-100">
+                              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+                            </p>
                               </div>
                               {unreadCount > 0 && (
                                 <button
@@ -1223,9 +1224,8 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {products.map((product, index) => {
-                const API_BASE_URL = getBaseUrl();
-                const mainImage = product.images && product.images.length > 0 
-                  ? `${API_BASE_URL}/${product.images[0].startsWith('/') ? product.images[0].slice(1) : product.images[0]}`
+                const mainImage = product.images && product.images.length > 0
+                  ? getMediaUrl(product.images[0])
                   : null;
 
                 return (

@@ -23,6 +23,7 @@ import {
 import { getAuthToken, getPaymentByCommande, Payment } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 interface OrderProduct {
   productId: string;
@@ -712,16 +713,16 @@ export default function SupplierOrdersPage() {
         showPaymentModal &&
         selectedPayment &&
         createPortal(
-          <>
-            <div
+        <>
+          <div
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
-              onClick={() => {
-                setShowPaymentModal(false);
-                setSelectedPayment(null);
-              }}
-            />
+            onClick={() => {
+              setShowPaymentModal(false);
+              setSelectedPayment(null);
+            }}
+          />
             <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex justify-between items-center border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl sm:rounded-t-2xl sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -785,7 +786,7 @@ export default function SupplierOrdersPage() {
                     <p className="text-xs sm:text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
                   <a
-                    href={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
+                    href={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-green-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
@@ -796,7 +797,7 @@ export default function SupplierOrdersPage() {
                 </div>
                 <div className="bg-gray-50 rounded-lg sm:rounded-xl p-2 sm:p-4 border-2 border-gray-200 shadow-inner">
                   <iframe
-                    src={`${getBaseUrl()}/uploads/payments/${selectedPayment.image}`}
+                    src={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || ""}
                     className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
                     title="Payment proof"
                   />
@@ -816,27 +817,27 @@ export default function SupplierOrdersPage() {
                 Fermer
               </button>
             </div>
-              </div>
-            </div>
+          </div>
+          </div>
           </>,
           document.body
-        )}
+      )}
 
       {/* Confirmation Modal Before Status Change */}
       {isMounted &&
         showConfirmStatusModal &&
         pendingStatusChange &&
         createPortal(
-          <>
-            <div
+        <>
+          <div
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
-              onClick={() => {
-                setShowConfirmStatusModal(false);
-                setPendingStatusChange(null);
-              }}
-            />
+            onClick={() => {
+              setShowConfirmStatusModal(false);
+              setPendingStatusChange(null);
+            }}
+          />
             <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className={`px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
               <div className="flex items-center gap-2 sm:gap-3">
@@ -956,27 +957,27 @@ export default function SupplierOrdersPage() {
                 </button>
               </div>
             </div>
-              </div>
-            </div>
+          </div>
+          </div>
           </>,
           document.body
-        )}
+      )}
 
       {/* Payment Alert Modal (when confirming order to on route) */}
       {isMounted &&
         showPaymentAlert &&
         alertPayment &&
         createPortal(
-          <>
-            <div
+        <>
+          <div
               className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] transition-opacity animate-fade-in"
-              onClick={() => {
-                setShowPaymentAlert(false);
-                setAlertPayment(null);
-              }}
-            />
+            onClick={() => {
+              setShowPaymentAlert(false);
+              setAlertPayment(null);
+            }}
+          />
             <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -1047,11 +1048,11 @@ export default function SupplierOrdersPage() {
                 </button>
               </div>
             </div>
-              </div>
-            </div>
+          </div>
+          </div>
           </>,
           document.body
-        )}
+      )}
     </div>
   );
 }

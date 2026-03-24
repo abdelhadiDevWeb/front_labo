@@ -1,5 +1,24 @@
 import type { NextConfig } from "next";
 
+const parseRemotePatternFromApiUrl = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!apiUrl) return null;
+
+  try {
+    const parsed = new URL(apiUrl);
+    return {
+      protocol: parsed.protocol.replace(":", "") as "http" | "https",
+      hostname: parsed.hostname,
+      port: parsed.port || undefined,
+      pathname: "/**",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const envRemotePattern = parseRemotePatternFromApiUrl();
+
 const nextConfig: NextConfig = {
   images: {
     dangerouslyAllowLocalIP: true, // Allow images from localhost/127.0.0.1 in development
@@ -22,6 +41,7 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/**", // Allow all paths from LAN backend:8000
       },
+      ...(envRemotePattern ? [envRemotePattern] : []),
     ],
   },
 };

@@ -27,15 +27,7 @@ import {
 } from "lucide-react";
 import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getAuthToken, SupplierRatingsResponse, CanRateResponse, addSupplierToFavorites, removeSupplierFromFavorites, getFavoriteSuppliers } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
-import { getBaseUrl } from "@/lib/api-config";
-
-const API_BASE_URL = getBaseUrl();
-
-const getImageUrl = (imagePath: string | null) => {
-  if (!imagePath) return null;
-  const path = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-  return `${API_BASE_URL}/${path}`;
-};
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function SupplierDetailsPage() {
   const params = useParams();
@@ -289,7 +281,7 @@ export default function SupplierDetailsPage() {
                 {supplier.profileImage ? (
                   <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-xl">
                     <img
-                      src={getImageUrl(supplier.profileImage) || ""}
+                      src={getMediaUrl(supplier.profileImage) || ""}
                       alt={`${supplier.firstName} ${supplier.lastName}`}
                       className="w-full h-full object-cover"
                     />
@@ -665,7 +657,7 @@ export default function SupplierDetailsPage() {
                     <div className="relative w-full h-48 bg-gray-100 overflow-hidden">
                       {product.images && product.images.length > 0 ? (
                         <img
-                          src={getImageUrl(product.images[0]) || ""}
+                          src={getMediaUrl(product.images[0]) || ""}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={(e) => {

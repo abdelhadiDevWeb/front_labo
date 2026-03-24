@@ -26,7 +26,7 @@ import {
 import { getAllProducts, PublicProduct, getAuthToken } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
-import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -153,8 +153,6 @@ export default function ProductsPage() {
       </div>
     );
   }
-
-  const API_BASE_URL = getBaseUrl();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -422,10 +420,10 @@ export default function ProductsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((product) => {
-              const mainImage =
-                product.images && product.images.length > 0
-                  ? `${API_BASE_URL}/${product.images[0].startsWith("/") ? product.images[0].slice(1) : product.images[0]}`
-                  : null;
+                const mainImage =
+                  product.images && product.images.length > 0
+                    ? getMediaUrl(product.images[0])
+                    : null;
 
               return (
                 <div
