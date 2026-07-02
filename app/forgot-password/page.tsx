@@ -18,22 +18,28 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setError(null);
 
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError("Veuillez entrer votre adresse email");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const result = await requestPasswordReset(email);
+      const result = await requestPasswordReset(trimmedEmail);
       if (result.success) {
         setIsSubmitted(true);
-        // Store email in sessionStorage for next step
+        setEmail(trimmedEmail);
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("resetPasswordEmail", email);
+          sessionStorage.setItem("resetPasswordEmail", trimmedEmail);
         }
-        // Redirect to verify code page after 2 seconds
         setTimeout(() => {
           router.push("/verify-reset-code");
         }, 2000);
       } else {
         setError(result.message || "Erreur lors de l'envoi du code");
       }
-    } catch (err) {
+    } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setIsLoading(false);
@@ -58,7 +64,7 @@ export default function ForgotPasswordPage() {
           <p className="text-gray-600">
             {isSubmitted
               ? "Vérifiez votre boîte de réception"
-              : "Entrez votre email pour recevoir un lien de réinitialisation"}
+              : "Entrez votre email pour recevoir un code de confirmation"}
           </p>
         </div>
 
@@ -71,17 +77,13 @@ export default function ForgotPasswordPage() {
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Email envoyé !
+                  Code envoyé !
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  Nous avons envoyé un lien de réinitialisation à{" "}
-                  <span className="font-medium text-gray-900">{email}</span>
-                </p>
                 <p className="text-sm text-gray-500">
-                  Nous avons envoyé un code de 6 chiffres à{" "}
-                  <span className="font-medium text-gray-900">{email}</span>
+                  Un code de confirmation à 6 chiffres a été envoyé à{" "}
+                  <span className="font-medium text-gray-900">{email}</span>.
                   <br />
-                  Vérifiez votre boîte de réception et entrez le code pour continuer.
+                  Vérifiez votre boîte de réception (et les spams) puis entrez le code pour continuer.
                 </p>
               </div>
               <div className="pt-4">
@@ -118,7 +120,7 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 <p className="text-sm text-gray-500">
-                  Nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                  Nous vérifierons que votre email est enregistré, puis nous vous enverrons un code de confirmation.
                 </p>
               </div>
 
