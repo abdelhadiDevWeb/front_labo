@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, MapPin, Building2, AlertCircle, CheckCircle } from "lucide-react";
+import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
 import { registerClient } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
+import LocationPicker from "@/components/LocationPicker";
+import { type LocationData, isLocationComplete } from "@/lib/location";
 
 type UserType = "supplier" | "client";
 
@@ -30,10 +32,10 @@ export default function RegisterPage() {
     lastName: "",
     email: "",
     phone: "",
-    address: "",
     password: "",
     confirmPassword: "",
   });
+  const [supplierLocation, setSupplierLocation] = useState<LocationData | null>(null);
 
   // Client form data
   const [clientFormData, setClientFormData] = useState({
@@ -41,11 +43,11 @@ export default function RegisterPage() {
     lastName: "",
     email: "",
     phone: "",
-    address: "",
     password: "",
     confirmPassword: "",
     laboType: "" as "Labo médical" | "labo d'ana pathologies" | "",
   });
+  const [clientLocation, setClientLocation] = useState<LocationData | null>(null);
 
   const handleSupplierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +67,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!isLocationComplete(supplierLocation)) {
+      setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -80,7 +87,13 @@ export default function RegisterPage() {
           email: supplierFormData.email,
           password: supplierFormData.password,
           phone: supplierFormData.phone,
-          address: supplierFormData.address,
+          address: supplierLocation!.address,
+          latitude: supplierLocation!.latitude,
+          longitude: supplierLocation!.longitude,
+          wilaya: supplierLocation!.wilaya,
+          daira: supplierLocation!.daira || "",
+          commune: supplierLocation!.commune,
+          placeId: supplierLocation!.placeId,
           role: "supplier",
         }),
       });
@@ -137,6 +150,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!isLocationComplete(clientLocation)) {
+      setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -146,7 +164,13 @@ export default function RegisterPage() {
         email: clientFormData.email,
         password: clientFormData.password,
         phone: clientFormData.phone,
-        address: clientFormData.address,
+        address: clientLocation!.address,
+        latitude: clientLocation!.latitude,
+        longitude: clientLocation!.longitude,
+        wilaya: clientLocation!.wilaya,
+        daira: clientLocation!.daira || "",
+        commune: clientLocation!.commune,
+        placeId: clientLocation!.placeId,
         role: "client",
         laboType: clientFormData.laboType as "Labo médical" | "labo d'ana pathologies",
       });
@@ -172,7 +196,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       
-      <div className="max-w-md w-full space-y-8 relative z-10 animate-fade-in-up">
+      <div className="max-w-xl w-full space-y-8 relative z-10 animate-fade-in-up">
         {/* Logo and Header */}
         <div className="text-center">
           <Link href="/home" className="inline-block mb-6 group">
@@ -331,28 +355,13 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Address Field */}
-            <div className="space-y-2">
-              <label htmlFor="supplier-address" className="block text-sm font-medium text-gray-700">
-                Adresse
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="supplier-address"
-                  name="address"
-                  type="text"
-                  autoComplete="street-address"
-                  required
-                  value={supplierFormData.address}
-                  onChange={(e) => setSupplierFormData({ ...supplierFormData, address: e.target.value })}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
-                  placeholder="123 Rue de la République, 75001 Paris"
-                />
-              </div>
-            </div>
+            {/* Location */}
+            <LocationPicker
+              inputId="supplier-location"
+              label="Localisation"
+              value={supplierLocation}
+              onChange={setSupplierLocation}
+            />
 
             {/* Password Field */}
             <div className="space-y-2">
@@ -549,28 +558,13 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Address Field */}
-              <div className="space-y-2">
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                  Adresse
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="address"
-                    name="address"
-                    type="text"
-                    autoComplete="street-address"
-                    required
-                    value={clientFormData.address}
-                    onChange={(e) => setClientFormData({ ...clientFormData, address: e.target.value })}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
-                    placeholder="123 Rue de la République, 75001 Paris"
-                  />
-                </div>
-              </div>
+              {/* Location */}
+              <LocationPicker
+                inputId="client-location"
+                label="Localisation"
+                value={clientLocation}
+                onChange={setClientLocation}
+              />
 
               {/* Labo Type Field */}
               <div className="space-y-2">

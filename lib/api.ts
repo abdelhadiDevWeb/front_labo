@@ -35,6 +35,12 @@ export interface ClientRegisterData {
   password: string;
   phone: string;
   address: string;
+  latitude: number;
+  longitude: number;
+  wilaya: string;
+  daira?: string;
+  commune: string;
+  placeId?: string;
   role?: string;
   laboType?: "Labo médical" | "labo d'ana pathologies";
 }
@@ -51,6 +57,13 @@ export interface ClientData {
   email: string;
   phone: string;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  wilaya?: string;
+  daira?: string;
+  commune?: string;
+  wilayas?: string[];
+  coversAllWilayas?: boolean;
   role?: string;
   status?: boolean;
 }
@@ -590,6 +603,9 @@ export interface Product {
   productType: "Labo médical" | "labo d'ana pathologies";
   images: string[];
   video?: string;
+  wilaya?: string | null;
+  daira?: string | null;
+  commune?: string | null;
   supplierId: string;
   createdAt?: string;
   updatedAt?: string;
@@ -973,11 +989,18 @@ export interface PublicProduct {
   price: number; // selling price
   quantity: number;
   category: string;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
   deliveryTime: string;
   brand: string;
   productType: "Labo médical" | "labo d'ana pathologies";
   images: string[];
   video?: string;
+  wilaya?: string | null;
+  daira?: string | null;
+  commune?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   supplier: {
     id: string;
     name: string;
@@ -985,13 +1008,99 @@ export interface PublicProduct {
     phone: string;
     address: string;
     certife?: boolean;
+    wilayas?: string[];
+    coversAllWilayas?: boolean;
   } | null;
   createdAt?: string;
   updatedAt?: string;
 }
 
+export interface SponsoredPublicProduct extends PublicProduct {
+  sponsorEndDate: string;
+}
+
+export const getSponsoredProducts = async (): Promise<
+  ApiResponse<{ products: SponsoredPublicProduct[] }>
+> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/sponsored-products`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch sponsored products (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export interface PublicPromotion {
+  id: string;
+  id_product: string;
+  price_discount: number;
+  normal_price: number;
+  min_quantity: number;
+  start_day: string;
+  end_day: string;
+  discountPercent: number;
+  product?: {
+    id: string;
+    name: string;
+    price: number;
+    images: string[];
+    brand?: string;
+    category?: string;
+    productType?: string;
+    wilaya?: string;
+    supplierName?: string;
+  };
+}
+
+export const getPublicPromotions = async (): Promise<
+  ApiResponse<{ promotions: PublicPromotion[] }>
+> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/public-promotions`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch promotions (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Get all products (public - for clients)
-export const getAllProducts = async (): Promise<ApiResponse<{ products: PublicProduct[]; total: number }>> => {
+export const getAllProducts = async (filters?: {
+  categoryId?: string;
+  sousCategoryId?: string;
+  wilayaCode?: string;
+}): Promise<ApiResponse<{ products: PublicProduct[]; total: number; clientWilayaCode?: string | null }>> => {
   try {
     const token = getAuthToken();
     const headers: HeadersInit = {
@@ -1002,8 +1111,14 @@ export const getAllProducts = async (): Promise<ApiResponse<{ products: PublicPr
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
+
+    const params = new URLSearchParams();
+    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    const query = params.toString() ? `?${params.toString()}` : "";
     
-    const response = await fetch(`${getApiBaseUrl()}/products/public`, {
+    const response = await fetch(`${getApiBaseUrl()}/products/public${query}`, {
       method: "GET",
       headers,
     });
@@ -1222,12 +1337,15 @@ export const getSupplierDetailedStatistics = async (month?: "current" | "previou
 
 // Admin Statistics interfaces
 export interface AdminStatistics {
-  totalRevenue: number;
+  totalRevenue?: number;
   totalUsers: number;
   totalClients: number;
   totalSuppliers: number;
   totalOrders: number;
-  totalProducts: number;
+  totalProducts?: number;
+  totalProblems?: number;
+  unreadProblems?: number;
+  isLimited?: boolean;
   recentOrders: Array<{
     id: string;
     customer: string;
@@ -1237,7 +1355,7 @@ export interface AdminStatistics {
     status: "en cours" | "on route" | "arrived";
     date: string;
   }>;
-  growth: {
+  growth?: {
     revenue: {
       current: number;
       previous: number;
@@ -1897,6 +2015,7 @@ export interface CreateAdminData {
   password: string;
   phone: string;
   address: string;
+  role?: "admin" | "sou-admin";
 }
 
 // Get all admins
@@ -2416,6 +2535,537 @@ export const deleteSubscriptionType = async (typeId: string): Promise<ApiRespons
 
     const result = await response.json();
     return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Sponsor Interfaces
+export interface Sponsor {
+  id: string;
+  time: number;
+  price: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateSponsorData {
+  time: number;
+  price: number;
+}
+
+export interface UpdateSponsorData {
+  time?: number;
+  price?: number;
+}
+
+export const getAllSponsors = async (): Promise<ApiResponse<{ sponsors: Sponsor[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch sponsors (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    if (result.success && result.data?.sponsors) {
+      result.data.sponsors = result.data.sponsors.map((sponsor: any) => ({
+        ...sponsor,
+        id: sponsor.id || sponsor._id?.toString() || sponsor._id,
+      }));
+    }
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createSponsor = async (data: CreateSponsorData): Promise<ApiResponse<Sponsor>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to create sponsor (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const updateSponsor = async (
+  sponsorId: string,
+  data: UpdateSponsorData
+): Promise<ApiResponse<Sponsor>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update sponsor (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deleteSponsor = async (sponsorId: string): Promise<ApiResponse<void>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete sponsor (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Sponsor plan (admin-defined packs)
+export interface SponsorPlan {
+  id: string;
+  time: number;
+  price: number;
+}
+
+export interface SponsorProductRecord {
+  id: string;
+  id_plan_sponsor: string;
+  id_product: string;
+  id_supplier: string;
+  start_time: string;
+  end_time: string;
+  price: number;
+  time: number;
+  payment_status: boolean;
+  isActive?: boolean;
+  chargily_checkout_id?: string;
+  chargily_checkout_url?: string;
+  product?: {
+    id: string;
+    name: string;
+    images?: string[];
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getSponsorPlans = async (): Promise<ApiResponse<{ plans: SponsorPlan[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/plans`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch sponsor plans (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getSupplierSponsorProducts = async (): Promise<
+  ApiResponse<{ sponsorProducts: SponsorProductRecord[]; activeProductIds: string[] }>
+> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/sponsor-products`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch sponsor products (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createSponsorProduct = async (data: {
+  id_plan_sponsor: string;
+  id_product: string;
+}): Promise<
+  ApiResponse<{ sponsorProduct: SponsorProductRecord; checkoutUrl: string }>
+> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/sponsor-products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to create sponsor product (${response.status})`,
+        errors: result.errors,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const verifySponsorProductPayment = async (
+  sponsorProductId: string
+): Promise<ApiResponse<{ sponsorProduct: SponsorProductRecord; paid: boolean }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(
+      `${getApiBaseUrl()}/sponsor-products/${sponsorProductId}/verify-payment`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to verify payment (${response.status})`,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const resumeSponsorPayment = async (
+  sponsorProductId: string
+): Promise<
+  ApiResponse<{
+    sponsorProduct: SponsorProductRecord;
+    checkoutUrl: string | null;
+    paid: boolean;
+  }>
+> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(
+      `${getApiBaseUrl()}/sponsor-products/${sponsorProductId}/resume-payment`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to resume payment (${response.status})`,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Promotion interfaces (supplier discounts)
+export interface Promotion {
+  id: string;
+  id_product: string;
+  id_supplier: string;
+  price_discount: number;
+  normal_price: number;
+  min_quantity: number;
+  start_day: string;
+  end_day: string;
+  isActive?: boolean;
+  product?: {
+    id: string;
+    name: string;
+    sellingPrice: number;
+    images?: string[];
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreatePromotionData {
+  id_product: string;
+  price_discount: number;
+  normal_price: number;
+  min_quantity: number;
+  start_day: string;
+  end_day: string;
+}
+
+export interface UpdatePromotionData {
+  id_product?: string;
+  price_discount?: number;
+  normal_price?: number;
+  min_quantity?: number;
+  start_day?: string;
+  end_day?: string;
+}
+
+export const getSupplierPromotions = async (): Promise<ApiResponse<{ promotions: Promotion[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/promotions`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch promotions (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createPromotion = async (data: CreatePromotionData): Promise<ApiResponse<Promotion>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/promotions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to create promotion (${response.status})`,
+        errors: result.errors,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const updatePromotion = async (
+  promotionId: string,
+  data: UpdatePromotionData
+): Promise<ApiResponse<Promotion>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to update promotion (${response.status})`,
+        errors: result.errors,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deletePromotion = async (promotionId: string): Promise<ApiResponse<void>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete promotion (${response.status})`,
+      };
+    }
+
+    return await response.json();
   } catch (error: any) {
     return {
       success: false,
@@ -3174,3 +3824,268 @@ export const saveFcmToken = async (token: string): Promise<ApiResponse<null>> =>
     };
   }
 };
+
+// Category interfaces
+export interface SousCategory {
+  id: string;
+  name_sou_catgory: string;
+  id_catgory: string;
+  image: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Category {
+  id: string;
+  name_catgory: string;
+  image: string;
+  des: string;
+  createdAt: string;
+  updatedAt: string;
+  sousCategories: SousCategory[];
+}
+
+export interface CreateCategoryData {
+  name_catgory: string;
+  des: string;
+  image: File;
+}
+
+export interface UpdateCategoryData {
+  name_catgory?: string;
+  des?: string;
+  image?: File;
+}
+
+export interface CreateSousCategoryData {
+  name_sou_catgory: string;
+  image: File;
+}
+
+export interface UpdateSousCategoryData {
+  name_sou_catgory?: string;
+  id_catgory?: string;
+  image?: File;
+}
+
+export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/categories/public`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to fetch categories" };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const getPublicCategoryById = async (categoryId: string): Promise<ApiResponse<Category>> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to fetch category" };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const getAllCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to fetch categories" };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const createCategory = async (data: CreateCategoryData): Promise<ApiResponse<Category>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const formData = new FormData();
+    formData.append("name_catgory", data.name_catgory);
+    formData.append("des", data.des);
+    formData.append("image", data.image);
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to create category", errors: errorData.errors };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const updateCategory = async (categoryId: string, data: UpdateCategoryData): Promise<ApiResponse<Category>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const formData = new FormData();
+    if (data.name_catgory) formData.append("name_catgory", data.name_catgory);
+    if (data.des) formData.append("des", data.des);
+    if (data.image) formData.append("image", data.image);
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to update category", errors: errorData.errors };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const deleteCategory = async (categoryId: string): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to delete category" };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const createSousCategory = async (
+  categoryId: string,
+  data: CreateSousCategoryData
+): Promise<ApiResponse<SousCategory>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const formData = new FormData();
+    formData.append("name_sou_catgory", data.name_sou_catgory);
+    formData.append("image", data.image);
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}/sous-categories`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to create sub-category", errors: errorData.errors };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const updateSousCategory = async (
+  sousCategoryId: string,
+  data: UpdateSousCategoryData
+): Promise<ApiResponse<SousCategory>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const formData = new FormData();
+    if (data.name_sou_catgory) formData.append("name_sou_catgory", data.name_sou_catgory);
+    if (data.id_catgory) formData.append("id_catgory", data.id_catgory);
+    if (data.image) formData.append("image", data.image);
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to update sub-category", errors: errorData.errors };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+
+export const deleteSousCategory = async (sousCategoryId: string): Promise<ApiResponse<null>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || "Failed to delete sub-category" };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return { success: false, message: error.message || "Network error. Please check your connection." };
+  }
+};
+

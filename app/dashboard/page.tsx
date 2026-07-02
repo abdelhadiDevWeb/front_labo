@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package, Loader2, UserCheck } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package, Loader2, MessageCircle } from "lucide-react";
 import { getAdminStatistics, AdminStatistics } from "@/lib/api";
 import Link from "next/link";
 
@@ -94,73 +94,116 @@ export default function DashboardPage() {
     );
   }
 
-  const stats = [
-    {
-      name: "Revenus Totaux",
-      value: formatCurrency(statistics.totalRevenue),
-      change: `${statistics.growth.revenue.percentage >= 0 ? "+" : ""}${statistics.growth.revenue.percentage.toFixed(1)}%`,
-      changeType: statistics.growth.revenue.percentage >= 0 ? "positive" : "negative",
-      icon: DollarSign,
-      color: "bg-green-500",
-    },
-    {
-      name: "Total Utilisateurs",
-      value: formatNumber(statistics.totalUsers),
-      change: `${statistics.totalClients} clients, ${statistics.totalSuppliers} fournisseurs`,
-      changeType: "info" as const,
-      icon: Users,
-      color: "bg-blue-500",
-    },
-    {
-      name: "Total Commandes",
-      value: formatNumber(statistics.totalOrders),
-      change: `${statistics.growth.orders.percentage >= 0 ? "+" : ""}${statistics.growth.orders.percentage.toFixed(1)}%`,
-      changeType: statistics.growth.orders.percentage >= 0 ? "positive" : "negative",
-      icon: ShoppingCart,
-      color: "bg-purple-500",
-    },
-    {
-      name: "Total Produits",
-      value: formatNumber(statistics.totalProducts),
-      change: "En stock",
-      changeType: "info" as const,
-      icon: Package,
-      color: "bg-orange-500",
-    },
-  ];
+  const isLimited = statistics.isLimited === true;
+
+  const stats = isLimited
+    ? [
+        {
+          name: "Utilisateurs",
+          value: formatNumber(statistics.totalUsers),
+          subtitle: `${statistics.totalClients} clients, ${statistics.totalSuppliers} fournisseurs`,
+          icon: Users,
+          color: "bg-blue-500",
+          href: "/dashboard/users",
+        },
+        {
+          name: "Commandes",
+          value: formatNumber(statistics.totalOrders),
+          subtitle: "Total des commandes",
+          icon: ShoppingCart,
+          color: "bg-purple-500",
+          href: "/dashboard/orders",
+        },
+        {
+          name: "Problèmes",
+          value: formatNumber(statistics.totalProblems ?? 0),
+          subtitle:
+            (statistics.unreadProblems ?? 0) > 0
+              ? `${statistics.unreadProblems} non lu${(statistics.unreadProblems ?? 0) > 1 ? "s" : ""}`
+              : "Aucun nouveau problème",
+          icon: MessageCircle,
+          color: "bg-orange-500",
+          href: "/dashboard/problems",
+        },
+      ]
+    : [
+        {
+          name: "Revenus Totaux",
+          value: formatCurrency(statistics.totalRevenue ?? 0),
+          change: `${(statistics.growth?.revenue.percentage ?? 0) >= 0 ? "+" : ""}${(statistics.growth?.revenue.percentage ?? 0).toFixed(1)}%`,
+          changeType: (statistics.growth?.revenue.percentage ?? 0) >= 0 ? "positive" : "negative",
+          icon: DollarSign,
+          color: "bg-green-500",
+        },
+        {
+          name: "Total Utilisateurs",
+          value: formatNumber(statistics.totalUsers),
+          change: `${statistics.totalClients} clients, ${statistics.totalSuppliers} fournisseurs`,
+          changeType: "info" as const,
+          icon: Users,
+          color: "bg-blue-500",
+        },
+        {
+          name: "Total Commandes",
+          value: formatNumber(statistics.totalOrders),
+          change: `${(statistics.growth?.orders.percentage ?? 0) >= 0 ? "+" : ""}${(statistics.growth?.orders.percentage ?? 0).toFixed(1)}%`,
+          changeType: (statistics.growth?.orders.percentage ?? 0) >= 0 ? "positive" : "negative",
+          icon: ShoppingCart,
+          color: "bg-purple-500",
+        },
+        {
+          name: "Total Produits",
+          value: formatNumber(statistics.totalProducts ?? 0),
+          change: "En stock",
+          changeType: "info" as const,
+          icon: Package,
+          color: "bg-orange-500",
+        },
+      ];
+
   return (
     <div className="space-y-6">
-      {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2">Bienvenue dans le Dashboard</h2>
-        <p className="text-blue-100">Voici un aperçu de votre activité aujourd'hui</p>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+          {isLimited ? "Tableau de bord" : "Bienvenue dans le Dashboard"}
+        </h2>
+        <p className="text-blue-100">
+          {isLimited
+            ? "Aperçu de vos sections : commandes, utilisateurs et problèmes"
+            : "Voici un aperçu de votre activité aujourd'hui"}
+        </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isLimited ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-4 sm:gap-6`}>
         {stats.map((stat, index) => {
           const Icon = stat.icon;
-          return (
+          const cardContent = (
             <div
-              key={stat.name}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
+              className={`bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 ${"href" in stat ? "cursor-pointer" : ""}`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`${stat.color} p-3 rounded-xl`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
-                {stat.changeType === "positive" ? (
+                {isLimited && "subtitle" in stat && (
+                  <span className="text-gray-600 text-xs font-medium text-right max-w-[50%]">
+                    {stat.subtitle}
+                  </span>
+                )}
+                {!isLimited && "changeType" in stat && stat.changeType === "positive" && (
                   <span className="flex items-center text-green-600 text-sm font-semibold">
                     <ArrowUpRight className="w-4 h-4 mr-1" />
                     {stat.change}
                   </span>
-                ) : stat.changeType === "negative" ? (
+                )}
+                {!isLimited && "changeType" in stat && stat.changeType === "negative" && (
                   <span className="flex items-center text-red-600 text-sm font-semibold">
                     <ArrowDownRight className="w-4 h-4 mr-1" />
                     {stat.change}
                   </span>
-                ) : (
+                )}
+                {!isLimited && "changeType" in stat && stat.changeType === "info" && (
                   <span className="text-gray-600 text-xs font-medium">{stat.change}</span>
                 )}
               </div>
@@ -168,10 +211,19 @@ export default function DashboardPage() {
               <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
             </div>
           );
+
+          if (isLimited && "href" in stat && stat.href) {
+            return (
+              <Link key={stat.name} href={stat.href}>
+                {cardContent}
+              </Link>
+            );
+          }
+
+          return <div key={stat.name}>{cardContent}</div>;
         })}
       </div>
 
-      {/* Recent Orders */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-xl font-bold text-gray-900">Commandes Récentes</h3>
@@ -253,4 +305,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

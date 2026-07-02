@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { Shield, Search, Plus, Eye, Mail, Phone, MapPin, User, X, CheckCircle, XCircle, Loader2, Key } from "lucide-react";
 import { getAllAdmins, createAdmin, updateAdminStatus, AdminData, CreateAdminData } from "@/lib/api";
 
 export default function AdminsPage() {
+  const router = useRouter();
   const [admins, setAdmins] = useState<AdminData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,11 +27,23 @@ export default function AdminsPage() {
     password: "",
     phone: "",
     address: "",
+    role: "admin",
   });
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.role === "sou-admin") {
+          router.replace("/dashboard");
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     loadAdmins();
@@ -65,7 +79,11 @@ export default function AdminsPage() {
     try {
       const result = await createAdmin(formData);
       if (result.success && result.data) {
-        setSuccess("Admin créé avec succès!");
+        setSuccess(
+          formData.role === "sou-admin"
+            ? "Sou-Admin créé avec succès!"
+            : "Admin créé avec succès!"
+        );
         setFormData({
           firstName: "",
           lastName: "",
@@ -73,6 +91,7 @@ export default function AdminsPage() {
           password: "",
           phone: "",
           address: "",
+          role: "admin",
         });
         setShowCreateModal(false);
         await loadAdmins();
@@ -189,6 +208,15 @@ export default function AdminsPage() {
                       {admin.firstName} {admin.lastName}
                     </h3>
                   <p className="text-sm text-gray-500">{admin.email}</p>
+                  <span
+                    className={`mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                      admin.role === "sou-admin"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-purple-100 text-purple-800"
+                    }`}
+                  >
+                    {admin.role === "sou-admin" ? "Sou-Admin" : "Admin"}
+                  </span>
                 </div>
               </div>
                 <div className="flex items-center gap-2">
@@ -397,6 +425,30 @@ export default function AdminsPage() {
                 </div>
               </div>
 
+              {/* Admin Type */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700">
+                  Type d&apos;administrateur <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formData.role || "admin"}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      role: e.target.value as "admin" | "sou-admin",
+                    })
+                  }
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none bg-white"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="sou-admin">Sou-Admin</option>
+                </select>
+                <p className="text-xs text-gray-500">
+                  Le Sou-Admin a accès au tableau de bord sans la gestion des administrateurs.
+                </p>
+              </div>
+
               {/* Info Note */}
               <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm text-blue-800">
@@ -477,7 +529,9 @@ export default function AdminsPage() {
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm text-gray-700">Rôle: {selectedAdmin.role}</span>
+                  <span className="text-xs sm:text-sm text-gray-700">
+                    Rôle: {selectedAdmin.role === "sou-admin" ? "Sou-Admin" : "Admin"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   {selectedAdmin.status ? (

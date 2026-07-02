@@ -19,8 +19,11 @@ import {
   ChevronDown,
   MessageCircle,
   Bell,
+  FolderTree,
+  Megaphone,
 } from "lucide-react";
 import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
+import { isPathAllowedForSouAdmin, isSouAdminRole, SOU_ADMIN_MENU_HREFS } from "@/lib/admin-access";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
@@ -29,7 +32,9 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard" },
   { icon: ShoppingCart, label: "Commandes", href: "/dashboard/orders" },
   { icon: Users, label: "Gestion Users", href: "/dashboard/users" },
+  { icon: FolderTree, label: "Catégories", href: "/dashboard/categories" },
   { icon: CreditCard, label: "Gestion Abonnements", href: "/dashboard/subscriptions" },
+  { icon: Megaphone, label: "Sponsors", href: "/dashboard/sponsors" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard/statistics" },
   { icon: Shield, label: "Gestion Admin", href: "/dashboard/admins" },
   { icon: MessageCircle, label: "Problèmes", href: "/dashboard/problems" },
@@ -49,6 +54,7 @@ export default function DashboardLayout({
   const [showProblemsDropdown, setShowProblemsDropdown] = useState(false);
   const [unreadProblemsCount, setUnreadProblemsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -64,19 +70,36 @@ export default function DashboardLayout({
       const payload = JSON.parse(atob(token.split(".")[1]));
       const role = payload.role;
 
-      // Check if user is admin
-      if (role !== "admin") {
+      // Check if user is admin or sou-admin
+      if (role !== "admin" && role !== "sou-admin") {
         router.push("/home");
         return;
       }
 
       setIsAuthenticated(true);
+      setUserRole(role);
       loadProfile();
     } catch (error) {
       console.error("Error decoding token:", error);
       router.push("/login");
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!userRole) return;
+
+    if (isSouAdminRole(userRole) && !isPathAllowedForSouAdmin(pathname)) {
+      router.push("/dashboard");
+    }
+  }, [userRole, pathname, router]);
+
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (userRole === "admin") return true;
+    if (isSouAdminRole(userRole)) {
+      return (SOU_ADMIN_MENU_HREFS as readonly string[]).includes(item.href);
+    }
+    return item.href !== "/dashboard/admins";
+  });
 
   // Listen for profile updates (image and info)
   useEffect(() => {
@@ -143,9 +166,9 @@ export default function DashboardLayout({
     loadProblems();
   }, [isAuthenticated]);
 
-  // Load pending users count (status false, role client or supplier)
+  // Load pending users count (full admin only)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isSouAdminRole(userRole)) return;
 
     loadPendingUsersCount();
     
@@ -153,13 +176,24 @@ export default function DashboardLayout({
     const handleSubscriptionUpdate = () => {
       loadPendingUsersCount();
     };
-    
+
+    const handlePendingUsersUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ count?: number }>;
+      if (typeof customEvent.detail?.count === "number") {
+        setPendingUsersCount(customEvent.detail.count);
+        return;
+      }
+      loadPendingUsersCount();
+    };
+
     window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate);
-    
+    window.addEventListener("pendingUsersUpdated", handlePendingUsersUpdated);
+
     return () => {
       window.removeEventListener("subscriptionUpdated", handleSubscriptionUpdate);
+      window.removeEventListener("pendingUsersUpdated", handlePendingUsersUpdated);
     };
-  }, [isAuthenticated, loadPendingUsersCount]);
+  }, [isAuthenticated, userRole, loadPendingUsersCount]);
 
   // Socket.io connection for real-time problem notifications
   useEffect(() => {
@@ -208,7 +242,9 @@ export default function DashboardLayout({
     });
 
     socket.on("pendingUserActivity", async () => {
-      await loadPendingUsersCount();
+      if (!isSouAdminRole(userRole)) {
+        await loadPendingUsersCount();
+      }
     });
 
     socket.on("disconnect", () => {
@@ -218,7 +254,7 @@ export default function DashboardLayout({
     return () => {
       socket.disconnect();
     };
-  }, [isAuthenticated, loadPendingUsersCount]);
+  }, [isAuthenticated, userRole, loadPendingUsersCount]);
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -265,7 +301,7 @@ export default function DashboardLayout({
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4">
             <ul className="space-y-2">
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 const showBadge = item.href === "/dashboard/subscriptions" && pendingUsersCount > 0;
@@ -331,7 +367,7 @@ export default function DashboardLayout({
             </button>
             <div className="flex items-center justify-between w-full">
               <h1 className="text-xl font-bold text-gray-900">
-                {menuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+                {visibleMenuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
               </h1>
               <div className="flex items-center gap-4">
                 {/* Problems Notifications */}
@@ -469,14 +505,18 @@ export default function DashboardLayout({
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-2">
-                      <Link
-                        href="/dashboard/profile"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      >
-                        <User className="w-4 h-4" />
-                        <span>Mon Profil</span>
-                      </Link>
-                      <div className="border-t border-gray-200 my-1"></div>
+                      {!isSouAdminRole(userRole) && (
+                        <Link
+                          href="/dashboard/profile"
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          <span>Mon Profil</span>
+                        </Link>
+                      )}
+                      {!isSouAdminRole(userRole) && (
+                        <div className="border-t border-gray-200 my-1"></div>
+                      )}
                       <button
                         onClick={() => {
                           localStorage.removeItem("authToken");

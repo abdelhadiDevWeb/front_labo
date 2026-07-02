@@ -47,7 +47,7 @@ export default function LoginPage() {
         const userRole = result.data?.role || "client";
           setSuccess("Connexion réussie ! Redirection...");
           setTimeout(() => {
-            if (userRole === "admin") {
+            if (userRole === "admin" || userRole === "sou-admin") {
               router.push("/dashboard");
             } else if (userRole === "supplier") {
               router.push("/dashboard-supplier");

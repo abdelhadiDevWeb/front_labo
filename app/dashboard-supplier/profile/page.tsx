@@ -22,6 +22,7 @@ import {
 import { getProfile, ClientData, getAuthToken } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 
 interface ProfileFormData {
   firstName: string;
@@ -32,6 +33,8 @@ interface ProfileFormData {
   rip_post: string;
   rip_bank: string;
   methode_payment: string[];
+  coversAllWilayas: boolean;
+  wilayas: string[];
 }
 
 interface PasswordFormData {
@@ -62,6 +65,8 @@ export default function SupplierProfilePage() {
     rip_post: "",
     rip_bank: "",
     methode_payment: [],
+    coversAllWilayas: false,
+    wilayas: [],
   });
   
 
@@ -90,9 +95,11 @@ export default function SupplierProfilePage() {
             email: result.data.email || "",
             phone: result.data.phone || "",
             address: result.data.address || "",
-            rip_post: (result.data as any).rip_post || "",
-            rip_bank: (result.data as any).rip_bank || "",
-            methode_payment: (result.data as any).methode_payment || [],
+            rip_post: (result.data as ClientData).rip_post || "",
+            rip_bank: (result.data as ClientData).rip_bank || "",
+            methode_payment: (result.data as ClientData).methode_payment || [],
+            coversAllWilayas: !!(result.data as ClientData).coversAllWilayas,
+            wilayas: (result.data as ClientData).wilayas || [],
           });
         }
 
@@ -227,6 +234,11 @@ export default function SupplierProfilePage() {
 
     if (hasBank && !profileForm.rip_bank.trim()) {
       setError("Vous devez renseigner votre RIP Bank si vous acceptez les paiements par Banque.");
+      return;
+    }
+
+    if (!profileForm.coversAllWilayas && profileForm.wilayas.length === 0) {
+      setError("Sélectionnez au moins une wilaya ou activez « Toutes les wilayas ».");
       return;
     }
 
@@ -599,6 +611,29 @@ export default function SupplierProfilePage() {
                 onChange={handleProfileChange}
                 rows={3}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                <MapPin className="w-4 h-4 text-green-600" />
+                Zones de couverture (wilayas)
+              </label>
+              <p className="text-sm text-gray-500 mb-4">
+                Indiquez les wilayas où vous proposez vos produits et services.
+              </p>
+              <SupplierWilayaSelector
+                coversAllWilayas={profileForm.coversAllWilayas}
+                selectedCodes={profileForm.wilayas}
+                onCoversAllChange={(value) =>
+                  setProfileForm((prev) => ({
+                    ...prev,
+                    coversAllWilayas: value,
+                    wilayas: value ? [] : prev.wilayas,
+                  }))
+                }
+                onSelectedCodesChange={(codes) =>
+                  setProfileForm((prev) => ({ ...prev, wilayas: codes }))
+                }
               />
             </div>
              <div className="md:col-span-2">

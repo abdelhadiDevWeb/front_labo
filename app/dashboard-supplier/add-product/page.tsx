@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Package,
@@ -25,7 +25,7 @@ import {
   TrendingDown,
   Percent,
 } from "lucide-react";
-import { getAuthToken } from "@/lib/api";
+import { getAuthToken, getPublicCategories, Category } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 
 interface ProductFormData {
@@ -33,7 +33,6 @@ interface ProductFormData {
   purchasePrice: string;
   sellingPrice: string;
   quantity: string;
-  category: string;
   deliveryTime: string;
   brand: string;
   productType: "Labo médical" | "labo d'ana pathologies";
@@ -51,19 +50,55 @@ export default function AddProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedSousCategoryId, setSelectedSousCategoryId] = useState("");
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     purchasePrice: "",
     sellingPrice: "",
     quantity: "",
-    category: "",
     deliveryTime: "",
     brand: "",
     productType: "Labo médical",
     images: [],
     video: null,
   });
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const result = await getPublicCategories();
+        if (result.success && result.data) {
+          setCategories(result.data.categories);
+        } else {
+          setError(result.message || "Erreur lors du chargement des catégories");
+        }
+      } catch (err) {
+        console.error("Load categories error:", err);
+        setError("Impossible de charger les catégories");
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const availableSousCategories = selectedCategory?.sousCategories ?? [];
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCategoryId(e.target.value);
+    setSelectedSousCategoryId("");
+  };
+
+  const handleSousCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedSousCategoryId(e.target.value);
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -186,6 +221,28 @@ export default function AddProductPage() {
         return;
       }
 
+      if (!selectedCategoryId) {
+        setError("Veuillez sélectionner une catégorie");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!selectedSousCategoryId) {
+        setError("Veuillez sélectionner une sous-catégorie");
+        setIsLoading(false);
+        return;
+      }
+
+      const selectedSousCategory = availableSousCategories.find(
+        (sc) => sc.id === selectedSousCategoryId
+      );
+
+      if (!selectedSousCategory) {
+        setError("Sous-catégorie invalide");
+        setIsLoading(false);
+        return;
+      }
+
       const API_BASE_URL = getApiUrl();
 
       // Create FormData for file uploads
@@ -194,7 +251,9 @@ export default function AddProductPage() {
       formDataToSend.append("purchasePrice", formData.purchasePrice);
       formDataToSend.append("sellingPrice", formData.sellingPrice);
       formDataToSend.append("quantity", formData.quantity);
-      formDataToSend.append("category", formData.category.trim());
+      formDataToSend.append("id_catgory", selectedCategoryId);
+      formDataToSend.append("id_sous_catgory", selectedSousCategoryId);
+      formDataToSend.append("category", selectedSousCategory.name_sou_catgory);
       formDataToSend.append("deliveryTime", formData.deliveryTime.trim());
       formDataToSend.append("brand", formData.brand.trim());
       formDataToSend.append("productType", formData.productType);
@@ -238,13 +297,14 @@ export default function AddProductPage() {
           purchasePrice: "",
           sellingPrice: "",
           quantity: "",
-          category: "",
           deliveryTime: "",
           brand: "",
           productType: "Labo médical",
           images: [],
           video: null,
         });
+        setSelectedCategoryId("");
+        setSelectedSousCategoryId("");
         // Reset file inputs
         const imageInput = document.getElementById("images") as HTMLInputElement;
         const videoInput = document.getElementById("video") as HTMLInputElement;
@@ -681,17 +741,61 @@ export default function AddProductPage() {
                   <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type="text"
+                  <select
                     id="category"
                     name="category"
                     required
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="Ex: Analyses médicales"
-                  />
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    value={selectedCategoryId}
+                    onChange={handleCategoryChange}
+                    disabled={isLoadingCategories}
+                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400 appearance-none disabled:opacity-60"
+                  >
+                    <option value="">
+                      {isLoadingCategories ? "Chargement..." : "Sélectionner une catégorie"}
+                    </option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name_catgory}
+                      </option>
+                    ))}
+                  </select>
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Sous-category */}
+              <div>
+                <label htmlFor="sousCategory" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                  <Tag className="w-4 h-4 text-green-600" />
+                  <span>Sous-catégorie</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="sousCategory"
+                    name="sousCategory"
+                    required
+                    value={selectedSousCategoryId}
+                    onChange={handleSousCategoryChange}
+                    disabled={!selectedCategoryId || availableSousCategories.length === 0}
+                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400 appearance-none disabled:opacity-60"
+                  >
+                    <option value="">
+                      {!selectedCategoryId
+                        ? "Choisissez d'abord une catégorie"
+                        : availableSousCategories.length === 0
+                          ? "Aucune sous-catégorie disponible"
+                          : "Sélectionner une sous-catégorie"}
+                    </option>
+                    {availableSousCategories.map((sc) => (
+                      <option key={sc.id} value={sc.id}>
+                        {sc.name_sou_catgory}
+                      </option>
+                    ))}
+                  </select>
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 

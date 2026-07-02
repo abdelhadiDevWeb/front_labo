@@ -23,6 +23,7 @@ import {
   MessageCircle,
   Send,
   CheckCircle,
+  Percent,
 } from "lucide-react";
 import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem } from "@/lib/api";
 import { io as socketIO } from "socket.io-client";
@@ -32,6 +33,7 @@ import { getMediaUrl } from "@/lib/media-url";
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
   { icon: Package, label: "Mes Produits", href: "/dashboard-supplier/products" },
+  { icon: Percent, label: "Promotions", href: "/dashboard-supplier/promotions" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },
   { icon: ShoppingCart, label: "Commandes", href: "/dashboard-supplier/orders" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard-supplier/statistics" },

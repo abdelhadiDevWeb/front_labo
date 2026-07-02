@@ -130,6 +130,22 @@ export default function SubscriptionsPage() {
     await Promise.all([loadUsers(false), loadSubscriptions(false), loadSubscriptionTypes(false)]);
   };
 
+  const notifyPendingUsersUpdated = async () => {
+    window.dispatchEvent(new CustomEvent("subscriptionUpdated"));
+    try {
+      const refreshed = await getUsersForSubscription();
+      if (refreshed.success && refreshed.data) {
+        window.dispatchEvent(
+          new CustomEvent("pendingUsersUpdated", {
+            detail: { count: refreshed.data.users?.length || 0 },
+          })
+        );
+      }
+    } catch {
+      // layout will refresh on subscriptionUpdated
+    }
+  };
+
   const loadSubscriptionTypes = async (silent: boolean = false) => {
     if (!silent) {
     setIsLoadingTypes(true);
@@ -218,10 +234,8 @@ export default function SubscriptionsPage() {
         });
         setShowCreateModal(false);
         setSelectedUser(null);
-        // Reload data to get updated user status (user should disappear from waiting list if status changed to true)
         await loadData();
-        // Also trigger a custom event to update sidebar badge count
-        window.dispatchEvent(new CustomEvent("subscriptionUpdated"));
+        await notifyPendingUsersUpdated();
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.message || "Erreur lors de la création de l'abonnement");
@@ -522,10 +536,8 @@ export default function SubscriptionsPage() {
 
       if (result.success && result.data) {
         setSuccess(`Abonnement renouvelé avec succès pour ${user.firstName} ${user.lastName}!`);
-        // Reload data to get updated user status (user should disappear from waiting list if status changed to true)
         await loadData();
-        // Also trigger a custom event to update sidebar badge count
-        window.dispatchEvent(new CustomEvent("subscriptionUpdated"));
+        await notifyPendingUsersUpdated();
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.message || "Erreur lors du renouvellement");

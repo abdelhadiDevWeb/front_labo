@@ -408,6 +408,24 @@ body {
   animation: shimmer 4s linear infinite;
 }
 
+@keyframes marquee-rtl {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.sponsored-marquee-track {
+  animation: marquee-rtl linear infinite;
+  width: max-content;
+}
+
+.sponsored-marquee-track:hover {
+  animation-play-state: paused;
+}
+
 /* Grid pattern background */
 .bg-grid-pattern {
   background-image: 

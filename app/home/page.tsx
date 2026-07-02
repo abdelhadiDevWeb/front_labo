@@ -32,15 +32,20 @@ import {
   Mail,
   Send,
   CheckCircle,
+  FolderTree,
+  Megaphone,
+  Percent,
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken } from "@/lib/api";
+import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
+import PromotionsShowcase from "@/components/PromotionsShowcase";
 
 export default function HomePage() {
   const { getTotalItems, addToCart } = useCart();
@@ -56,6 +61,8 @@ export default function HomePage() {
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -122,6 +129,26 @@ export default function HomePage() {
     loadUserData();
   }, []);
 
+  useEffect(() => {
+    const scrollToHash = () => {
+      const hash = window.location.hash;
+      if (!hash) return;
+      const id = hash.slice(1);
+      const tryScroll = (attempt = 0) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (attempt < 20) {
+          setTimeout(() => tryScroll(attempt + 1), 150);
+        }
+      };
+      tryScroll();
+    };
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => window.removeEventListener("hashchange", scrollToHash);
+  }, []);
+
   // Fetch products from API
   useEffect(() => {
     const loadProducts = async () => {
@@ -149,6 +176,27 @@ export default function HomePage() {
     };
 
     loadProducts();
+  }, []);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setIsLoadingCategories(true);
+        const result = await getPublicCategories();
+        if (result.success && result.data) {
+          setCategories(result.data.categories || []);
+        } else {
+          setCategories([]);
+        }
+      } catch {
+        setCategories([]);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
   }, []);
 
   // Request notification permission on mount
@@ -505,9 +553,19 @@ export default function HomePage() {
                 Accueil
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
-              <a href="#marketplace" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
+              <Link href="/products" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Marketplace
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+              </Link>
+              <a href="#sponsored-section" className="text-gray-700 hover:text-purple-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-1.5">
+                <Megaphone className="w-4 h-4" />
+                Sponsors
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full"></span>
+              </a>
+              <a href="#promotions-section" className="text-gray-700 hover:text-orange-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-1.5">
+                <Percent className="w-4 h-4" />
+                Promotions
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Contact
@@ -706,8 +764,16 @@ export default function HomePage() {
                 <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Accueil
                 </a>
-                <a href="#marketplace" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                <Link href="/products" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Marketplace
+                </Link>
+                <a href="#sponsored-section" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-purple-600 transition-colors font-medium py-2 flex items-center gap-2">
+                  <Megaphone className="w-4 h-4" />
+                  Sponsors
+                </a>
+                <a href="#promotions-section" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-orange-600 transition-colors font-medium py-2 flex items-center gap-2">
+                  <Percent className="w-4 h-4" />
+                  Promotions
                 </a>
                 <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
@@ -838,7 +904,10 @@ export default function HomePage() {
 
             {/* CTA Buttons with Modern Effects */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6 justify-center animate-fade-in-up animation-delay-800 px-2 sm:px-4">
-              <button className="group relative px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white text-blue-600 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg overflow-hidden transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-white/50 w-full sm:w-auto">
+              <Link
+                href="/products"
+                className="group relative px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white text-blue-600 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg overflow-hidden transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-white/50 w-full sm:w-auto inline-flex items-center justify-center"
+              >
                 <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-2 md:gap-3">
                   <span className="hidden sm:inline">Découvrir la marketplace</span>
                   <span className="sm:hidden">Découvrir</span>
@@ -847,7 +916,7 @@ export default function HomePage() {
                   </svg>
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </button>
+              </Link>
               <button className="px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white/15 backdrop-blur-xl text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg border-2 border-white/40 hover:bg-white/25 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-white/30 w-full sm:w-auto">
                 En savoir plus
               </button>
@@ -904,6 +973,79 @@ export default function HomePage() {
           <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-b from-transparent via-white/30 to-white pointer-events-none"></div>
           {/* Shine Effect */}
           <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none animate-shimmer"></div>
+        </div>
+      </section>
+
+      <SponsoredProductsCarousel />
+
+      {/* Categories Section */}
+      <section id="categories" className="py-12 sm:py-16 md:py-20 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center mb-8 sm:mb-12">
+            <div className="inline-block px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+              Explorer
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+              Nos catégories
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
+              Parcourez nos catégories et découvrez les produits par sous-catégorie
+            </p>
+          </div>
+
+          {isLoadingCategories ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl bg-gray-100 aspect-[4/5]" />
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-12 rounded-2xl border border-dashed border-gray-300">
+              <FolderTree className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+              <p className="text-gray-500">Aucune catégorie disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+              {categories.map((cat) => {
+                const catImage = getMediaUrl(cat.image);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/categories/${cat.id}`}
+                    className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-blue-200"
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      {catImage ? (
+                        <img
+                          src={catImage}
+                          alt={cat.name_catgory}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <FolderTree className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+                        <h3 className="font-bold text-white text-sm sm:text-base line-clamp-2">
+                          {cat.name_catgory}
+                        </h3>
+                        {cat.sousCategories.length > 0 && (
+                          <p className="text-xs text-white/80 mt-1">
+                            {cat.sousCategories.length} sous-catégorie{cat.sousCategories.length > 1 ? "s" : ""}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 sm:p-4">
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{cat.des}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1146,6 +1288,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PromotionsShowcase />
+
       {/* FAQ Section */}
       <section className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1386,7 +1530,7 @@ export default function HomePage() {
               <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Navigation</h3>
               <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
                 <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
-                <li><a href="#marketplace" className="hover:text-white transition-colors">Marketplace</a></li>
+                <li><Link href="/products" className="hover:text-white transition-colors">Marketplace</Link></li>
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
             </div>
