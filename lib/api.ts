@@ -64,6 +64,9 @@ export interface ClientData {
   commune?: string;
   wilayas?: string[];
   coversAllWilayas?: boolean;
+  rip_post?: string;
+  rip_bank?: string;
+  methode_payment?: string[];
   role?: string;
   status?: boolean;
 }

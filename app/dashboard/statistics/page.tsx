@@ -479,48 +479,59 @@ export default function StatisticsPage() {
   }
 
   const stats = basicStats
-    ? [
-  {
-          title: "Revenus Totaux",
-          value: `${basicStats.totalRevenue.toLocaleString("fr-FR")} DA`,
-          change: `${basicStats.growth.revenue.percentage >= 0 ? "+" : ""}${basicStats.growth.revenue.percentage.toFixed(1)}%`,
-          trend: basicStats.growth.revenue.percentage >= 0 ? "up" : "down",
-    icon: DollarSign,
-    color: "bg-green-500",
-  },
-  {
-          title: "Total Utilisateurs",
-          value: basicStats.totalUsers.toLocaleString("fr-FR"),
-          change: `${basicStats.totalClients} clients, ${basicStats.totalSuppliers} fournisseurs`,
-    trend: "up",
-    icon: Users,
-    color: "bg-blue-500",
-  },
-  {
-          title: "Total Commandes",
-          value: basicStats.totalOrders.toLocaleString("fr-FR"),
-          change: `${basicStats.growth.orders.percentage >= 0 ? "+" : ""}${basicStats.growth.orders.percentage.toFixed(1)}%`,
-          trend: basicStats.growth.orders.percentage >= 0 ? "up" : "down",
-    icon: ShoppingCart,
-    color: "bg-purple-500",
-  },
-  {
-          title: "Total Produits",
-          value: basicStats.totalProducts.toLocaleString("fr-FR"),
-          change: "En stock",
-          trend: "up",
-          icon: Package,
-    color: "bg-orange-500",
-  },
-  ...(subscriptionRevenueConfig ? [{
-          title: "Revenus Abonnements",
-          value: `${subscriptionRevenueConfig.total.toLocaleString("fr-FR")} DA`,
-          change: `${subscriptionRevenueConfig.count} abonnements actifs`,
-          trend: "up" as const,
-          icon: CreditCard,
-          color: "bg-amber-500",
-  }] : []),
-      ]
+    ? (() => {
+        const revenueGrowth = basicStats.growth?.revenue?.percentage ?? 0;
+        const ordersGrowth = basicStats.growth?.orders?.percentage ?? 0;
+        const totalRevenue = basicStats.totalRevenue ?? 0;
+        const totalProducts = basicStats.totalProducts ?? 0;
+
+        return [
+          {
+            title: "Revenus Totaux",
+            value: `${totalRevenue.toLocaleString("fr-FR")} DA`,
+            change: `${revenueGrowth >= 0 ? "+" : ""}${revenueGrowth.toFixed(1)}%`,
+            trend: revenueGrowth >= 0 ? "up" : "down",
+            icon: DollarSign,
+            color: "bg-green-500",
+          },
+          {
+            title: "Total Utilisateurs",
+            value: basicStats.totalUsers.toLocaleString("fr-FR"),
+            change: `${basicStats.totalClients} clients, ${basicStats.totalSuppliers} fournisseurs`,
+            trend: "up",
+            icon: Users,
+            color: "bg-blue-500",
+          },
+          {
+            title: "Total Commandes",
+            value: basicStats.totalOrders.toLocaleString("fr-FR"),
+            change: `${ordersGrowth >= 0 ? "+" : ""}${ordersGrowth.toFixed(1)}%`,
+            trend: ordersGrowth >= 0 ? "up" : "down",
+            icon: ShoppingCart,
+            color: "bg-purple-500",
+          },
+          {
+            title: "Total Produits",
+            value: totalProducts.toLocaleString("fr-FR"),
+            change: "En stock",
+            trend: "up",
+            icon: Package,
+            color: "bg-orange-500",
+          },
+          ...(subscriptionRevenueConfig
+            ? [
+                {
+                  title: "Revenus Abonnements",
+                  value: `${subscriptionRevenueConfig.total.toLocaleString("fr-FR")} DA`,
+                  change: `${subscriptionRevenueConfig.count} abonnements actifs`,
+                  trend: "up" as const,
+                  icon: CreditCard,
+                  color: "bg-amber-500",
+                },
+              ]
+            : []),
+        ];
+      })()
     : [];
 
   return (

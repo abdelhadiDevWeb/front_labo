@@ -95,11 +95,11 @@ export default function SupplierProfilePage() {
             email: result.data.email || "",
             phone: result.data.phone || "",
             address: result.data.address || "",
-            rip_post: (result.data as ClientData).rip_post || "",
-            rip_bank: (result.data as ClientData).rip_bank || "",
-            methode_payment: (result.data as ClientData).methode_payment || [],
-            coversAllWilayas: !!(result.data as ClientData).coversAllWilayas,
-            wilayas: (result.data as ClientData).wilayas || [],
+            rip_post: result.data.rip_post || "",
+            rip_bank: result.data.rip_bank || "",
+            methode_payment: result.data.methode_payment || [],
+            coversAllWilayas: !!result.data.coversAllWilayas,
+            wilayas: result.data.wilayas || [],
           });
         }
 
