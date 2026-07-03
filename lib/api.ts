@@ -69,6 +69,9 @@ export interface ClientData {
   methode_payment?: string[];
   role?: string;
   status?: boolean;
+  laboType?: string;
+  onboardingStep?: "upload_documents" | "choose_subscription";
+  redirectTo?: string;
 }
 
 // Helper function to get auth token from localStorage

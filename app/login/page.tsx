@@ -45,16 +45,24 @@ export default function LoginPage() {
 
       if (result.success) {
         const userRole = result.data?.role || "client";
-          setSuccess("Connexion réussie ! Redirection...");
-          setTimeout(() => {
-            if (userRole === "admin" || userRole === "sou-admin") {
-              router.push("/dashboard");
-            } else if (userRole === "supplier") {
-              router.push("/dashboard-supplier");
-            } else {
-              router.push("/home");
-            }
-          }, 1000);
+        const redirectTo = result.data?.redirectTo;
+        const onboardingStep = result.data?.onboardingStep;
+
+        setSuccess("Connexion réussie ! Redirection...");
+        setTimeout(() => {
+          if (redirectTo && onboardingStep) {
+            router.push(redirectTo);
+            return;
+          }
+
+          if (userRole === "admin" || userRole === "sou-admin") {
+            router.push("/dashboard");
+          } else if (userRole === "supplier") {
+            router.push("/dashboard-supplier");
+          } else {
+            router.push("/home");
+          }
+        }, 1000);
       } else {
         // Handle specific error cases
         if (result.message === "account_not_activated") {
@@ -263,7 +271,7 @@ export default function LoginPage() {
                   Votre compte a été créé avec succès.
                 </p>
                 <p className="text-gray-700 mb-6 leading-relaxed">
-                  Vous devez attendre que <strong>l'administrateur confirme votre compte et vos documents</strong> avant de pouvoir accéder à votre tableau de bord.
+                  Vous devez attendre que <strong>l&apos;administrateur confirme votre compte et votre abonnement</strong> avant de pouvoir accéder à votre tableau de bord.
                 </p>
                 <p className="text-sm text-gray-500 mb-6">
                   Vous recevrez une notification une fois que votre compte sera approuvé.
