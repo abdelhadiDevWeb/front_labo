@@ -41,7 +41,7 @@ import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
 import { getSessionRole, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
-import { isAllowedPostMessageOrigin } from "@/lib/security";
+import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
@@ -210,14 +210,10 @@ export default function HomePage() {
 
   // Listen for FCM token from React Native WebView (mobile app)
   const setupFcmTokenListener = () => {
-    // Check if we're running in React Native WebView
-    if (typeof window !== "undefined" && (window as any).ReactNativeWebView) {
-      // Request FCM token when user is logged in (in case token was removed from database)
+    if (typeof window !== "undefined" && getReactNativeWebView()) {
       const requestFcmToken = () => {
         if (isAuthenticated && isClientUser) {
-          (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'REQUEST_FCM_TOKEN'
-          }));
+          postMessageToNative({ type: "REQUEST_FCM_TOKEN" });
         }
       };
       

@@ -78,15 +78,28 @@ export const isAllowedPostMessageOrigin = (origin: string): boolean => {
     if (origin === window.location.origin) return true;
 
     // React Native WebView bridge may send empty/null origins
-    const isNativeBridge = Boolean(
-      (window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView
-    );
+    const isNativeBridge = Boolean(getReactNativeWebView());
     if (isNativeBridge && (!origin || origin === "null")) {
       return true;
     }
   }
 
   return false;
+};
+
+export type ReactNativeWebViewBridge = {
+  postMessage: (message: string) => void;
+};
+
+export const getReactNativeWebView = (): ReactNativeWebViewBridge | null => {
+  if (typeof window === "undefined") return null;
+  const bridge = (window as unknown as { ReactNativeWebView?: ReactNativeWebViewBridge })
+    .ReactNativeWebView;
+  return bridge ?? null;
+};
+
+export const postMessageToNative = (payload: Record<string, unknown>): void => {
+  getReactNativeWebView()?.postMessage(JSON.stringify(payload));
 };
 
 /** Validate Google Maps API key format and presence */
