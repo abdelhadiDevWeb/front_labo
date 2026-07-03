@@ -4,7 +4,8 @@ import { X, ShoppingCart, Trash2, FileText, CheckCircle, Loader2 } from "lucide-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
-import { getAuthToken } from "@/lib/api";
+import { apiFetch, checkAuthSession } from "@/lib/api";
+import { setPendingPaymentOrderIds } from "@/lib/flow-session";
 import { getApiUrl } from "@/lib/api-config";
 
 interface CartPanelProps {
@@ -34,8 +35,8 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
   };
 
   const handleBuy = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    const authenticated = await checkAuthSession();
+    if (!authenticated) {
       alert("Veuillez vous connecter pour confirmer votre achat");
       return;
     }
@@ -44,21 +45,15 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
 
     try {
       const API_BASE_URL = getApiUrl();
-      
-      // First, fetch product details for items missing supplierId
+
       const productsWithSupplierId = await Promise.all(
         cartItems.map(async (item) => {
           if (item.supplierId) {
             return { ...item, supplierId: item.supplierId };
           }
-          
-          // Fetch product details to get supplier ID
+
           try {
-            const productResponse = await fetch(`${API_BASE_URL}/products/public/${item.id}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
+            const productResponse = await apiFetch(`${API_BASE_URL}/products/public/${item.id}`);
             if (productResponse.ok) {
               const productData = await productResponse.json();
               if (productData.success && productData.data && productData.data.supplier?.id) {
@@ -101,11 +96,10 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
       
       for (const [supplierId, products] of Object.entries(productsBySupplier)) {
         try {
-          const response = await fetch(`${API_BASE_URL}/commandes`, {
+          const response = await apiFetch(`${API_BASE_URL}/commandes`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({ products }),
           });
@@ -142,8 +136,8 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
         onClose();
         
         // Redirect to orders page with all order IDs for payment upload
-        const orderIdsParam = orderIds.join(",");
-        router.push(`/orders?orderIds=${orderIdsParam}&uploadPayment=true`);
+        setPendingPaymentOrderIds(orderIds);
+        router.push("/orders?uploadPayment=true");
       } else {
         alert(errors.length > 0 
           ? `Aucune commande n'a pu être créée:\n${errors.join("\n")}`

@@ -19,7 +19,8 @@ import {
   X,
   CreditCard,
 } from "lucide-react";
-import { getProfile, ClientData, getAuthToken } from "@/lib/api";
+import { getProfile, ClientData, apiFetch, checkAuthSession } from "@/lib/api";
+import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
@@ -80,8 +81,8 @@ export default function SupplierProfilePage() {
     const loadUserData = async () => {
       try {
         setIsLoading(true);
-        const token = getAuthToken();
-        if (!token) {
+        const ok = await checkAuthSession();
+        if (!ok) {
           router.push("/login");
           return;
         }
@@ -131,18 +132,9 @@ export default function SupplierProfilePage() {
 
   const loadProfileImage = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) {
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
-      
-      const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+
+      const response = await apiFetch(`${API_BASE_URL}/supplier/profile-image`);
 
       if (response.ok) {
         const result = await response.json();
@@ -245,18 +237,11 @@ export default function SupplierProfilePage() {
     setIsUpdating(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/supplier/profile`, {
+      const response = await apiFetch(`${API_BASE_URL}/supplier/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(profileForm),
       });
@@ -299,26 +284,20 @@ export default function SupplierProfilePage() {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      setError("Le nouveau mot de passe doit contenir au moins 6 caractères");
+    const passwordError = validateStrongPassword(passwordForm.newPassword);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
     setIsUpdatingPassword(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/supplier/password`, {
+      const response = await apiFetch(`${API_BASE_URL}/supplier/password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
@@ -383,21 +362,12 @@ export default function SupplierProfilePage() {
     setIsUploadingImage(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
       const formData = new FormData();
       formData.append("image", selectedImage);
 
-      const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
+      const response = await apiFetch(`${API_BASE_URL}/supplier/profile-image`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 

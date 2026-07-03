@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Shield, Search, Plus, Eye, Mail, Phone, MapPin, User, X, CheckCircle, XCircle, Loader2, Key } from "lucide-react";
-import { getAllAdmins, createAdmin, updateAdminStatus, AdminData, CreateAdminData } from "@/lib/api";
+import { getAllAdmins, createAdmin, updateAdminStatus, AdminData, CreateAdminData, getSessionRole } from "@/lib/api";
 
 export default function AdminsPage() {
   const router = useRouter();
@@ -32,17 +32,13 @@ export default function AdminsPage() {
 
   useEffect(() => {
     setMounted(true);
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.role === "sou-admin") {
-          router.replace("/dashboard");
-        }
-      } catch {
-        // ignore
+    const checkRole = async () => {
+      const session = await getSessionRole();
+      if (session?.role === "sou-admin") {
+        router.replace("/dashboard");
       }
-    }
+    };
+    void checkRole();
   }, [router]);
 
   useEffect(() => {

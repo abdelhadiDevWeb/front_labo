@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const parseRemotePatternFromApiUrl = () => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (!apiUrl) return null;
@@ -19,28 +21,93 @@ const parseRemotePatternFromApiUrl = () => {
 
 const envRemotePattern = parseRemotePatternFromApiUrl();
 
+const buildContentSecurityPolicy = (): string => {
+  const connectSrc = new Set<string>(["'self'"]);
+  const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
+  const scriptSrc = new Set<string>(["'self'", "https://maps.googleapis.com"]);
+  const styleSrc = new Set<string>(["'self'", "'unsafe-inline'"]);
+
+  if (isDev) {
+    scriptSrc.add("'unsafe-eval'");
+    scriptSrc.add("'unsafe-inline'");
+  }
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (apiUrl) {
+    try {
+      const origin = new URL(apiUrl.replace(/\/api\/?$/, "")).origin;
+      connectSrc.add(origin);
+      imgSrc.add(origin);
+    } catch {
+      // ignore
+    }
+  }
+
+  connectSrc.add("https://maps.googleapis.com");
+  connectSrc.add("https://pay.chargily.net");
+  connectSrc.add("https://pay.chargily.com");
+  connectSrc.add("https://test.pay.chargily.net");
+  connectSrc.add("wss:");
+  connectSrc.add("ws:");
+
+  return [
+    "default-src 'self'",
+    `script-src ${Array.from(scriptSrc).join(" ")}`,
+    `style-src ${Array.from(styleSrc).join(" ")}`,
+    `img-src ${Array.from(imgSrc).join(" ")}`,
+    `connect-src ${Array.from(connectSrc).join(" ")}`,
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+};
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    const backendBase =
+      process.env.API_INTERNAL_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
+      process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
+      (isDev ? "http://localhost:8000" : "");
+
+    if (!backendBase) {
+      throw new Error("API_INTERNAL_URL or NEXT_PUBLIC_API_URL must be set for API rewrites");
+    }
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendBase}/api/:path*`,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+          {
+            key: "Content-Security-Policy",
+            value: buildContentSecurityPolicy(),
+          },
+        ],
+      },
+    ];
+  },
   images: {
-    dangerouslyAllowLocalIP: true, // Allow images from localhost/127.0.0.1 in development
+    dangerouslyAllowLocalIP: isDev,
     remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "8000",
-        pathname: "/**", // Allow all paths from localhost:8000
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "8000",
-        pathname: "/**", // Allow all paths from 127.0.0.1:8000
-      },
-      {
-        protocol: "http",
-        hostname: "10.142.140.40",
-        port: "8000",
-        pathname: "/**", // Allow all paths from LAN backend:8000
-      },
+      ...(isDev
+        ? [
+            { protocol: "http" as const, hostname: "localhost", port: "8000", pathname: "/**" },
+            { protocol: "http" as const, hostname: "127.0.0.1", port: "8000", pathname: "/**" },
+          ]
+        : []),
       ...(envRemotePattern ? [envRemotePattern] : []),
     ],
   },

@@ -1,4 +1,5 @@
-import { getAuthToken } from "./api";
+import { checkAuthSession, getSessionRole } from "./api";
+import { hasAuthSessionHint } from "./auth-session";
 
 export interface UserRole {
   id: string;
@@ -6,30 +7,25 @@ export interface UserRole {
   role: string;
 }
 
-// Get user role from JWT token
-export const getUserRole = (): string | null => {
-  if (typeof window === "undefined") return null;
-  
-  const token = getAuthToken();
-  if (!token) return null;
+let cachedRole: string | null = null;
 
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.role || null;
-  } catch (error) {
-    console.error("Error decoding token:", error);
-    return null;
-  }
+export const getUserRole = (): string | null => cachedRole;
+
+export const loadUserRole = async (): Promise<string | null> => {
+  const session = await getSessionRole();
+  cachedRole = session?.role ?? null;
+  return cachedRole;
 };
 
-// Check if user has required role
 export const hasRole = (requiredRole: string): boolean => {
-  const userRole = getUserRole();
-  return userRole === requiredRole;
+  return getUserRole() === requiredRole;
 };
 
-// Check if user is authenticated
-export const isAuthenticated = (): boolean => {
-  return getAuthToken() !== null;
-};
+export const isAuthenticated = (): boolean => hasAuthSessionHint();
 
+export const ensureAuthenticated = async (): Promise<boolean> => {
+  if (hasAuthSessionHint()) return true;
+  const ok = await checkAuthSession();
+  if (ok) await loadUserRole();
+  return ok;
+};

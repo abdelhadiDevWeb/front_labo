@@ -1,110 +1,61 @@
 /**
- * API Configuration Utility
- * 
- * Provides consistent API URL handling across the application.
- * Reads from NEXT_PUBLIC_API_URL environment variable.
- * 
- * Usage:
- * - getApiUrl() - Returns full API URL with /api path (e.g., "http://localhost:3001/api")
- * - getBaseUrl() - Returns base URL without /api path (e.g., "http://localhost:3001")
+ * API configuration — browser uses same-origin `/api` proxy for HttpOnly cookies.
  */
 
+const isDev = process.env.NODE_ENV === "development";
+
+const resolveEnvApiUrl = (): string | null => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!envUrl) return null;
+
+  if (envUrl.includes("/api")) {
+    return envUrl.replace(/\/$/, "");
+  }
+  return `${envUrl.replace(/\/$/, "")}/api`;
+};
+
+const getServerApiUrl = (): string => {
+  const fromEnv = resolveEnvApiUrl();
+  if (fromEnv) return fromEnv;
+
+  if (!isDev) {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL must be set in production (e.g. https://api.example.com/api)"
+    );
+  }
+
+  return "http://localhost:8000/api";
+};
+
+const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, "");
+
 /**
- * Get the full API URL with /api path
- * Reads from NEXT_PUBLIC_API_URL environment variable and adapts for mobile WebView
- * @returns API URL string (e.g., "http://localhost:8000/api" or "http://10.142.140.40:8000/api" in WebView)
+ * Full API URL with `/api` path.
+ * Browser: same-origin proxy. Server: explicit env URL.
  */
 export const getApiUrl = (): string => {
-  // In Next.js, NEXT_PUBLIC_ variables are embedded at build time and available via process.env
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  
-  let apiUrl: string;
-  
-  if (envUrl) {
-    // Trim any whitespace and newlines
-    const trimmedUrl = envUrl.trim();
-    
-    // If env URL already includes /api, use as is
-    if (trimmedUrl.includes('/api')) {
-      apiUrl = trimmedUrl;
-    } else {
-      // Otherwise, append /api
-      apiUrl = `${trimmedUrl}/api`;
-    }
-  } else {
-    // Fallback to localhost:8000/api (matching your .env.local)
-    apiUrl = "http://localhost:8000/api";
-    
-    // Log warning in development
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ NEXT_PUBLIC_API_URL not found in .env.local, using fallback: http://localhost:8000/api');
-      console.warn('💡 To fix: Create client/.env.local file with: NEXT_PUBLIC_API_URL=http://localhost:8000/api');
-      console.warn('💡 Then restart Next.js dev server (Ctrl+C and run npm run dev again)');
-    }
+  if (typeof window !== "undefined") {
+    return "/api";
   }
-  
-  // In browser/WebView context, adapt the URL for mobile app
-  if (typeof window !== 'undefined') {
-    const currentHostname = window.location.hostname;
-    const currentProtocol = window.location.protocol;
-    
-    // If accessing from mobile app WebView (using IP address instead of localhost)
-    if (currentHostname !== 'localhost' && currentHostname !== '127.0.0.1') {
-      // Replace localhost/127.0.0.1 in the API URL with the current hostname
-      // This allows the WebView to connect to the backend using the same IP
-      apiUrl = apiUrl
-        .replace(/http:\/\/localhost/, `${currentProtocol}//${currentHostname}`)
-        .replace(/http:\/\/127\.0\.0\.1/, `${currentProtocol}//${currentHostname}`);
-    }
-  }
-  
-  return apiUrl;
+  return getServerApiUrl();
 };
 
 /**
- * Get the base URL without /api path
- * Reads from NEXT_PUBLIC_API_URL and adapts for mobile WebView
- * Useful for socket connections, image URLs, etc.
- * @returns Base URL string (e.g., "http://localhost:8000" or "http://10.142.140.40:8000" in WebView)
+ * Base URL without `/api` — used for Socket.io and media paths.
  */
 export const getBaseUrl = (): string => {
-  // In Next.js, NEXT_PUBLIC_ variables are embedded at build time and available via process.env
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  
-  let baseUrl: string;
-  
-  if (envUrl) {
-    // Trim any whitespace and newlines
-    const trimmedUrl = envUrl.trim();
-    
-    // Remove /api if present, and trailing slashes
-    baseUrl = trimmedUrl.replace('/api', '').replace(/\/$/, '');
-  } else {
-    // Fallback to localhost:8000 (matching your .env.local)
-    baseUrl = "http://localhost:8000";
-  }
-  
-  // In browser/WebView context, adapt the URL for mobile app
-  if (typeof window !== 'undefined') {
-    const currentHostname = window.location.hostname;
-    const currentProtocol = window.location.protocol;
-    
-    // If accessing from mobile app WebView (using IP address instead of localhost)
-    if (currentHostname !== 'localhost' && currentHostname !== '127.0.0.1') {
-      // Replace localhost/127.0.0.1 in the base URL with the current hostname
-      // This allows the WebView to connect to the backend using the same IP
-      baseUrl = baseUrl
-        .replace(/http:\/\/localhost/, `${currentProtocol}//${currentHostname}`)
-        .replace(/http:\/\/127\.0\.0\.1/, `${currentProtocol}//${currentHostname}`);
+  if (typeof window !== "undefined") {
+    const fromEnv = resolveEnvApiUrl();
+    if (fromEnv) {
+      return fromEnv.replace(/\/api\/?$/, "");
     }
+    if (!isDev) {
+      return window.location.origin;
+    }
+    return "http://localhost:8000";
   }
-  
-  return baseUrl;
+  return getServerBaseUrl();
 };
 
-/**
- * Get API base URL (same as getApiUrl, kept for backward compatibility)
- * @deprecated Use getApiUrl() instead
- * Note: This is evaluated at module load time. For dynamic reading, use getApiUrl() function.
- */
+/** @deprecated Use getApiUrl() */
 export const API_BASE_URL = getApiUrl();

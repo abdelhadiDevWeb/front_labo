@@ -1,5 +1,6 @@
 "use client";
 
+import { performLogout } from "@/lib/perform-logout";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, Home, LogOut } from "lucide-react";
@@ -71,8 +72,7 @@ export default function RegistrationPendingModal({
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
-                  localStorage.removeItem("authToken");
-                  router.push("/home");
+                  void performLogout(router, { redirectTo: "/home" });
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
@@ -81,8 +81,7 @@ export default function RegistrationPendingModal({
               </button>
               <button
                 onClick={() => {
-                  localStorage.removeItem("authToken");
-                  router.push("/login");
+                  void performLogout(router);
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
               >

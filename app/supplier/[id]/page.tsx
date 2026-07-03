@@ -25,7 +25,7 @@ import {
   Send,
   Heart,
 } from "lucide-react";
-import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getAuthToken, SupplierRatingsResponse, CanRateResponse, addSupplierToFavorites, removeSupplierFromFavorites, getFavoriteSuppliers } from "@/lib/api";
+import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getSessionRole, getProfile, SupplierRatingsResponse, CanRateResponse, addSupplierToFavorites, removeSupplierFromFavorites, getFavoriteSuppliers, checkAuthSession } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { getMediaUrl } from "@/lib/media-url";
 
@@ -47,6 +47,7 @@ export default function SupplierDetailsPage() {
   const [isLoadingRatings, setIsLoadingRatings] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [userLaboType, setUserLaboType] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     if (supplierId) {
@@ -58,23 +59,23 @@ export default function SupplierDetailsPage() {
     }
   }, [supplierId]);
 
-  const loadUserLaboType = () => {
-    const token = getAuthToken();
-    if (!token) {
+  const loadUserLaboType = async () => {
+    const session = await getSessionRole();
+    if (!session || session.role !== "client") {
       setUserLaboType(null);
+      setIsLoggedIn(false);
       return;
     }
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setUserLaboType(payload.laboType || null);
-    } catch {
-      setUserLaboType(null);
+    setIsLoggedIn(true);
+    const profile = await getProfile();
+    if (profile.success && profile.data) {
+      setUserLaboType(profile.data.laboType || null);
     }
   };
 
   const loadFavoriteState = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    const authenticated = await checkAuthSession();
+    if (!authenticated) {
       setIsFavorite(false);
       return;
     }
@@ -117,8 +118,8 @@ export default function SupplierDetailsPage() {
   };
 
   const checkCanRate = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    const authenticated = await checkAuthSession();
+    if (!authenticated) {
       setCanRate({ canRate: false, hasRated: false, existingRate: null });
       return;
     }
@@ -482,7 +483,7 @@ export default function SupplierDetailsPage() {
             </div>
 
             {/* Rating Form - Only show if user can rate */}
-            {canRate !== null && !canRate.canRate && getAuthToken() && (
+            {canRate !== null && !canRate.canRate && isLoggedIn && (
               <div className="border-t border-gray-200 pt-6">
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
                   <p className="text-sm text-blue-800">

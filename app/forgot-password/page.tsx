@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { requestPasswordReset } from "@/lib/api";
+import { setResetEmail } from "@/lib/flow-session";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -30,9 +31,7 @@ export default function ForgotPasswordPage() {
       if (result.success) {
         setIsSubmitted(true);
         setEmail(trimmedEmail);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("resetPasswordEmail", trimmedEmail);
-        }
+        setResetEmail(trimmedEmail);
         setTimeout(() => {
           router.push("/verify-reset-code");
         }, 2000);

@@ -15,14 +15,16 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  getAuthToken,
+  checkAuthSession,
   getPublicSubscriptionPlans,
   createAbonnementCheckout,
   registerHandToHandAbonnement,
   verifyAbonnementPayment,
   SubscriptionType,
 } from "@/lib/api";
+import { validateCheckoutUrl } from "@/lib/security";
 import RegistrationPendingModal from "@/components/RegistrationPendingModal";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 interface ChooseSubscriptionContentProps {
   role: "supplier" | "client";
@@ -43,6 +45,7 @@ export default function ChooseSubscriptionContent({
 }: ChooseSubscriptionContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isChecking: isAuthChecking } = useAuthGuard();
 
   const [plans, setPlans] = useState<SubscriptionType[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
@@ -65,13 +68,8 @@ export default function ChooseSubscriptionContent({
   }, []);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
     loadPlans();
-  }, [router, loadPlans]);
+  }, [loadPlans]);
 
   useEffect(() => {
     const payment = searchParams.get("payment");
@@ -128,7 +126,13 @@ export default function ChooseSubscriptionContent({
 
     const result = await createAbonnementCheckout(selectedPlan.id);
     if (result.success && result.data?.checkoutUrl) {
-      window.location.href = result.data.checkoutUrl;
+      const safeUrl = validateCheckoutUrl(result.data.checkoutUrl);
+      if (!safeUrl) {
+        setError("Lien de paiement invalide");
+        setIsProcessing(false);
+        return;
+      }
+      window.location.href = safeUrl;
       return;
     }
 
@@ -190,58 +194,57 @@ export default function ChooseSubscriptionContent({
         )}
 
         {!showPaymentOptions ? (
-          <>
-            {isLoadingPlans ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              </div>
-            ) : plans.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-                <p className="text-gray-600">Aucun abonnement disponible pour le moment.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all p-6 flex flex-col"
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-                    </div>
-                    {plan.description && (
-                      <p className="text-gray-600 text-sm mb-4 flex-1">{plan.description}</p>
-                    )}
-                    <div className="space-y-2 mb-6">
-                      <div className="flex items-center gap-2 text-gray-700 text-sm">
-                        <Calendar className="w-4 h-4 text-blue-500" />
-                        <span>{formatDuration(plan.time)}</span>
-                      </div>
-                      {(plan.sponsorsPerMonth ?? 0) > 0 && role === "supplier" && (
-                        <div className="flex items-center gap-2 text-gray-700 text-sm">
-                          <Megaphone className="w-4 h-4 text-amber-500" />
-                          <span>{plan.sponsorsPerMonth} sponsoring(s) / mois</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-auto">
-                      <p className="text-3xl font-bold text-blue-600 mb-4">
-                        {plan.price.toLocaleString("fr-DZ")} <span className="text-lg font-medium">DZD</span>
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectPlan(plan)}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
-                      >
-                        Choisir ce plan
-                      </button>
-                    </div>
+          isLoadingPlans || isAuthChecking ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
+              <p className="text-gray-600">Aucun abonnement disponible pour le moment.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all p-6 flex flex-col"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
+                  {plan.description && (
+                    <p className="text-gray-600 text-sm mb-4 flex-1">{plan.description}</p>
+                  )}
+                  <div className="space-y-2 mb-6">
+                    <div className="flex items-center gap-2 text-gray-700 text-sm">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span>{formatDuration(plan.time)}</span>
+                    </div>
+                    {(plan.sponsorsPerMonth ?? 0) > 0 && role === "supplier" && (
+                      <div className="flex items-center gap-2 text-gray-700 text-sm">
+                        <Megaphone className="w-4 h-4 text-amber-500" />
+                        <span>{plan.sponsorsPerMonth} sponsoring(s) / mois</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-auto">
+                    <p className="text-3xl font-bold text-blue-600 mb-4">
+                      {plan.price.toLocaleString("fr-DZ")}{" "}
+                      <span className="text-lg font-medium">DZD</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlan(plan)}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
+                    >
+                      Choisir ce plan
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
           selectedPlan && (
             <div className="max-w-lg mx-auto">

@@ -22,7 +22,8 @@ import {
   FolderTree,
   Megaphone,
 } from "lucide-react";
-import { getAuthToken, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
+import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
+import { performLogout } from "@/lib/perform-logout";
 import { isPathAllowedForSouAdmin, isSouAdminRole, SOU_ADMIN_MENU_HREFS } from "@/lib/admin-access";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
@@ -59,30 +60,24 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    const verify = async () => {
+      const session = await getSessionRole();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
 
-    // Decode token to get role
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const role = payload.role;
-
-      // Check if user is admin or sou-admin
-      if (role !== "admin" && role !== "sou-admin") {
+      if (session.role !== "admin" && session.role !== "sou-admin") {
         router.push("/home");
         return;
       }
 
       setIsAuthenticated(true);
-      setUserRole(role);
+      setUserRole(session.role);
       loadProfile();
-    } catch (error) {
-      console.error("Error decoding token:", error);
-      router.push("/login");
-    }
+    };
+
+    verify();
   }, [router]);
 
   useEffect(() => {
@@ -199,13 +194,8 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const token = getAuthToken();
-    if (!token) return;
-
     const socket = socketIO(getBaseUrl(), {
-      auth: {
-        token: token,
-      },
+      withCredentials: true,
       transports: ["websocket", "polling"],
     });
 
@@ -337,10 +327,7 @@ export default function DashboardLayout({
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-200 space-y-2">
             <button
-              onClick={() => {
-                localStorage.removeItem("authToken");
-                router.push("/login");
-              }}
+              onClick={() => performLogout(router)}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200"
             >
               <LogOut className="w-5 h-5" />
@@ -518,10 +505,7 @@ export default function DashboardLayout({
                         <div className="border-t border-gray-200 my-1"></div>
                       )}
                       <button
-                        onClick={() => {
-                          localStorage.removeItem("authToken");
-                          router.push("/login");
-                        }}
+                        onClick={() => performLogout(router)}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />

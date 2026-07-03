@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock, XCircle } from "lucide-react";
-import { loginClient } from "@/lib/api";
+import { loginClient, logoutClient } from "@/lib/api";
+import { validateOnboardingRedirect } from "@/lib/security";
+import { performLogout } from "@/lib/perform-logout";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,13 +47,12 @@ export default function LoginPage() {
 
       if (result.success) {
         const userRole = result.data?.role || "client";
-        const redirectTo = result.data?.redirectTo;
-        const onboardingStep = result.data?.onboardingStep;
+        const safeRedirect = validateOnboardingRedirect(result.data?.redirectTo);
 
         setSuccess("Connexion réussie ! Redirection...");
         setTimeout(() => {
-          if (redirectTo && onboardingStep) {
-            router.push(redirectTo);
+          if (safeRedirect && result.data?.onboardingStep) {
+            router.push(safeRedirect);
             return;
           }
 
@@ -64,14 +65,13 @@ export default function LoginPage() {
           }
         }, 1000);
       } else {
-        // Handle specific error cases
         if (result.message === "account_not_activated") {
-          localStorage.removeItem("authToken");
+          await logoutClient();
           setShowWaitingAlert(true);
         } else if (result.message === "subscription_expired" || result.message === "no_subscription") {
-          localStorage.removeItem("authToken");
+          await logoutClient();
           setShowSubscriptionExpiredAlert(true);
-      } else {
+        } else {
         setError(result.message || "Email ou mot de passe incorrect");
         }
       }
@@ -281,8 +281,8 @@ export default function LoginPage() {
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => {
-                      localStorage.removeItem("authToken");
-                      router.push("/home");
+                      void performLogout(router, { redirectTo: "/home" });
+                      setShowWaitingAlert(false);
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                   >
@@ -291,7 +291,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     onClick={() => {
-                      localStorage.removeItem("authToken");
+                      void performLogout(router);
                       setShowWaitingAlert(false);
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
@@ -338,8 +338,8 @@ export default function LoginPage() {
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => {
-                      localStorage.removeItem("authToken");
-                      router.push("/home");
+                      void performLogout(router, { redirectTo: "/home" });
+                      setShowWaitingAlert(false);
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
                   >
@@ -348,7 +348,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     onClick={() => {
-                      localStorage.removeItem("authToken");
+                      void performLogout(router);
                       setShowSubscriptionExpiredAlert(false);
                     }}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { getProductById, PublicProduct } from "@/lib/api";
+import { getCompareProductIds, setCompareProductIds, clearCompareProductIds } from "@/lib/flow-session";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 
 const getMediaUrl = (mediaPath: string) => {
@@ -26,7 +27,6 @@ const getMediaUrl = (mediaPath: string) => {
 
 function CompareProductsContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,21 +35,19 @@ function CompareProductsContent() {
     const loadProducts = async () => {
       try {
         setIsLoading(true);
-        const idsParam = searchParams.get("ids");
-        if (!idsParam) {
+        const ids = getCompareProductIds();
+        if (!ids) {
           setError("Aucun produit sélectionné pour la comparaison");
           setIsLoading(false);
           return;
         }
 
-        const ids = idsParam.split(",").filter((id) => id.trim());
         if (ids.length < 2 || ids.length > 5) {
           setError("Veuillez sélectionner entre 2 et 5 produits pour la comparaison");
           setIsLoading(false);
           return;
         }
 
-        // Fetch all products
         const productPromises = ids.map((id) => getProductById(id.trim()));
         const results = await Promise.all(productPromises);
 
@@ -76,18 +74,17 @@ function CompareProductsContent() {
     };
 
     loadProducts();
-  }, [searchParams]);
+  }, []);
 
   const removeProduct = (productId: string) => {
     const newProducts = products.filter((p) => p.id !== productId);
     if (newProducts.length < 2) {
+      clearCompareProductIds();
       router.push("/products");
       return;
     }
     setProducts(newProducts);
-    // Update URL
-    const newIds = newProducts.map((p) => p.id).join(",");
-    router.push(`/products/compare?ids=${newIds}`);
+    setCompareProductIds(newProducts.map((p) => p.id));
   };
 
   if (isLoading) {

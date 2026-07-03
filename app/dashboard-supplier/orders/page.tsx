@@ -20,7 +20,8 @@ import {
   AlertCircle,
   CreditCard,
 } from "lucide-react";
-import { getAuthToken, getPaymentByCommande, Payment } from "@/lib/api";
+import { apiFetch, checkAuthSession, getPaymentByCommande, Payment } from "@/lib/api";
+import { printInvoiceSafely } from "@/lib/invoice-print";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
@@ -83,44 +84,52 @@ export default function SupplierOrdersPage() {
   }, []);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    const socket = socketIO(getBaseUrl(), {
-      auth: {
-        token: token,
-      },
-      transports: ["websocket", "polling"],
-    });
+    let socket: ReturnType<typeof socketIO> | null = null;
+    let cancelled = false;
 
     const refreshOrders = () => {
       loadOrders();
     };
 
-    socket.on("newOrder", refreshOrders);
-    socket.on("paymentUploaded", (data: { orderId?: string }) => {
-      if (data?.orderId) {
-        setRecentPaymentOrderIds((prev) => {
-          const next = new Set(prev);
-          next.add(data.orderId as string);
-          return next;
-        });
+    const connectSocket = async () => {
+      const authed = await checkAuthSession();
+      if (!authed || cancelled) return;
 
-        setTimeout(() => {
+      socket = socketIO(getBaseUrl(), {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+      });
+
+      socket.on("newOrder", refreshOrders);
+      socket.on("paymentUploaded", (data: { orderId?: string }) => {
+        if (data?.orderId) {
           setRecentPaymentOrderIds((prev) => {
             const next = new Set(prev);
-            next.delete(data.orderId as string);
+            next.add(data.orderId as string);
             return next;
           });
-        }, 5000);
-      }
-      refreshOrders();
-    });
+
+          setTimeout(() => {
+            setRecentPaymentOrderIds((prev) => {
+              const next = new Set(prev);
+              next.delete(data.orderId as string);
+              return next;
+            });
+          }, 5000);
+        }
+        refreshOrders();
+      });
+    };
+
+    connectSocket();
 
     return () => {
-      socket.off("newOrder", refreshOrders);
-      socket.off("paymentUploaded");
-      socket.disconnect();
+      cancelled = true;
+      if (socket) {
+        socket.off("newOrder", refreshOrders);
+        socket.off("paymentUploaded");
+        socket.disconnect();
+      }
     };
   }, []);
 
@@ -144,18 +153,14 @@ export default function SupplierOrdersPage() {
   const loadOrders = async () => {
     try {
       setIsLoading(true);
-      const token = getAuthToken();
-      if (!token) {
+      const authed = await checkAuthSession();
+      if (!authed) {
         router.push("/login");
         return;
       }
 
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/commandes/supplier`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch(`${API_BASE_URL}/commandes/supplier`);
 
       if (!response.ok) {
         throw new Error("Failed to load orders");
@@ -207,15 +212,12 @@ export default function SupplierOrdersPage() {
 
     try {
       setUpdatingStatus(pendingStatusChange.orderId);
-      const token = getAuthToken();
-      if (!token) return;
 
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/commandes/${pendingStatusChange.orderId}/status`, {
+      const response = await apiFetch(`${API_BASE_URL}/commandes/${pendingStatusChange.orderId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ status: pendingStatusChange.newStatus }),
       });
@@ -252,152 +254,7 @@ export default function SupplierOrdersPage() {
   };
 
   const handlePrintInvoice = (order: Order) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Facture - Commande ${order._id.slice(-8).toUpperCase()}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: Arial, sans-serif;
-              padding: 40px;
-              color: #333;
-            }
-            .invoice-header {
-              border-bottom: 3px solid #16a34a;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .invoice-header h1 {
-              color: #16a34a;
-              font-size: 28px;
-              margin-bottom: 10px;
-            }
-            .invoice-info {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              flex: 1;
-            }
-            .info-section h3 {
-              color: #16a34a;
-              margin-bottom: 10px;
-              font-size: 16px;
-            }
-            .info-section p {
-              margin: 5px 0;
-              font-size: 14px;
-            }
-            .products-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 30px;
-            }
-            .products-table th {
-              background: #16a34a;
-              color: white;
-              padding: 12px;
-              text-align: left;
-              font-weight: bold;
-            }
-            .products-table td {
-              padding: 12px;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            .products-table tr:hover {
-              background: #f9fafb;
-            }
-            .total-section {
-              text-align: right;
-              margin-top: 20px;
-            }
-            .total-section .total-amount {
-              font-size: 24px;
-              font-weight: bold;
-              color: #16a34a;
-              margin-top: 10px;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 6px 12px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: bold;
-            }
-            .status-en-cours { background: #dbeafe; color: #1e40af; }
-            .status-on-route { background: #fed7aa; color: #9a3412; }
-            .status-arrived { background: #d1fae5; color: #065f46; }
-            @media print {
-              body { padding: 20px; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-header">
-            <h1>FACTURE</h1>
-            <p>Commande #${order._id.slice(-8).toUpperCase()}</p>
-            <p>Date: ${new Date(order.createdAt).toLocaleString("fr-FR")}</p>
-          </div>
-          
-          <div class="invoice-info">
-            <div class="info-section">
-              <h3>Client</h3>
-              ${order.idBuyer ? `
-                <p><strong>${order.idBuyer.firstName} ${order.idBuyer.lastName}</strong></p>
-                <p>${order.idBuyer.email}</p>
-                ${order.idBuyer.phone ? `<p>Tél: ${order.idBuyer.phone}</p>` : ""}
-              ` : `
-                <p><em>Informations client non disponibles</em></p>
-              `}
-            </div>
-            <div class="info-section">
-              <h3>Statut</h3>
-              <span class="status-badge status-${order.status.replace(" ", "-")}">${order.status}</span>
-            </div>
-          </div>
-
-          <table class="products-table">
-            <thead>
-              <tr>
-                <th>Produit</th>
-                <th>Prix unitaire</th>
-                <th>Quantité</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${order.products.map((product) => `
-                <tr>
-                  <td>${product.name}</td>
-                  <td>${product.price.toFixed(2)} DA</td>
-                  <td>${product.quantity}</td>
-                  <td>${(product.price * product.quantity).toFixed(2)} DA</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-
-          <div class="total-section">
-            <p><strong>Total: <span class="total-amount">${order.total.toFixed(2)} DA</span></strong></p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    printInvoiceSafely(order);
   };
 
   const getStatusIcon = (status: string) => {

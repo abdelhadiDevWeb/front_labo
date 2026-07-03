@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { User, Mail, Phone, MapPin, Save, Camera, Lock, Loader2, Eye, EyeOff, CheckCircle, X } from "lucide-react";
 import { getAdminProfile, updateAdminProfile, updateAdminPassword, uploadAdminProfileImage, AdminProfile } from "@/lib/api";
+import { validateStrongPassword } from "@/lib/password-validation";
 import Image from "next/image";
 import { getMediaUrl } from "@/lib/media-url";
 
@@ -119,8 +120,9 @@ export default function ProfilePage() {
       return;
     }
 
-    if (passwordData.newPassword.length < 8) {
-      setPasswordError("Le nouveau mot de passe doit contenir au moins 8 caractères");
+    const passwordError = validateStrongPassword(passwordData.newPassword);
+    if (passwordError) {
+      setPasswordError(passwordError);
       return;
     }
 

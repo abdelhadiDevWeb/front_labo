@@ -41,8 +41,10 @@ export function isLocationComplete(location: LocationData | null): boolean {
   );
 }
 
+import { getValidatedGoogleMapsApiKey } from "./security";
+
 export function getGoogleMapsApiKey(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() || "";
+  return getValidatedGoogleMapsApiKey() || "";
 }
 
 export function getMapProvider(): "google" | "osm" {

@@ -21,7 +21,8 @@ import {
   AlertCircle,
   Play,
 } from "lucide-react";
-import { getSupplierProducts, Product, getAuthToken, updateProduct, deleteProduct } from "@/lib/api";
+import { getSupplierProducts, Product, updateProduct, deleteProduct } from "@/lib/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
 
 export default function ProductDetailPage() {
@@ -57,12 +58,6 @@ export default function ProductDetailPage() {
     const loadProduct = async () => {
       try {
         setIsLoading(true);
-        const token = getAuthToken();
-        if (!token) {
-          router.push("/login");
-          return;
-        }
-
         const result = await getSupplierProducts();
         if (result.success && result.data) {
           const foundProduct = result.data.products.find((p) => p.id === productId);

@@ -1,24 +1,173 @@
 import { getApiUrl, getBaseUrl } from "./api-config";
+import { markSessionActive, markSessionInactive } from "./auth-session";
+import { devLog, devError, devWarn } from "./dev-logger";
+import { toUserFacingError } from "./sanitize-error";
 
 // Use a getter function instead of a constant to ensure env vars are read dynamically
 const getApiBaseUrl = () => getApiUrl();
 
 // Helper function to get appropriate error message based on environment
 const getConnectionErrorMessage = (): string => {
-  const baseUrl = getBaseUrl();
-  const isDevelopment = process.env.NODE_ENV === 'development' || baseUrl.includes('localhost');
-  
-  if (isDevelopment) {
-    return `Impossible de se connecter au serveur. Vérifiez que le serveur backend est démarré sur ${baseUrl}. Ouvrez un terminal et exécutez: cd server && bun run dev`;
-  } else {
-    return `Impossible de se connecter au serveur backend. Veuillez vérifier votre connexion internet ou contacter le support si le problème persiste. (Serveur: ${baseUrl})`;
+  if (process.env.NODE_ENV === "development") {
+    const baseUrl = getBaseUrl();
+    return `Impossible de se connecter au serveur. Vérifiez que le serveur backend est démarré sur ${baseUrl}.`;
+  }
+  return "Impossible de se connecter au serveur. Veuillez réessayer plus tard.";
+};
+
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  devLog("API Base URL:", getApiBaseUrl());
+}
+
+const AUTH_SKIP_REFRESH_PATHS = [
+  "/client/refresh-token",
+  "/client/logout",
+  "/client/login",
+  "/client/register",
+];
+
+const shouldAttemptRefresh = (url: string): boolean =>
+  !AUTH_SKIP_REFRESH_PATHS.some((path) => url.includes(path));
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+const refreshSession = async (): Promise<boolean> => {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+
+      if (response.ok) {
+        markSessionActive();
+        return true;
+      }
+
+      markSessionInactive();
+      return false;
+    } catch {
+      markSessionInactive();
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+};
+
+/** Authenticated fetch — sends HttpOnly session cookies, auto-refreshes on 401 */
+export const apiFetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  isRetry = false
+): Promise<Response> => {
+  const response = await fetch(input, {
+    ...init,
+    credentials: "include",
+  });
+
+  if (response.status !== 401 || typeof window === "undefined") {
+    return response;
+  }
+
+  const requestUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url;
+
+  if (!isRetry && shouldAttemptRefresh(requestUrl)) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return apiFetch(input, init, true);
+    }
+  }
+
+  markSessionInactive();
+  return response;
+};
+
+/** @deprecated Tokens are HttpOnly cookies — use checkAuthSession() */
+export const getAuthToken = (): string | null => null;
+
+/** @deprecated Tokens are set via HttpOnly cookies by the server */
+export const setAuthToken = (_token: string): void => {
+  markSessionActive();
+};
+
+export const removeAuthToken = (): void => {
+  markSessionInactive();
+};
+
+/** @deprecated Refresh token is HttpOnly cookie */
+export const getRefreshToken = (): string | null => null;
+
+/** @deprecated Refresh token is HttpOnly cookie */
+export const setRefreshToken = (_token: string): void => {};
+
+export const checkAuthSession = async (): Promise<boolean> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/role`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (response.ok) {
+      markSessionActive();
+      return true;
+    }
+    markSessionInactive();
+    return false;
+  } catch {
+    markSessionInactive();
+    return false;
   }
 };
 
-// Log API URL on module load (for debugging)
-if (typeof window !== "undefined") {
-  console.log("API Base URL:", getApiBaseUrl());
+export interface SessionRole {
+  role: string;
+  email: string;
+  id?: string;
 }
+
+export const getSessionRole = async (): Promise<SessionRole | null> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/role`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      markSessionInactive();
+      return null;
+    }
+    const result = await response.json();
+    if (result.success && result.data) {
+      markSessionActive();
+      return result.data as SessionRole;
+    }
+    return null;
+  } catch {
+    markSessionInactive();
+    return null;
+  }
+};
+
+export const logoutClient = async (): Promise<void> => {
+  try {
+    await apiFetch(`${getApiBaseUrl()}/client/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  } finally {
+    markSessionInactive();
+  }
+};
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -74,48 +223,9 @@ export interface ClientData {
   redirectTo?: string;
 }
 
-// Helper function to get auth token from localStorage
-export const getAuthToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("authToken");
-  }
-  return null;
-};
-
-// Helper function to set auth token in localStorage
-export const setAuthToken = (token: string): void => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("authToken", token);
-  }
-};
-
-// Helper function to remove auth token from localStorage
-export const removeAuthToken = (): void => {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
-  }
-};
-
-// Helper function to get refresh token from localStorage
-export const getRefreshToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("refreshToken");
-  }
-  return null;
-};
-
-// Helper function to set refresh token in localStorage
-export const setRefreshToken = (token: string): void => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("refreshToken", token);
-  }
-};
-
-// Health check function to test backend connection
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/health`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/health`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -123,7 +233,7 @@ export const checkBackendHealth = async (): Promise<boolean> => {
     });
     return response.ok;
   } catch (error) {
-    console.error("Backend health check failed:", error);
+    devError("Backend health check failed:", error);
     return false;
   }
 };
@@ -131,34 +241,14 @@ export const checkBackendHealth = async (): Promise<boolean> => {
 // Get user profile
 export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt?: string; updatedAt?: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
+    const session = await getSessionRole();
+    const endpoint = session?.role === "supplier" ? "/supplier/profile" : "/client/profile";
 
-    // Detect user role from token
-    let userRole: string | null = null;
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      userRole = payload.role;
-    } catch (decodeError) {
-      console.error("Error decoding token:", decodeError);
-      // Continue with default endpoint
-    }
-
-    // Use appropriate endpoint based on role
-    const endpoint = userRole === "supplier" ? "/supplier/profile" : "/client/profile";
-    
-    try {
-      const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      const response = await apiFetch(`${getApiBaseUrl()}${endpoint}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -172,7 +262,7 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
     const result = await response.json();
     return result;
     } catch (fetchError) {
-      console.error("Fetch error for endpoint:", endpoint, fetchError);
+      devError("Fetch error for endpoint:", endpoint, fetchError);
       // Return error with helpful message
       const isDevelopment = process.env.NODE_ENV === 'development' || getApiBaseUrl().includes('localhost');
       const errorMsg = fetchError instanceof Error ? fetchError.message : 'Network error';
@@ -180,12 +270,12 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
       
       // More detailed error message for local development
       if (isDevelopment) {
-        console.error(`❌ Failed to connect to: ${apiUrl}${endpoint}`);
-        console.error(`💡 Make sure:`);
-        console.error(`   1. Server is running: cd server && bun run dev`);
-        console.error(`   2. Server is on port 3001`);
-        console.error(`   3. .env.local exists with: NEXT_PUBLIC_API_URL=http://localhost:3001/api`);
-        console.error(`   4. Test server directly: http://localhost:3001/api/health`);
+        devError(`❌ Failed to connect to: ${apiUrl}${endpoint}`);
+        devError(`💡 Make sure:`);
+        devError(`   1. Server is running: cd server && bun run dev`);
+        devError(`   2. Server is on port 3001`);
+        devError(`   3. .env.local exists with: NEXT_PUBLIC_API_URL=http://localhost:3001/api`);
+        devError(`   4. Test server directly: http://localhost:3001/api/health`);
       }
       
       return {
@@ -196,7 +286,7 @@ export const getProfile = async (): Promise<ApiResponse<ClientData & { createdAt
       };
     }
   } catch (error) {
-    console.error("Get profile error:", error);
+    devError("Get profile error:", error);
     return {
       success: false,
       message: error instanceof Error ? error.message : "Network error. Please check your connection.",
@@ -212,20 +302,10 @@ export const updateProfile = async (data: {
   address?: string;
 }): Promise<ApiResponse<ClientData>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/profile`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/profile`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -241,7 +321,7 @@ export const updateProfile = async (data: {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Update profile error:", error);
+    devError("Update profile error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -255,20 +335,10 @@ export const updatePassword = async (data: {
   newPassword: string;
 }): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/password`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/password`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -284,7 +354,7 @@ export const updatePassword = async (data: {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Update password error:", error);
+    devError("Update password error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -295,7 +365,7 @@ export const updatePassword = async (data: {
 // Request password reset (send code via email)
 export const requestPasswordReset = async (email: string): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/forgot-password`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/forgot-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -314,7 +384,7 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse<n
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Request password reset error:", error);
+    devError("Request password reset error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -325,7 +395,7 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse<n
 // Verify password reset code
 export const verifyPasswordResetCode = async (email: string, code: string): Promise<ApiResponse<{ resetToken: string }>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/verify-reset-code`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/verify-reset-code`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -344,7 +414,7 @@ export const verifyPasswordResetCode = async (email: string, code: string): Prom
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Verify password reset code error:", error);
+    devError("Verify password reset code error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -353,14 +423,14 @@ export const verifyPasswordResetCode = async (email: string, code: string): Prom
 };
 
 // Reset password with verified code
-export const resetPassword = async (resetToken: string, newPassword: string): Promise<ApiResponse<null>> => {
+export const resetPassword = async (newPassword: string): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/reset-password`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ resetToken, newPassword }),
+      body: JSON.stringify({ newPassword }),
     });
 
     if (!response.ok) {
@@ -374,7 +444,7 @@ export const resetPassword = async (resetToken: string, newPassword: string): Pr
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Reset password error:", error);
+    devError("Reset password error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -394,20 +464,10 @@ export interface Device {
 
 export const getDevices = async (): Promise<ApiResponse<{ devices: Device[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/devices`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/devices`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -421,7 +481,7 @@ export const getDevices = async (): Promise<ApiResponse<{ devices: Device[] }>> 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get devices error:", error);
+    devError("Get devices error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -434,8 +494,8 @@ export const registerClient = async (
   data: ClientRegisterData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    console.log("Sending request to:", `${getApiBaseUrl()}/client/register`);
-    const response = await fetch(`${getApiBaseUrl()}/client/register`, {
+    devLog("Sending request to:", `${getApiBaseUrl()}/client/register`);
+    const response = await apiFetch(`${getApiBaseUrl()}/client/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -462,14 +522,9 @@ export const registerClient = async (
 
     const result: ApiResponse<ClientData> = await response.json();
 
-    // Store token if provided
-    if (result.token) {
-      setAuthToken(result.token);
-    }
-
     return result;
   } catch (error) {
-    console.error("Registration error:", error);
+    devError("Registration error:", error);
     
     // Provide more helpful error messages
     let errorMessage = "Une erreur réseau est survenue.";
@@ -477,7 +532,7 @@ export const registerClient = async (
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       errorMessage = getConnectionErrorMessage();
     } else if (error instanceof Error) {
-      errorMessage = error.message;
+      errorMessage = toUserFacingError(error.message, errorMessage);
     }
     
     return {
@@ -493,7 +548,7 @@ export const loginClient = async (
   data: ClientLoginData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/login`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -520,12 +575,10 @@ export const loginClient = async (
 
     const result: any = await response.json();
 
-    // Store tokens if provided
-    if (result.token) {
-      setAuthToken(result.token);
-    }
-    if (result.refreshToken) {
-      setRefreshToken(result.refreshToken);
+    if (result.success) {
+      markSessionActive();
+    } else {
+      markSessionInactive();
     }
 
     return result;
@@ -536,7 +589,7 @@ export const loginClient = async (
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       errorMessage = getConnectionErrorMessage();
     } else if (error instanceof Error) {
-      errorMessage = error.message;
+      errorMessage = toUserFacingError(error.message, errorMessage);
     }
     
     return {
@@ -547,51 +600,21 @@ export const loginClient = async (
   }
 };
 
-// Refresh token API
+// Refresh token API (uses HttpOnly refresh cookie)
 export const refreshAuthToken = async (): Promise<ApiResponse<{ token: string }>> => {
   try {
-    const refreshTokenValue = getRefreshToken();
-    if (!refreshTokenValue) {
-      return {
-        success: false,
-        message: "No refresh token available",
-      };
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return { success: true, message: "Session refreshed" };
     }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refreshToken: refreshTokenValue }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      // If refresh token is invalid, remove tokens
-      if (response.status === 401) {
-        removeAuthToken();
-      }
-      return {
-        success: false,
-        message: errorData.message || "Failed to refresh token",
-        errors: errorData.errors || [],
-      };
-    }
-
-    const result = await response.json();
-
-    // Store new token
-    if (result.token) {
-      setAuthToken(result.token);
-    }
-
-    return result;
-  } catch (error) {
-    console.error("Refresh token error:", error);
     return {
       success: false,
-      message: "Network error. Please check your connection.",
+      message: toUserFacingError(undefined, "Session expirée. Veuillez vous reconnecter."),
+    };
+  } catch {
+    return {
+      success: false,
+      message: toUserFacingError(undefined, "Impossible de rafraîchir la session."),
     };
   }
 };
@@ -635,20 +658,10 @@ export const createProduct = async (
   data: CreateProductData
 ): Promise<ApiResponse<Product>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/products`, {
+const response = await apiFetch(`${getApiBaseUrl()}/products`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -665,7 +678,7 @@ export const createProduct = async (
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Create product error:", error);
+    devError("Create product error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -678,22 +691,12 @@ export const uploadProductsFromExcel = async (
   file: File
 ): Promise<ApiResponse<{ imported: number; total: number; errors: number; products: Product[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const formData = new FormData();
+const formData = new FormData();
     formData.append("excelFile", file);
 
-    const response = await fetch(`${getApiBaseUrl()}/products/upload-excel`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/products/upload-excel`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: {},
       body: formData,
     });
 
@@ -709,7 +712,7 @@ export const uploadProductsFromExcel = async (
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Upload Excel error:", error);
+    devError("Upload Excel error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -720,20 +723,10 @@ export const uploadProductsFromExcel = async (
 // Get supplier products
 export const getSupplierProducts = async (): Promise<ApiResponse<{ products: Product[]; total: number }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/products`, {
+const response = await apiFetch(`${getApiBaseUrl()}/products`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -747,7 +740,7 @@ export const getSupplierProducts = async (): Promise<ApiResponse<{ products: Pro
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get products error:", error);
+    devError("Get products error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -761,15 +754,7 @@ export const updateProduct = async (
   data: Partial<CreateProductData> & { images?: File[]; video?: File }
 ): Promise<ApiResponse<Product>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const formData = new FormData();
+const formData = new FormData();
     
     // Append text fields
     if (data.name !== undefined) formData.append("name", data.name);
@@ -791,11 +776,9 @@ export const updateProduct = async (
       formData.append("video", data.video);
     }
 
-    const response = await fetch(`${getApiBaseUrl()}/products/${productId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/products/${productId}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: {},
       body: formData,
     });
 
@@ -811,7 +794,7 @@ export const updateProduct = async (
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Update product error:", error);
+    devError("Update product error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -822,20 +805,10 @@ export const updateProduct = async (
 // Delete a product
 export const deleteProduct = async (productId: string): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/products/${productId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/products/${productId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -849,7 +822,7 @@ export const deleteProduct = async (productId: string): Promise<ApiResponse<null
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Delete product error:", error);
+    devError("Delete product error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -877,20 +850,10 @@ export interface NotificationData {
 // Get notifications
 export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiResponse<{ notifications: NotificationData[]; unreadCount: number }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/notifications?unreadOnly=${unreadOnly}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/notifications?unreadOnly=${unreadOnly}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -904,7 +867,7 @@ export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiR
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get notifications error:", error);
+    devError("Get notifications error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -915,20 +878,10 @@ export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiR
 // Mark notification as read
 export const markNotificationAsRead = async (notificationId: string): Promise<ApiResponse<NotificationData>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/notifications/${notificationId}/read`, {
+const response = await apiFetch(`${getApiBaseUrl()}/notifications/${notificationId}/read`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -942,7 +895,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<Ap
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Mark notification as read error:", error);
+    devError("Mark notification as read error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -953,20 +906,10 @@ export const markNotificationAsRead = async (notificationId: string): Promise<Ap
 // Mark all notifications as read
 export const markAllNotificationsAsRead = async (): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/notifications/read-all`, {
+const response = await apiFetch(`${getApiBaseUrl()}/notifications/read-all`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -980,7 +923,7 @@ export const markAllNotificationsAsRead = async (): Promise<ApiResponse<null>> =
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Mark all notifications as read error:", error);
+    devError("Mark all notifications as read error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -1029,7 +972,7 @@ export const getSponsoredProducts = async (): Promise<
   ApiResponse<{ products: SponsoredPublicProduct[] }>
 > => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/sponsored-products`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/sponsored-products`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1078,7 +1021,7 @@ export const getPublicPromotions = async (): Promise<
   ApiResponse<{ promotions: PublicPromotion[] }>
 > => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/public-promotions`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/public-promotions`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1108,25 +1051,17 @@ export const getAllProducts = async (filters?: {
   wilayaCode?: string;
 }): Promise<ApiResponse<{ products: PublicProduct[]; total: number; clientWilayaCode?: string | null }>> => {
   try {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-    
-    // Include auth token if available (for laboType filtering)
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const params = new URLSearchParams();
+const params = new URLSearchParams();
     if (filters?.categoryId) params.append("categoryId", filters.categoryId);
     if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
     const query = params.toString() ? `?${params.toString()}` : "";
     
-    const response = await fetch(`${getApiBaseUrl()}/products/public${query}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
       method: "GET",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
@@ -1140,7 +1075,7 @@ export const getAllProducts = async (filters?: {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get all products error:", error);
+    devError("Get all products error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -1151,19 +1086,11 @@ export const getAllProducts = async (filters?: {
 // Get product by ID (public - for clients)
 export const getProductById = async (id: string): Promise<ApiResponse<PublicProduct>> => {
   try {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-    
-    // Include auth token if available (for laboType filtering)
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${getApiBaseUrl()}/products/public/${id}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/products/public/${id}`, {
       method: "GET",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
@@ -1177,7 +1104,7 @@ export const getProductById = async (id: string): Promise<ApiResponse<PublicProd
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get product by ID error:", error);
+    devError("Get product by ID error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -1214,20 +1141,10 @@ export interface SupplierStatistics {
 // Get supplier statistics
 export const getSupplierStatistics = async (): Promise<ApiResponse<SupplierStatistics>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/commandes/supplier/statistics`, {
+const response = await apiFetch(`${getApiBaseUrl()}/commandes/supplier/statistics`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1241,7 +1158,7 @@ export const getSupplierStatistics = async (): Promise<ApiResponse<SupplierStati
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get supplier statistics error:", error);
+    devError("Get supplier statistics error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -1302,24 +1219,14 @@ export interface DetailedSupplierStatistics {
 // Get detailed supplier statistics
 export const getSupplierDetailedStatistics = async (month?: "current" | "previous"): Promise<ApiResponse<DetailedSupplierStatistics>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const url = month 
+const url = month 
       ? `${getApiBaseUrl()}/commandes/supplier/statistics/detailed?month=${month}`
       : `${getApiBaseUrl()}/commandes/supplier/statistics/detailed`;
     
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1333,7 +1240,7 @@ export const getSupplierDetailedStatistics = async (month?: "current" | "previou
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Get detailed supplier statistics error:", error);
+    devError("Get detailed supplier statistics error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -1422,28 +1329,18 @@ export interface DetailedAdminStatistics {
 // Get admin statistics
 export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
+const url = `${getApiBaseUrl()}/admin/statistics`;
+    devLog("Fetching admin statistics from:", url);
 
-    const url = `${getApiBaseUrl()}/admin/statistics`;
-    console.log("Fetching admin statistics from:", url);
-
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Admin statistics error response:", response.status, errorData);
+      devError("Admin statistics error response:", response.status, errorData);
       return {
         success: false,
         message: errorData.message || `Failed to fetch admin statistics (${response.status})`,
@@ -1453,8 +1350,8 @@ export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get admin statistics error:", error);
-    console.error("Error details:", {
+    devError("Get admin statistics error:", error);
+    devError("Error details:", {
       message: error.message,
       stack: error.stack,
       API_BASE_URL: getApiBaseUrl(),
@@ -1469,20 +1366,10 @@ export const getAdminStatistics = async (): Promise<ApiResponse<AdminStatistics>
 // Get detailed admin statistics for charts
 export const getDetailedAdminStatistics = async (): Promise<ApiResponse<DetailedAdminStatistics>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/statistics/detailed`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/statistics/detailed`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1496,7 +1383,7 @@ export const getDetailedAdminStatistics = async (): Promise<ApiResponse<Detailed
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get detailed admin statistics error:", error);
+    devError("Get detailed admin statistics error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1549,15 +1436,7 @@ export const getAdminUsers = async (
   }
 ): Promise<ApiResponse<AdminUsersResponse>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    // Build query string
+// Build query string
     const params = new URLSearchParams();
     if (filters?.role) params.append("role", filters.role);
     if (filters?.search) params.append("search", filters.search);
@@ -1568,12 +1447,10 @@ export const getAdminUsers = async (
 
     const url = `${getApiBaseUrl()}/admin/users${params.toString() ? `?${params.toString()}` : ""}`;
 
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1587,7 +1464,7 @@ export const getAdminUsers = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get admin users error:", error);
+    devError("Get admin users error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1601,20 +1478,10 @@ export const updateUserStatus = async (
   status: boolean
 ): Promise<ApiResponse<{ id: string; status: boolean }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/status`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/users/${userId}/status`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ status }),
     });
 
@@ -1629,7 +1496,7 @@ export const updateUserStatus = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Update user status error:", error);
+    devError("Update user status error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1643,20 +1510,10 @@ export const updateUserCertife = async (
   certife: boolean
 ): Promise<ApiResponse<{ id: string; certife: boolean }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/users/${userId}/certife`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/users/${userId}/certife`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ certife }),
     });
 
@@ -1724,15 +1581,7 @@ export const getAdminOrders = async (
   }
 ): Promise<ApiResponse<AdminOrdersResponse>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    // Build query string
+// Build query string
     const params = new URLSearchParams();
     if (filters?.status) params.append("status", filters.status);
     if (filters?.search) params.append("search", filters.search);
@@ -1742,19 +1591,17 @@ export const getAdminOrders = async (
     if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
 
     const url = `${getApiBaseUrl()}/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
-    console.log("Fetching admin orders from:", url);
+    devLog("Fetching admin orders from:", url);
 
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Admin orders error response:", response.status, errorData);
+      devError("Admin orders error response:", response.status, errorData);
       return {
         success: false,
         message: errorData.message || `Failed to fetch admin orders (${response.status})`,
@@ -1764,7 +1611,7 @@ export const getAdminOrders = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get admin orders error:", error);
+    devError("Get admin orders error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection and ensure the server is running.",
@@ -1790,20 +1637,10 @@ export interface AdminProfile {
 // Get admin profile
 export const getAdminProfile = async (): Promise<ApiResponse<AdminProfile>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/profile`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/profile`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1817,7 +1654,7 @@ export const getAdminProfile = async (): Promise<ApiResponse<AdminProfile>> => {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get admin profile error:", error);
+    devError("Get admin profile error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1833,20 +1670,10 @@ export const updateAdminProfile = async (data: {
   address?: string;
 }): Promise<ApiResponse<AdminProfile>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/profile`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/profile`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -1861,7 +1688,7 @@ export const updateAdminProfile = async (data: {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Update admin profile error:", error);
+    devError("Update admin profile error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1875,20 +1702,10 @@ export const updateAdminPassword = async (data: {
   newPassword: string;
 }): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/password`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/password`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -1903,7 +1720,7 @@ export const updateAdminPassword = async (data: {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Update admin password error:", error);
+    devError("Update admin password error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1914,22 +1731,12 @@ export const updateAdminPassword = async (data: {
 // Upload admin profile image
 export const uploadAdminProfileImage = async (file: File): Promise<ApiResponse<{ id: string; image: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const formData = new FormData();
+const formData = new FormData();
     formData.append("image", file);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/profile-image`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/profile-image`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: {},
       body: formData,
     });
 
@@ -1944,7 +1751,7 @@ export const uploadAdminProfileImage = async (file: File): Promise<ApiResponse<{
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Upload admin profile image error:", error);
+    devError("Upload admin profile image error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -1955,20 +1762,10 @@ export const uploadAdminProfileImage = async (file: File): Promise<ApiResponse<{
 // Get admin profile image
 export const getAdminProfileImage = async (): Promise<ApiResponse<{ id: string; image: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/profile-image`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/profile-image`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -1982,7 +1779,7 @@ export const getAdminProfileImage = async (): Promise<ApiResponse<{ id: string; 
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get admin profile image error:", error);
+    devError("Get admin profile image error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2035,27 +1832,17 @@ export const getAllAdmins = async (
   }
 ): Promise<ApiResponse<AdminListResponse>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const params = new URLSearchParams();
+const params = new URLSearchParams();
     if (filters?.search) params.append("search", filters.search);
     if (filters?.page) params.append("page", filters.page.toString());
     if (filters?.limit) params.append("limit", filters.limit.toString());
     if (filters?.sortBy) params.append("sortBy", filters.sortBy);
     if (filters?.sortOrder) params.append("sortOrder", filters.sortOrder);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/admins?${params.toString()}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/admins?${params.toString()}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2069,7 +1856,7 @@ export const getAllAdmins = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get all admins error:", error);
+    devError("Get all admins error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2080,20 +1867,10 @@ export const getAllAdmins = async (
 // Create new admin
 export const createAdmin = async (data: CreateAdminData): Promise<ApiResponse<AdminData>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/admins`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/admins`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2109,7 +1886,7 @@ export const createAdmin = async (data: CreateAdminData): Promise<ApiResponse<Ad
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Create admin error:", error);
+    devError("Create admin error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2123,20 +1900,10 @@ export const updateAdminStatus = async (
   status: boolean
 ): Promise<ApiResponse<AdminData>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/admins/${adminId}/status`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/admins/${adminId}/status`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ status }),
     });
 
@@ -2151,7 +1918,7 @@ export const updateAdminStatus = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Update admin status error:", error);
+    devError("Update admin status error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2223,20 +1990,10 @@ export interface UpdateSubscriptionData {
 // Get users with status false for subscriptions
 export const getUsersForSubscription = async (): Promise<ApiResponse<{ users: SubscriptionUser[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions/users`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2250,7 +2007,7 @@ export const getUsersForSubscription = async (): Promise<ApiResponse<{ users: Su
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get users for subscription error:", error);
+    devError("Get users for subscription error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2261,20 +2018,10 @@ export const getUsersForSubscription = async (): Promise<ApiResponse<{ users: Su
 // Create subscription
 export const createSubscription = async (data: CreateSubscriptionData): Promise<ApiResponse<Subscription>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2290,7 +2037,7 @@ export const createSubscription = async (data: CreateSubscriptionData): Promise<
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Create subscription error:", error);
+    devError("Create subscription error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2303,19 +2050,12 @@ export const activateSubscriptionFromUserChoice = async (
   userId: string
 ): Promise<ApiResponse<Subscription>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(
+const response = await apiFetch(
       `${getApiBaseUrl()}/admin/subscriptions/users/${userId}/activate-choice`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+          "Content-Type": "application/json",},
       }
     );
 
@@ -2339,20 +2079,10 @@ export const activateSubscriptionFromUserChoice = async (
 // Get all subscriptions
 export const getAllSubscriptions = async (): Promise<ApiResponse<{ subscriptions: Subscription[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2366,7 +2096,7 @@ export const getAllSubscriptions = async (): Promise<ApiResponse<{ subscriptions
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get all subscriptions error:", error);
+    devError("Get all subscriptions error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2380,20 +2110,10 @@ export const updateSubscription = async (
   data: UpdateSubscriptionData
 ): Promise<ApiResponse<Subscription>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/${subscriptionId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions/${subscriptionId}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2409,7 +2129,7 @@ export const updateSubscription = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Update subscription error:", error);
+    devError("Update subscription error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -2448,20 +2168,10 @@ export interface UpdateSubscriptionTypeData {
 // Get all subscription types
 export const getAllSubscriptionTypes = async (): Promise<ApiResponse<{ subscriptionTypes: SubscriptionType[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscription-types`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2492,20 +2202,10 @@ export const getAllSubscriptionTypes = async (): Promise<ApiResponse<{ subscript
 // Create subscription type
 export const createSubscriptionType = async (data: CreateSubscriptionTypeData): Promise<ApiResponse<SubscriptionType>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscription-types`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2534,20 +2234,10 @@ export const updateSubscriptionType = async (
   data: UpdateSubscriptionTypeData
 ): Promise<ApiResponse<SubscriptionType>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2573,20 +2263,10 @@ export const updateSubscriptionType = async (
 // Delete subscription type
 export const deleteSubscriptionType = async (typeId: string): Promise<ApiResponse<void>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscription-types/${typeId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2628,17 +2308,10 @@ export interface UpdateSponsorData {
 
 export const getAllSponsors = async (): Promise<ApiResponse<{ sponsors: Sponsor[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/sponsors`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2667,17 +2340,10 @@ export const getAllSponsors = async (): Promise<ApiResponse<{ sponsors: Sponsor[
 
 export const createSponsor = async (data: CreateSponsorData): Promise<ApiResponse<Sponsor>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/sponsors`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2704,17 +2370,10 @@ export const updateSponsor = async (
   data: UpdateSponsorData
 ): Promise<ApiResponse<Sponsor>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2738,17 +2397,10 @@ export const updateSponsor = async (
 
 export const deleteSponsor = async (sponsorId: string): Promise<ApiResponse<void>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2823,15 +2475,10 @@ export const getSubscriptionSponsorQuota = async (): Promise<
   ApiResponse<SubscriptionSponsorQuota>
 > => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/subscription-quota`, {
+const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscription-quota`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     const result = await response.json().catch(() => ({}));
@@ -2857,15 +2504,10 @@ export const createSubscriptionSponsorProduct = async (data: {
   ApiResponse<{ sponsorProduct: SponsorProductRecord; quota: SubscriptionSponsorQuota }>
 > => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/subscription`, {
+const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscription`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2889,15 +2531,10 @@ export const createSubscriptionSponsorProduct = async (data: {
 
 export const getSponsorPlans = async (): Promise<ApiResponse<{ plans: SponsorPlan[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/plans`, {
+const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/plans`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2925,15 +2562,10 @@ export const getSupplierSponsorProducts = async (): Promise<
   }>
 > => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/sponsor-products`, {
+const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -2960,15 +2592,10 @@ export const createSponsorProduct = async (data: {
   ApiResponse<{ sponsorProduct: SponsorProductRecord; checkoutUrl: string }>
 > => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/sponsor-products`, {
+const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -2994,17 +2621,12 @@ export const verifySponsorProductPayment = async (
   sponsorProductId: string
 ): Promise<ApiResponse<{ sponsorProduct: SponsorProductRecord; paid: boolean }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(
+const response = await apiFetch(
       `${getApiBaseUrl()}/sponsor-products/${sponsorProductId}/verify-payment`,
       {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+          "Content-Type": "application/json",},
       }
     );
 
@@ -3035,17 +2657,12 @@ export const resumeSponsorPayment = async (
   }>
 > => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(
+const response = await apiFetch(
       `${getApiBaseUrl()}/sponsor-products/${sponsorProductId}/resume-payment`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+          "Content-Type": "application/json",},
       }
     );
 
@@ -3107,15 +2724,10 @@ export interface UpdatePromotionData {
 
 export const getSupplierPromotions = async (): Promise<ApiResponse<{ promotions: Promotion[] }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/promotions`, {
+const response = await apiFetch(`${getApiBaseUrl()}/promotions`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3137,15 +2749,10 @@ export const getSupplierPromotions = async (): Promise<ApiResponse<{ promotions:
 
 export const createPromotion = async (data: CreatePromotionData): Promise<ApiResponse<Promotion>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/promotions`, {
+const response = await apiFetch(`${getApiBaseUrl()}/promotions`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -3172,15 +2779,10 @@ export const updatePromotion = async (
   data: UpdatePromotionData
 ): Promise<ApiResponse<Promotion>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify(data),
     });
 
@@ -3204,15 +2806,10 @@ export const updatePromotion = async (
 
 export const deletePromotion = async (promotionId: string): Promise<ApiResponse<void>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/promotions/${promotionId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3255,20 +2852,10 @@ export interface UserDocuments {
 // Get user papers (Papier)
 export const getUserPapers = async (userId: string): Promise<ApiResponse<{ papers: UserPapers | null }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/papers`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/papers`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3282,7 +2869,7 @@ export const getUserPapers = async (userId: string): Promise<ApiResponse<{ paper
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get user papers error:", error);
+    devError("Get user papers error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3293,20 +2880,10 @@ export const getUserPapers = async (userId: string): Promise<ApiResponse<{ paper
 // Get user documents (Attachment)
 export const getUserDocuments = async (userId: string): Promise<ApiResponse<{ documents: UserDocuments | null }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/documents`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions/users/${userId}/documents`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3320,7 +2897,7 @@ export const getUserDocuments = async (userId: string): Promise<ApiResponse<{ do
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get user documents error:", error);
+    devError("Get user documents error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3346,25 +2923,15 @@ export const createPayment = async (
   imageFile: File
 ): Promise<ApiResponse<Payment>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const formData = new FormData();
+const formData = new FormData();
     formData.append("id_commande", commandeId);
     // Convert total to string for FormData
     formData.append("total", total.toString());
     formData.append("image", imageFile);
 
-    const response = await fetch(`${getApiBaseUrl()}/payments`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/payments`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: {},
       body: formData,
     });
 
@@ -3380,7 +2947,7 @@ export const createPayment = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Create payment error:", error);
+    devError("Create payment error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3391,20 +2958,10 @@ export const createPayment = async (
 // Get payment by commande ID
 export const getPaymentByCommande = async (commandeId: string): Promise<ApiResponse<Payment>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/payments/commande/${commandeId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/payments/commande/${commandeId}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3418,7 +2975,7 @@ export const getPaymentByCommande = async (commandeId: string): Promise<ApiRespo
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get payment by commande error:", error);
+    devError("Get payment by commande error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3429,20 +2986,10 @@ export const getPaymentByCommande = async (commandeId: string): Promise<ApiRespo
 // Get all payments for current user
 export const getUserPayments = async (): Promise<ApiResponse<Payment[]>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/payments/user`, {
+const response = await apiFetch(`${getApiBaseUrl()}/payments/user`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3456,7 +3003,7 @@ export const getUserPayments = async (): Promise<ApiResponse<Payment[]>> => {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get user payments error:", error);
+    devError("Get user payments error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3515,7 +3062,7 @@ export interface SupplierCard {
 // Get supplier details by ID (public)
 export const getSupplierDetails = async (supplierId: string): Promise<ApiResponse<SupplierDetails>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/supplier/${supplierId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/supplier/${supplierId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -3533,7 +3080,7 @@ export const getSupplierDetails = async (supplierId: string): Promise<ApiRespons
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get supplier details error:", error);
+    devError("Get supplier details error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3544,17 +3091,11 @@ export const getSupplierDetails = async (supplierId: string): Promise<ApiRespons
 // Get all suppliers (public, with optional auth for laboType filtering)
 export const getAllSuppliersPublic = async (): Promise<ApiResponse<{ suppliers: SupplierCard[]; total: number }>> => {
   try {
-    const token = getAuthToken();
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/supplier/public`, {
+const response = await apiFetch(`${getApiBaseUrl()}/supplier/public`, {
       method: "GET",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
@@ -3577,17 +3118,10 @@ export const getAllSuppliersPublic = async (): Promise<ApiResponse<{ suppliers: 
 // Add supplier to favorites (client)
 export const addSupplierToFavorites = async (supplierId: string): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ supplierId }),
     });
 
@@ -3611,17 +3145,10 @@ export const addSupplierToFavorites = async (supplierId: string): Promise<ApiRes
 // Remove supplier from favorites (client)
 export const removeSupplierFromFavorites = async (supplierId: string): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers/${supplierId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/favorites/suppliers/${supplierId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3644,17 +3171,10 @@ export const removeSupplierFromFavorites = async (supplierId: string): Promise<A
 // Get current client favorite suppliers
 export const getFavoriteSuppliers = async (): Promise<ApiResponse<{ suppliers: SupplierCard[]; total: number }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return { success: false, message: "Not authenticated" };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/favorites/suppliers`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3692,7 +3212,7 @@ export const createProblem = async (data: {
   message: string;
 }): Promise<ApiResponse<Problem>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/support`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/support`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -3712,7 +3232,7 @@ export const createProblem = async (data: {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Create problem error:", error);
+    devError("Create problem error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3723,20 +3243,10 @@ export const createProblem = async (data: {
 // Get all problems (admin only)
 export const getAllProblems = async (): Promise<ApiResponse<Problem[]>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/problems`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/problems`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3751,7 +3261,7 @@ export const getAllProblems = async (): Promise<ApiResponse<Problem[]>> => {
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get all problems error:", error);
+    devError("Get all problems error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3762,20 +3272,10 @@ export const getAllProblems = async (): Promise<ApiResponse<Problem[]>> => {
 // Mark problem as read (admin only)
 export const markProblemAsRead = async (problemId: string): Promise<ApiResponse<Problem>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/problems/${problemId}/read`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/problems/${problemId}/read`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3790,7 +3290,7 @@ export const markProblemAsRead = async (problemId: string): Promise<ApiResponse<
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Mark problem as read error:", error);
+    devError("Mark problem as read error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3836,20 +3336,10 @@ export const createRate = async (
   number: number
 ): Promise<ApiResponse<Rate>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/rates`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/rates`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({
         id_supplier: supplierId,
         message: message.trim(),
@@ -3869,7 +3359,7 @@ export const createRate = async (
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Create rate error:", error);
+    devError("Create rate error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3880,7 +3370,7 @@ export const createRate = async (
 // Get all ratings for a supplier
 export const getSupplierRatings = async (supplierId: string): Promise<ApiResponse<SupplierRatingsResponse>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/client/rates/supplier/${supplierId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/rates/supplier/${supplierId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -3898,7 +3388,7 @@ export const getSupplierRatings = async (supplierId: string): Promise<ApiRespons
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Get supplier ratings error:", error);
+    devError("Get supplier ratings error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3909,20 +3399,10 @@ export const getSupplierRatings = async (supplierId: string): Promise<ApiRespons
 // Check if user can rate a supplier
 export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<CanRateResponse>> => {
   try {
-    const token = getAuthToken();
-    if (!token) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/rates/can-rate/${supplierId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/rates/can-rate/${supplierId}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -3936,7 +3416,7 @@ export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<C
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Check can rate supplier error:", error);
+    devError("Check can rate supplier error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -3947,20 +3427,10 @@ export const canRateSupplier = async (supplierId: string): Promise<ApiResponse<C
 // Save FCM token for push notifications
 export const saveFcmToken = async (token: string): Promise<ApiResponse<null>> => {
   try {
-    const authToken = getAuthToken();
-    if (!authToken) {
-      return {
-        success: false,
-        message: "Not authenticated",
-      };
-    }
-
-    const response = await fetch(`${getApiBaseUrl()}/client/fcm-token`, {
+const response = await apiFetch(`${getApiBaseUrl()}/client/fcm-token`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ token }),
     });
 
@@ -3975,7 +3445,7 @@ export const saveFcmToken = async (token: string): Promise<ApiResponse<null>> =>
     const result = await response.json();
     return result;
   } catch (error: any) {
-    console.error("Save FCM token error:", error);
+    devError("Save FCM token error:", error);
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
@@ -4028,7 +3498,7 @@ export interface UpdateSousCategoryData {
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/categories/public`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -4046,7 +3516,7 @@ export const getPublicCategories = async (): Promise<ApiResponse<{ categories: C
 
 export const getPublicCategoryById = async (categoryId: string): Promise<ApiResponse<Category>> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -4064,15 +3534,10 @@ export const getPublicCategoryById = async (categoryId: string): Promise<ApiResp
 
 export const getAllCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/categories`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -4088,18 +3553,14 @@ export const getAllCategories = async (): Promise<ApiResponse<{ categories: Cate
 
 export const createCategory = async (data: CreateCategoryData): Promise<ApiResponse<Category>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const formData = new FormData();
+const formData = new FormData();
     formData.append("name_catgory", data.name_catgory);
     formData.append("des", data.des);
     formData.append("image", data.image);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/categories`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+body: formData,
     });
 
     if (!response.ok) {
@@ -4115,18 +3576,14 @@ export const createCategory = async (data: CreateCategoryData): Promise<ApiRespo
 
 export const updateCategory = async (categoryId: string, data: UpdateCategoryData): Promise<ApiResponse<Category>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const formData = new FormData();
+const formData = new FormData();
     if (data.name_catgory) formData.append("name_catgory", data.name_catgory);
     if (data.des) formData.append("des", data.des);
     if (data.image) formData.append("image", data.image);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+body: formData,
     });
 
     if (!response.ok) {
@@ -4142,15 +3599,10 @@ export const updateCategory = async (categoryId: string, data: UpdateCategoryDat
 
 export const deleteCategory = async (categoryId: string): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -4169,17 +3621,13 @@ export const createSousCategory = async (
   data: CreateSousCategoryData
 ): Promise<ApiResponse<SousCategory>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const formData = new FormData();
+const formData = new FormData();
     formData.append("name_sou_catgory", data.name_sou_catgory);
     formData.append("image", data.image);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories/${categoryId}/sous-categories`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}/sous-categories`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+body: formData,
     });
 
     if (!response.ok) {
@@ -4198,18 +3646,14 @@ export const updateSousCategory = async (
   data: UpdateSousCategoryData
 ): Promise<ApiResponse<SousCategory>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const formData = new FormData();
+const formData = new FormData();
     if (data.name_sou_catgory) formData.append("name_sou_catgory", data.name_sou_catgory);
     if (data.id_catgory) formData.append("id_catgory", data.id_catgory);
     if (data.image) formData.append("image", data.image);
 
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+body: formData,
     });
 
     if (!response.ok) {
@@ -4225,15 +3669,10 @@ export const updateSousCategory = async (
 
 export const deleteSousCategory = async (sousCategoryId: string): Promise<ApiResponse<null>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     if (!response.ok) {
@@ -4252,7 +3691,7 @@ export const getPublicSubscriptionPlans = async (): Promise<
   ApiResponse<{ subscriptionTypes: SubscriptionType[] }>
 > => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/abonnements/plans`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/abonnements/plans`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -4285,15 +3724,10 @@ export const createAbonnementCheckout = async (
   typeId: string
 ): Promise<ApiResponse<{ paymentId: string; checkoutUrl: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/abonnements/checkout`, {
+const response = await apiFetch(`${getApiBaseUrl()}/abonnements/checkout`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ typeId }),
     });
 
@@ -4314,15 +3748,10 @@ export const registerHandToHandAbonnement = async (
   typeId: string
 ): Promise<ApiResponse<{ paymentId: string; planName: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/abonnements/hand-to-hand`, {
+const response = await apiFetch(`${getApiBaseUrl()}/abonnements/hand-to-hand`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
       body: JSON.stringify({ typeId }),
     });
 
@@ -4343,15 +3772,10 @@ export const verifyAbonnementPayment = async (
   paymentId: string
 ): Promise<ApiResponse<{ paid: boolean; abonnementId?: string; checkoutStatus?: string }>> => {
   try {
-    const token = getAuthToken();
-    if (!token) return { success: false, message: "Not authenticated" };
-
-    const response = await fetch(`${getApiBaseUrl()}/abonnements/payments/${paymentId}/verify`, {
+const response = await apiFetch(`${getApiBaseUrl()}/abonnements/payments/${paymentId}/verify`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+        "Content-Type": "application/json",},
     });
 
     const result = await response.json().catch(() => ({}));

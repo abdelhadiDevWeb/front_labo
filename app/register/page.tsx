@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { registerClient } from "@/lib/api";
+import { registerClient, loginClient } from "@/lib/api";
+import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl } from "@/lib/api-config";
 import LocationPicker from "@/components/LocationPicker";
 import { type LocationData, isLocationComplete } from "@/lib/location";
@@ -60,10 +61,9 @@ export default function RegisterPage() {
       return;
     }
 
-    // Validate password strength (at least 8 chars, uppercase, lowercase, number)
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-    if (!passwordRegex.test(supplierFormData.password)) {
-      setError("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre");
+    const supplierPasswordError = validateStrongPassword(supplierFormData.password);
+    if (supplierPasswordError) {
+      setError(supplierPasswordError);
       return;
     }
 
@@ -81,6 +81,7 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           firstName: supplierFormData.firstName,
           lastName: supplierFormData.lastName,
@@ -107,14 +108,21 @@ export default function RegisterPage() {
 
       const result = await response.json();
 
-      if (result.success && result.token) {
-        // Store token
-        localStorage.setItem("authToken", result.token);
-        setSuccess("Compte créé avec succès ! Redirection...");
-        // Redirect to documents upload page after 1.5 seconds
-        setTimeout(() => {
-          router.push("/supplier/upload-documents");
-        }, 1500);
+      if (result.success) {
+        const loginResult = await loginClient({
+          email: supplierFormData.email,
+          password: supplierFormData.password,
+        });
+
+        if (loginResult.success) {
+          setSuccess("Compte créé avec succès ! Redirection...");
+          setTimeout(() => {
+            router.push(loginResult.data?.redirectTo || "/supplier/upload-documents");
+          }, 1500);
+        } else {
+          setSuccess("Compte créé. Connectez-vous pour continuer.");
+          setTimeout(() => router.push("/login"), 1500);
+        }
       } else {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }
@@ -137,10 +145,9 @@ export default function RegisterPage() {
       return;
     }
 
-    // Validate password strength (at least 8 chars, uppercase, lowercase, number)
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-    if (!passwordRegex.test(clientFormData.password)) {
-      setError("Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre");
+    const clientPasswordError = validateStrongPassword(clientFormData.password);
+    if (clientPasswordError) {
+      setError(clientPasswordError);
       return;
     }
 
@@ -176,11 +183,20 @@ export default function RegisterPage() {
       });
 
       if (result.success) {
-        setSuccess("Compte créé avec succès ! Redirection...");
-        // Redirect to upload documents page after 1.5 seconds
-        setTimeout(() => {
-          router.push("/client/upload-documents");
-        }, 1500);
+        const loginResult = await loginClient({
+          email: clientFormData.email,
+          password: clientFormData.password,
+        });
+
+        if (loginResult.success) {
+          setSuccess("Compte créé avec succès ! Redirection...");
+          setTimeout(() => {
+            router.push(loginResult.data?.redirectTo || "/client/upload-documents");
+          }, 1500);
+        } else {
+          setSuccess("Compte créé. Connectez-vous pour continuer.");
+          setTimeout(() => router.push("/login"), 1500);
+        }
       } else {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }

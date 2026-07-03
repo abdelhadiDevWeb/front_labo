@@ -19,7 +19,7 @@ import {
   PublicProduct,
   Category,
   SousCategory,
-  getAuthToken,
+  getSessionRole,
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import { useCart } from "@/contexts/CartContext";
@@ -41,15 +41,11 @@ export default function CategoryPage() {
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setIsAuthenticated(payload.role === "client");
-      } catch {
-        setIsAuthenticated(false);
-      }
-    }
+    const checkAuth = async () => {
+      const session = await getSessionRole();
+      setIsAuthenticated(session?.role === "client");
+    };
+    checkAuth();
   }, []);
 
   useEffect(() => {

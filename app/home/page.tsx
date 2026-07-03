@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -39,7 +40,9 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getAuthToken, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category } from "@/lib/api";
+import { getSessionRole, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
+import { isAllowedPostMessageOrigin } from "@/lib/security";
+import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
@@ -48,6 +51,7 @@ import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
 import PromotionsShowcase from "@/components/PromotionsShowcase";
 
 export default function HomePage() {
+  const router = useRouter();
   const { getTotalItems, addToCart } = useCart();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
@@ -89,41 +93,30 @@ export default function HomePage() {
   // Check authentication status and role
   useEffect(() => {
     const loadUserData = async () => {
-    const token = getAuthToken();
-    
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const role = payload.role || null;
-        setUserRole(role);
-        
-        // Only set authenticated and show client features if role is "client"
-        if (role === "client") {
-          setIsAuthenticated(true);
-          setUserEmail(payload.email || "");
-            
-            // Load user profile data
-            const profileResult = await getProfile();
-            if (profileResult.success && profileResult.data) {
-              setUserData(profileResult.data);
-            }
-        } else {
-          // Admin or supplier should not see client features on home page
-          setIsAuthenticated(false);
-          setUserEmail("");
-            setUserData(null);
-        }
-      } catch {
-        // If token parsing fails, don't show authenticated state
+      const session = await getSessionRole();
+      if (!session) {
         setIsAuthenticated(false);
         setUserRole(null);
-          setUserData(null);
-      }
-    } else {
-      setIsAuthenticated(false);
-      setUserRole(null);
         setUserData(null);
-    }
+        return;
+      }
+
+      const role = session.role || null;
+      setUserRole(role);
+
+      if (role === "client") {
+        setIsAuthenticated(true);
+        setUserEmail(session.email || "");
+
+        const profileResult = await getProfile();
+        if (profileResult.success && profileResult.data) {
+          setUserData(profileResult.data);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUserEmail("");
+        setUserData(null);
+      }
     };
 
     loadUserData();
@@ -241,38 +234,28 @@ export default function HomePage() {
       
       // Listen for messages from React Native
       window.addEventListener("message", async (event) => {
+        if (!isAllowedPostMessageOrigin(event.origin)) return;
         try {
           const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-          
-          if (message.type === "FCM_TOKEN" && message.token) {
-            // Send FCM token to backend
-            const authToken = getAuthToken();
-            if (authToken) {
-              const result = await saveFcmToken(message.token);
-              if (result.success) {
-                // Clear interval once token is saved (we'll request again if needed)
-                clearInterval(tokenRequestInterval);
-              }
-            }
+
+          if (message.type === "FCM_TOKEN" && message.token && isAuthenticated && isClientUser) {
+            await saveFcmToken(message.token);
+            clearInterval(tokenRequestInterval);
           }
-        } catch (error) {
+        } catch {
           // Silent error handling
         }
       });
 
-      // Also listen for postMessage (React Native WebView uses this)
       const handlePostMessage = async (event: MessageEvent) => {
+        if (!isAllowedPostMessageOrigin(event.origin)) return;
         try {
           const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-          
-          if (message.type === "FCM_TOKEN" && message.token) {
-            // Send FCM token to backend
-            const authToken = getAuthToken();
-            if (authToken) {
-              await saveFcmToken(message.token);
-            }
+
+          if (message.type === "FCM_TOKEN" && message.token && isAuthenticated && isClientUser) {
+            await saveFcmToken(message.token);
           }
-        } catch (error) {
+        } catch {
           // Silent error handling
         }
       };
@@ -302,13 +285,8 @@ export default function HomePage() {
   };
 
   const setupSocketConnection = () => {
-    const token = getAuthToken();
-    if (!token) return;
-
     const socket = socketIO(getBaseUrl(), {
-      auth: {
-        token: token,
-      },
+      withCredentials: true,
       transports: ["websocket", "polling"],
     });
 
@@ -817,13 +795,8 @@ export default function HomePage() {
                     </Link>
                     <button
                       onClick={() => {
-                        // Handle logout
-                        if (typeof window !== "undefined") {
-                          localStorage.removeItem("authToken");
-                          localStorage.removeItem("cart");
-                          setMobileMenuOpen(false);
-                          window.location.href = "/home";
-                        }
+                        void performLogout(router, { clearCart: true, redirectTo: "/home" });
+                        setMobileMenuOpen(false);
                       }}
                       className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 text-center"
                     >

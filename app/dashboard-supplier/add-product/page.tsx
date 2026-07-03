@@ -25,7 +25,8 @@ import {
   TrendingDown,
   Percent,
 } from "lucide-react";
-import { getAuthToken, getPublicCategories, Category } from "@/lib/api";
+import { apiFetch, getPublicCategories, Category } from "@/lib/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getApiUrl } from "@/lib/api-config";
 
 interface ProductFormData {
@@ -215,12 +216,6 @@ export default function AddProductPage() {
     setIsLoading(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       if (!selectedCategoryId) {
         setError("Veuillez sélectionner une catégorie");
         setIsLoading(false);
@@ -268,11 +263,8 @@ export default function AddProductPage() {
         formDataToSend.append("video", formData.video);
       }
 
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      const response = await apiFetch(`${API_BASE_URL}/products`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formDataToSend,
       });
 
@@ -332,7 +324,7 @@ export default function AddProductPage() {
   const handleDownloadTemplate = async () => {
     try {
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/products/download-template`, {
+      const response = await apiFetch(`${API_BASE_URL}/products/download-template`, {
         method: "GET",
       });
 
@@ -376,27 +368,17 @@ export default function AddProductPage() {
     setUploadProgress(0);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
 
       const formData = new FormData();
       formData.append("excelFile", excelFile);
       
-      // Append all image files
       imageFiles.forEach((imageFile) => {
         formData.append("images", imageFile);
       });
 
-      const response = await fetch(`${API_BASE_URL}/products/upload-excel`, {
+      const response = await apiFetch(`${API_BASE_URL}/products/upload-excel`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 

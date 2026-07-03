@@ -1,12 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, ArrowLeft, CheckCircle, Loader2, X } from "lucide-react";
 import { verifyPasswordResetCode } from "@/lib/api";
+import { getResetEmail, clearResetEmail } from "@/lib/flow-session";
 
 export default function VerifyResetCodePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <VerifyResetCodeContent />
+    </Suspense>
+  );
+}
+
+function VerifyResetCodeContent() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -15,15 +28,12 @@ export default function VerifyResetCodePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get email from sessionStorage
-    if (typeof window !== "undefined") {
-      const storedEmail = sessionStorage.getItem("resetPasswordEmail");
-      if (!storedEmail) {
-        router.push("/forgot-password");
-        return;
-      }
+    const storedEmail = getResetEmail();
+    if (storedEmail) {
       setEmail(storedEmail);
+      return;
     }
+    router.replace("/forgot-password");
   }, [router]);
 
   const handleCodeChange = (index: number, value: string) => {
@@ -76,18 +86,18 @@ export default function VerifyResetCodePage() {
       return;
     }
 
+    if (!email.trim()) {
+      setError("Veuillez saisir l'email utilisé pour la demande");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await verifyPasswordResetCode(email, fullCode);
-      if (result.success && result.data) {
+      if (result.success) {
         setIsVerified(true);
-        // Store reset token for next step
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("resetToken", result.data.resetToken);
-        }
-        // Redirect to reset password page after 1 second
         setTimeout(() => {
           router.push("/reset-password");
         }, 1000);

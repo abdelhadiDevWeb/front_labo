@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail } from "lucide-react";
-import { getAuthToken, createPayment, getPaymentByCommande, Payment } from "@/lib/api";
+import { createPayment, getPaymentByCommande, Payment, apiFetch, getSessionRole } from "@/lib/api";
+import { consumePendingPaymentOrderIds } from "@/lib/flow-session";
+import { printInvoiceSafely } from "@/lib/invoice-print";
 import Link from "next/link";
 import Image from "next/image";
 import { io as socketIO } from "socket.io-client";
@@ -56,30 +58,20 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = getAuthToken();
-      if (!token) {
+      const session = await getSessionRole();
+      if (!session) {
         router.push("/login");
         return;
       }
 
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const role = payload.role;
-        
-        // Only allow clients to access this page
-        if (role !== "client") {
-          router.push("/home");
-          return;
-        }
-
-        setIsAuthenticated(true);
-        await loadOrders();
-      } catch (error) {
-        console.error("Error decoding token:", error);
-        router.push("/login");
-      } finally {
-        setIsLoading(false);
+      if (session.role !== "client") {
+        router.push("/home");
+        return;
       }
+
+      setIsAuthenticated(true);
+      await loadOrders();
+      setIsLoading(false);
     };
 
     checkAuth();
@@ -89,11 +81,8 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const token = getAuthToken();
-    if (!token) return;
-
     const socket = socketIO(getBaseUrl(), {
-      auth: { token },
+      withCredentials: true,
       transports: ["websocket", "polling"],
     });
 
@@ -115,38 +104,23 @@ export default function OrdersPage() {
   useEffect(() => {
     if (typeof window !== "undefined" && orders.length > 0) {
       const params = new URLSearchParams(window.location.search);
-      const orderId = params.get("orderId"); // Single order (backward compatibility)
-      const orderIdsParam = params.get("orderIds"); // Multiple orders (comma-separated)
       const uploadPayment = params.get("uploadPayment");
-      
+
       if (uploadPayment === "true") {
-        // Clean URL first
         router.replace("/orders");
-        
-        if (orderIdsParam) {
-          // Multiple orders - store pending order IDs and show all at once
-          const orderIds = orderIdsParam.split(",").filter(id => id.trim());
-          setPendingOrderIds(orderIds);
+
+        const storedOrderIds = consumePendingPaymentOrderIds();
+        if (storedOrderIds.length > 0) {
+          setPendingOrderIds(storedOrderIds);
           setShowUploadModal(true);
-          // Initialize upload files and errors for all orders
           const files: { [orderId: string]: File | null } = {};
           const errors: { [orderId: string]: string | null } = {};
-          orderIds.forEach(id => {
+          storedOrderIds.forEach((id) => {
             files[id] = null;
             errors[id] = null;
           });
           setUploadFiles(files);
           setUploadErrors(errors);
-        } else if (orderId) {
-          // Single order (backward compatibility)
-          const order = orders.find(o => o._id === orderId);
-          if (order) {
-            setSelectedOrder(order);
-            setPendingOrderIds([orderId]);
-            setUploadFiles({ [orderId]: null });
-            setUploadErrors({ [orderId]: null });
-            setShowUploadModal(true);
-          }
         }
       }
     }
@@ -166,15 +140,8 @@ export default function OrdersPage() {
 
   const loadOrders = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/commandes/client`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch(`${API_BASE_URL}/commandes/client`);
 
       if (!response.ok) {
         throw new Error("Failed to load orders");
@@ -218,150 +185,7 @@ export default function OrdersPage() {
   };
 
   const handlePrintInvoice = (order: Order) => {
-    if (!printRef.current) return;
-
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Facture - Commande ${order._id.slice(-8).toUpperCase()}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: Arial, sans-serif;
-              padding: 40px;
-              color: #333;
-            }
-            .invoice-header {
-              border-bottom: 3px solid #2563eb;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .invoice-header h1 {
-              color: #2563eb;
-              font-size: 28px;
-              margin-bottom: 10px;
-            }
-            .invoice-info {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 30px;
-            }
-            .info-section {
-              flex: 1;
-            }
-            .info-section h3 {
-              color: #2563eb;
-              margin-bottom: 10px;
-              font-size: 16px;
-            }
-            .info-section p {
-              margin: 5px 0;
-              font-size: 14px;
-            }
-            .products-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 30px;
-            }
-            .products-table th {
-              background: #2563eb;
-              color: white;
-              padding: 12px;
-              text-align: left;
-              font-weight: bold;
-            }
-            .products-table td {
-              padding: 12px;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            .products-table tr:hover {
-              background: #f9fafb;
-            }
-            .total-section {
-              text-align: right;
-              margin-top: 20px;
-            }
-            .total-section .total-amount {
-              font-size: 24px;
-              font-weight: bold;
-              color: #2563eb;
-              margin-top: 10px;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 6px 12px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: bold;
-            }
-            .status-en-cours { background: #dbeafe; color: #1e40af; }
-            .status-on-route { background: #fed7aa; color: #9a3412; }
-            .status-arrived { background: #d1fae5; color: #065f46; }
-            @media print {
-              body { padding: 20px; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-header">
-            <h1>FACTURE</h1>
-            <p>Commande #${order._id.slice(-8).toUpperCase()}</p>
-            <p>Date: ${new Date(order.createdAt).toLocaleString("fr-FR")}</p>
-          </div>
-          
-          <div class="invoice-info">
-            <div class="info-section">
-              <h3>Fournisseur</h3>
-              <p><strong>${order.idSupplier.firstName} ${order.idSupplier.lastName}</strong></p>
-              <p>${order.idSupplier.email}</p>
-              ${order.idSupplier.phone ? `<p>Tél: ${order.idSupplier.phone}</p>` : ""}
-            </div>
-            <div class="info-section">
-              <h3>Statut</h3>
-              <span class="status-badge status-${order.status.replace(" ", "-")}">${order.status}</span>
-            </div>
-          </div>
-
-          <table class="products-table">
-            <thead>
-              <tr>
-                <th>Produit</th>
-                <th>Prix unitaire</th>
-                <th>Quantité</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${order.products.map((product) => `
-                <tr>
-                  <td>${product.name}</td>
-                  <td>${product.price.toFixed(2)} DA</td>
-                  <td>${product.quantity}</td>
-                  <td>${(product.price * product.quantity).toFixed(2)} DA</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-
-          <div class="total-section">
-            <p><strong>Total: <span class="total-amount">${order.total.toFixed(2)} DA</span></strong></p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    printInvoiceSafely(order);
   };
 
   const getStatusIcon = (status: string) => {

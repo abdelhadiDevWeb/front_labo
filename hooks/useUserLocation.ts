@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getAuthToken, getProfile } from "@/lib/api";
+import { checkAuthSession, getProfile } from "@/lib/api";
 import { GeoPoint, reverseGeocodeWilaya } from "@/lib/product-proximity";
 
 export type LocationStatus = "loading" | "granted" | "denied" | "prompt";
@@ -38,8 +38,8 @@ export function useUserLocation() {
     let cancelled = false;
 
     const resolveLocation = async () => {
-      const token = getAuthToken();
-      if (token) {
+      const authenticated = await checkAuthSession();
+      if (authenticated) {
         try {
           const profile = await getProfile();
           if (

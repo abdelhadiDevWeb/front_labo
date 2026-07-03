@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X } from "lucide-react";
-import { getAuthToken } from "@/lib/api";
+import { apiFetch, checkAuthSession } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { validatePdfFile } from "@/lib/file-validation";
 
 export default function UploadDocumentsPage() {
   const router = useRouter();
+  const { isChecking } = useAuthGuard();
   const [files, setFiles] = useState({
     Tax_number: null as File | null,
     identity: null as File | null,
@@ -18,13 +21,14 @@ export default function UploadDocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleFileChange = (field: keyof typeof files, file: File | null) => {
-    if (file && file.type !== "application/pdf") {
-      setError("Seuls les fichiers PDF sont acceptés");
+  const handleFileChange = async (field: keyof typeof files, file: File | null) => {
+    if (!file) {
+      setFiles((prev) => ({ ...prev, [field]: null }));
       return;
     }
-    if (file && file.size > 5 * 1024 * 1024) {
-      setError("La taille du fichier ne doit pas dépasser 5MB");
+    const validation = await validatePdfFile(file);
+    if (!validation.valid) {
+      setError(validation.error || "Fichier invalide");
       return;
     }
     setFiles((prev) => ({ ...prev, [field]: file }));
@@ -46,15 +50,11 @@ export default function UploadDocumentsPage() {
       return;
     }
 
-    // Security: Validate all files are PDF
     const allFiles = [files.Tax_number, files.identity, files.commercial_register];
     for (const file of allFiles) {
-      if (file && file.type !== "application/pdf") {
-        setError("Tous les fichiers doivent être au format PDF");
-        return;
-      }
-      if (file && file.size > 5 * 1024 * 1024) {
-        setError("Chaque fichier ne doit pas dépasser 5MB");
+      const validation = await validatePdfFile(file);
+      if (!validation.valid) {
+        setError(validation.error || "Fichier PDF invalide");
         return;
       }
     }
@@ -62,8 +62,8 @@ export default function UploadDocumentsPage() {
     setIsLoading(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
+      const authed = await checkAuthSession();
+      if (!authed) {
         router.push("/login");
         return;
       }
@@ -75,11 +75,8 @@ export default function UploadDocumentsPage() {
       formData.append("identity", files.identity);
       formData.append("commercial_register", files.commercial_register);
 
-      const response = await fetch(`${API_BASE_URL}/supplier/documents`, {
+      const response = await apiFetch(`${API_BASE_URL}/supplier/documents`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 
@@ -104,6 +101,14 @@ export default function UploadDocumentsPage() {
       setIsLoading(false);
     }
   };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Vérification de la session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">

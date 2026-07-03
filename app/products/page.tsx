@@ -22,7 +22,8 @@ import {
   MapPin,
   Navigation,
 } from "lucide-react";
-import { getAllProducts, getPublicCategories, PublicProduct, Category, getAuthToken } from "@/lib/api";
+import { getAllProducts, getPublicCategories, PublicProduct, Category, getSessionRole } from "@/lib/api";
+import { setCompareProductIds } from "@/lib/flow-session";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
 import { getMediaUrl } from "@/lib/media-url";
@@ -30,22 +31,6 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, supplierCoversWilaya } from "@/lib/algeria-wilayas";
 
-function getInitialAuth() {
-  const token = getAuthToken();
-  if (!token) {
-    return { isGuest: true, userRole: null as string | null, isAuthenticated: false };
-  }
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return {
-      isGuest: false,
-      userRole: (payload.role as string) ?? null,
-      isAuthenticated: payload.role === "client",
-    };
-  } catch {
-    return { isGuest: false, userRole: null as string | null, isAuthenticated: false };
-  }
-}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -64,10 +49,9 @@ export default function ProductsPage() {
   const [filterPriceMax, setFilterPriceMax] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
-  const initialAuth = useMemo(() => getInitialAuth(), []);
-  const [isAuthenticated, setIsAuthenticated] = useState(initialAuth.isAuthenticated);
-  const [userRole, setUserRole] = useState<string | null>(initialAuth.userRole);
-  const [isGuest, setIsGuest] = useState(initialAuth.isGuest);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(true);
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [displayProducts, setDisplayProducts] = useState<PublicProduct[]>([]);
   const [isSorting, setIsSorting] = useState(false);
@@ -77,9 +61,9 @@ export default function ProductsPage() {
   const requiresWilayaForCatalog = isGuest || userRole === "client";
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = getAuthToken();
-      if (!token) {
+    const checkAuth = async () => {
+      const session = await getSessionRole();
+      if (!session) {
         setIsGuest(true);
         setUserRole(null);
         setIsAuthenticated(false);
@@ -87,14 +71,8 @@ export default function ProductsPage() {
       }
 
       setIsGuest(false);
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUserRole(payload.role);
-        setIsAuthenticated(payload.role === "client");
-      } catch {
-        setIsAuthenticated(false);
-        setUserRole(null);
-      }
+      setUserRole(session.role);
+      setIsAuthenticated(session.role === "client");
     };
 
     checkAuth();
@@ -312,8 +290,8 @@ export default function ProductsPage() {
       return;
     }
     // Navigate to comparison page with selected product IDs
-    const ids = selectedForComparison.join(",");
-    router.push(`/products/compare?ids=${ids}`);
+    setCompareProductIds(selectedForComparison);
+    router.push("/products/compare");
   };
 
   if (isLoading) {

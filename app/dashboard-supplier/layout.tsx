@@ -25,7 +25,8 @@ import {
   CheckCircle,
   Percent,
 } from "lucide-react";
-import { getAuthToken, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem } from "@/lib/api";
+import { getSessionRole, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, apiFetch } from "@/lib/api";
+import { performLogout } from "@/lib/perform-logout";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
@@ -69,19 +70,16 @@ export default function SupplierDashboardLayout({
 
   useEffect(() => {
     const loadUserData = async () => {
-      const token = getAuthToken();
-      if (!token) {
+      const session = await getSessionRole();
+      if (!session) {
         router.push("/login");
         return;
       }
 
-      // Decode token to get role
       try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const role = payload.role;
+        const role = session.role;
         setUserRole(role);
 
-        // Check if user is supplier
         if (role !== "supplier") {
           router.push("/home");
           return;
@@ -89,24 +87,17 @@ export default function SupplierDashboardLayout({
 
         setIsAuthenticated(true);
 
-        // Fetch user profile data
         try {
           const profileResult = await getProfile();
           if (profileResult.success && profileResult.data) {
             setUserData(profileResult.data);
-          } else {
-            // Silent error handling
-            // Don't redirect on profile load failure, just log the error
           }
-        } catch (profileError) {
-          // Silent error handling
-          // Don't redirect on profile load failure, just log the error
+        } catch {
+          // profile load failure is non-fatal
         }
 
-        // Load profile image
         await loadProfileImage();
-      } catch (error) {
-        // Silent error handling
+      } catch {
         router.push("/login");
       } finally {
         setIsLoadingUser(false);
@@ -146,13 +137,10 @@ export default function SupplierDashboardLayout({
 
   // Socket.io connection for real-time notifications
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token || !isAuthenticated || userRole !== "supplier") return;
+    if (!isAuthenticated || userRole !== "supplier") return;
 
     const socket = socketIO(getBaseUrl(), {
-      auth: {
-        token: token,
-      },
+      withCredentials: true,
       transports: ["websocket", "polling"],
     });
 
@@ -277,15 +265,8 @@ export default function SupplierDashboardLayout({
 
   const loadProfileImage = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/supplier/profile-image`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch(`${API_BASE_URL}/supplier/profile-image`);
 
       if (response.ok) {
         const result = await response.json();
@@ -329,10 +310,6 @@ export default function SupplierDashboardLayout({
     };
 
     const handleProfileUpdate = async () => {
-      // Reload user data when profile is updated
-      const token = getAuthToken();
-      if (!token) return;
-
       try {
         const profileResult = await getProfile();
         if (profileResult.success && profileResult.data) {
@@ -444,10 +421,7 @@ export default function SupplierDashboardLayout({
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-200 space-y-2">
             <button
-              onClick={() => {
-                localStorage.removeItem("authToken");
-                router.push("/login");
-              }}
+              onClick={() => performLogout(router)}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200"
             >
               <LogOut className="w-5 h-5" />
@@ -715,10 +689,7 @@ export default function SupplierDashboardLayout({
                           <span className="text-sm font-medium">Mon Profil</span>
                         </Link>
                         <button
-                          onClick={() => {
-                            localStorage.removeItem("authToken");
-                            router.push("/login");
-                          }}
+                          onClick={() => performLogout(router)}
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors mt-2"
                         >
                           <LogOut className="w-5 h-5" />

@@ -3,7 +3,7 @@
 import { User, LogOut, UserCircle, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { removeAuthToken, getAuthToken } from "@/lib/api";
+import { performLogout } from "@/lib/perform-logout";
 
 interface UserDropdownProps {
   userEmail?: string;
@@ -29,15 +29,9 @@ export default function UserDropdown({ userEmail }: UserDropdownProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    removeAuthToken();
+  const handleLogout = async () => {
     setIsOpen(false);
-    // Clear cart on logout
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("cart");
-    }
-    // Force full page reload to clear all state
-    window.location.href = "/home";
+    await performLogout(router, { clearCart: true, redirectTo: "/home" });
   };
 
   const handleProfile = () => {

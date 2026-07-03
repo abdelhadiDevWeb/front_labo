@@ -24,6 +24,7 @@ import {
   Sponsor,
   CreateSponsorData,
   UpdateSponsorData,
+  getSessionRole,
 } from "@/lib/api";
 
 export default function SponsorsPage() {
@@ -45,17 +46,13 @@ export default function SponsorsPage() {
 
   useEffect(() => {
     setMounted(true);
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.role === "sou-admin") {
-          router.replace("/dashboard");
-        }
-      } catch {
-        // ignore
+    const checkRole = async () => {
+      const session = await getSessionRole();
+      if (session?.role === "sou-admin") {
+        router.replace("/dashboard");
       }
-    }
+    };
+    void checkRole();
     loadSponsors();
   }, [router]);
 

@@ -23,7 +23,9 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { getAuthToken, removeAuthToken, getProfile, updateProfile, updatePassword, getDevices, Device } from "@/lib/api";
+import { checkAuthSession, getProfile, updateProfile, updatePassword, getDevices, Device } from "@/lib/api";
+import { validateStrongPassword } from "@/lib/password-validation";
+import { performLogout } from "@/lib/perform-logout";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -54,15 +56,17 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    setIsAuthenticated(true);
-    loadUserData();
-    loadDevices();
+    const verify = async () => {
+      const ok = await checkAuthSession();
+      if (!ok) {
+        router.push("/login");
+        return;
+      }
+      setIsAuthenticated(true);
+      loadUserData();
+      loadDevices();
+    };
+    verify();
   }, [router]);
 
   const loadUserData = async () => {
@@ -120,8 +124,9 @@ export default function ProfilePage() {
       return;
     }
 
-    if (passwordData.newPassword.length < 8) {
-      setErrorMessage("Le nouveau mot de passe doit contenir au moins 8 caractères");
+    const passwordError = validateStrongPassword(passwordData.newPassword);
+    if (passwordError) {
+      setErrorMessage(passwordError);
       setIsSaving(false);
       return;
     }
@@ -146,13 +151,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    removeAuthToken();
-    // Clear cart on logout
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("cart");
-    }
-    // Force full page reload to clear all state
-    window.location.href = "/home";
+    void performLogout(router, { clearCart: true, redirectTo: "/home" });
   };
 
   const getDeviceIcon = (type: string) => {

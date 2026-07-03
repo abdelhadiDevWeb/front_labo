@@ -21,7 +21,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { getProductById, PublicProduct, getAuthToken } from "@/lib/api";
+import { getProductById, PublicProduct, getSessionRole } from "@/lib/api";
 import LoginAlert from "@/components/LoginAlert";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 
@@ -44,16 +44,11 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = getAuthToken();
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          setUserRole(payload.role);
-          setIsAuthenticated(payload.role === "client");
-        } catch {
-          setIsAuthenticated(false);
-        }
+    const checkAuth = async () => {
+      const session = await getSessionRole();
+      if (session) {
+        setUserRole(session.role);
+        setIsAuthenticated(session.role === "client");
       }
     };
 
