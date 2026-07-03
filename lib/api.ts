@@ -2157,6 +2157,16 @@ export const updateAdminStatus = async (
 };
 
 // Subscription Interfaces
+export interface ChosenSubscription {
+  userFavId: string;
+  typeId: string;
+  name: string;
+  description?: string;
+  time: number;
+  price: number;
+  sponsorsPerMonth?: number;
+}
+
 export interface SubscriptionUser {
   _id: string;
   firstName: string;
@@ -2167,6 +2177,7 @@ export interface SubscriptionUser {
   role: string;
   status: boolean;
   createdAt: string;
+  chosenSubscription?: ChosenSubscription | null;
 }
 
 export interface Subscription {
@@ -2177,9 +2188,12 @@ export interface Subscription {
     lastName: string;
     email: string;
     phone?: string;
+    role?: string;
   };
   type: string;
   price: number;
+  sponsorsPerMonth?: number;
+  sponsorsAllocated?: number;
   start: string;
   end: string;
   status: "active" | "ended";
@@ -2281,6 +2295,44 @@ export const createSubscription = async (data: CreateSubscriptionData): Promise<
   }
 };
 
+// Activate subscription from user's hand-to-hand choice (user_fav)
+export const activateSubscriptionFromUserChoice = async (
+  userId: string
+): Promise<ApiResponse<Subscription>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: "Not authenticated" };
+    }
+
+    const response = await fetch(
+      `${getApiBaseUrl()}/admin/subscriptions/users/${userId}/activate-choice`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to activate subscription (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Get all subscriptions
 export const getAllSubscriptions = async (): Promise<ApiResponse<{ subscriptions: Subscription[] }>> => {
   try {
@@ -2366,22 +2418,28 @@ export const updateSubscription = async (
 export interface SubscriptionType {
   id: string;
   name: string;
-  time: number; // Duration in months
+  description?: string;
+  time: number; // Duration in days
   price: number;
+  sponsorsPerMonth?: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateSubscriptionTypeData {
   name: string;
+  description?: string;
   time: number;
   price: number;
+  sponsorsPerMonth?: number;
 }
 
 export interface UpdateSubscriptionTypeData {
   name?: string;
+  description?: string;
   time?: number;
   price?: number;
+  sponsorsPerMonth?: number;
 }
 
 // Get all subscription types
@@ -2716,9 +2774,11 @@ export interface SponsorPlan {
 
 export interface SponsorProductRecord {
   id: string;
-  id_plan_sponsor: string;
+  id_plan_sponsor?: string;
+  id_abonnement?: string;
   id_product: string;
   id_supplier: string;
+  source?: "vip" | "subscription";
   start_time: string;
   end_time: string;
   price: number;
@@ -2735,6 +2795,94 @@ export interface SponsorProductRecord {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface SubscriptionSponsorQuota {
+  hasActiveAbonnement: boolean;
+  abonnement: {
+    id: string;
+    type: string;
+    sponsorsPerMonth: number;
+    sponsorsAllocated?: number;
+    start: string;
+    end: string;
+    isActive: boolean;
+  } | null;
+  sponsorsAllocated: number;
+  sponsorsRemaining: number;
+  sponsorsUsed: number;
+  remaining: number;
+  canCreateSubscriptionSponsor: boolean;
+  /** @deprecated use sponsorsUsed */
+  usedThisMonth?: number;
+}
+
+export const getSubscriptionSponsorQuota = async (): Promise<
+  ApiResponse<SubscriptionSponsorQuota>
+> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/subscription-quota`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to fetch subscription quota (${response.status})`,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createSubscriptionSponsorProduct = async (data: {
+  id_product: string;
+}): Promise<
+  ApiResponse<{ sponsorProduct: SponsorProductRecord; quota: SubscriptionSponsorQuota }>
+> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/sponsor-products/subscription`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || `Failed to create subscription sponsor (${response.status})`,
+        errors: result.errors,
+      };
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
 
 export const getSponsorPlans = async (): Promise<ApiResponse<{ plans: SponsorPlan[] }>> => {
   try {
@@ -2767,7 +2915,11 @@ export const getSponsorPlans = async (): Promise<ApiResponse<{ plans: SponsorPla
 };
 
 export const getSupplierSponsorProducts = async (): Promise<
-  ApiResponse<{ sponsorProducts: SponsorProductRecord[]; activeProductIds: string[] }>
+  ApiResponse<{
+    sponsorProducts: SponsorProductRecord[];
+    activeProductIds: string[];
+    subscriptionQuota?: SubscriptionSponsorQuota;
+  }>
 > => {
   try {
     const token = getAuthToken();
@@ -4092,3 +4244,122 @@ export const deleteSousCategory = async (sousCategoryId: string): Promise<ApiRes
   }
 };
 
+// Public subscription plans (post-registration)
+export const getPublicSubscriptionPlans = async (): Promise<
+  ApiResponse<{ subscriptionTypes: SubscriptionType[] }>
+> => {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/abonnements/plans`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch plans (${response.status})`,
+      };
+    }
+
+    const result = await response.json();
+    if (result.success && result.data?.subscriptionTypes) {
+      result.data.subscriptionTypes = result.data.subscriptionTypes.map((type: SubscriptionType & { _id?: string }) => ({
+        ...type,
+        id: type.id || type._id?.toString() || "",
+      }));
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createAbonnementCheckout = async (
+  typeId: string
+): Promise<ApiResponse<{ paymentId: string; checkoutUrl: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/abonnements/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ typeId }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Échec de la création du paiement" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const registerHandToHandAbonnement = async (
+  typeId: string
+): Promise<ApiResponse<{ paymentId: string; planName: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/abonnements/hand-to-hand`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ typeId }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Échec de l'enregistrement" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const verifyAbonnementPayment = async (
+  paymentId: string
+): Promise<ApiResponse<{ paid: boolean; abonnementId?: string; checkoutStatus?: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) return { success: false, message: "Not authenticated" };
+
+    const response = await fetch(`${getApiBaseUrl()}/abonnements/payments/${paymentId}/verify`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Échec de la vérification" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};

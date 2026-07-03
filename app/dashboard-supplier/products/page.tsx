@@ -29,6 +29,8 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  Crown,
 } from "lucide-react";
 import {
   getSupplierProducts,
@@ -36,8 +38,10 @@ import {
   getSponsorPlans,
   getSupplierSponsorProducts,
   createSponsorProduct,
+  createSubscriptionSponsorProduct,
   SponsorPlan,
   SponsorProductRecord,
+  SubscriptionSponsorQuota,
   verifySponsorProductPayment,
   resumeSponsorPayment,
 } from "@/lib/api";
@@ -55,13 +59,17 @@ function ProductsPageContent() {
   const [filterType, setFilterType] = useState<string>("all");
   const [sponsorPlans, setSponsorPlans] = useState<SponsorPlan[]>([]);
   const [sponsorProducts, setSponsorProducts] = useState<SponsorProductRecord[]>([]);
+  const [subscriptionQuota, setSubscriptionQuota] = useState<SubscriptionSponsorQuota | null>(null);
   const [activeProductIds, setActiveProductIds] = useState<string[]>([]);
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
   const [isLoadingSponsor, setIsLoadingSponsor] = useState(true);
-  const [showSponsorModal, setShowSponsorModal] = useState(false);
+  const [showVipSponsorModal, setShowVipSponsorModal] = useState(false);
+  const [showSubscriptionSponsorModal, setShowSubscriptionSponsorModal] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedSubscriptionProductId, setSelectedSubscriptionProductId] = useState("");
   const [isCreatingSponsor, setIsCreatingSponsor] = useState(false);
+  const [isCreatingSubscriptionSponsor, setIsCreatingSubscriptionSponsor] = useState(false);
   const [resumingPaymentId, setResumingPaymentId] = useState<string | null>(null);
   const [sponsorSuccess, setSponsorSuccess] = useState<string | null>(null);
   const [sponsorError, setSponsorError] = useState<string | null>(null);
@@ -79,6 +87,9 @@ function ProductsPageContent() {
       }
       if (sponsorResult.success && sponsorResult.data) {
         setSponsorProducts(sponsorResult.data.sponsorProducts);
+        if (sponsorResult.data.subscriptionQuota) {
+          setSubscriptionQuota(sponsorResult.data.subscriptionQuota);
+        }
         const fromApi = sponsorResult.data.activeProductIds;
         if (fromApi?.length) {
           setActiveProductIds(fromApi);
@@ -176,6 +187,37 @@ function ProductsPageContent() {
     }
   };
 
+  const handleCreateSubscriptionSponsor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSubscriptionProductId) return;
+
+    setIsCreatingSubscriptionSponsor(true);
+    setSponsorError(null);
+    setSponsorSuccess(null);
+
+    try {
+      const result = await createSubscriptionSponsorProduct({
+        id_product: selectedSubscriptionProductId,
+      });
+
+      if (result.success) {
+        setSponsorSuccess("Sponsoring activé via votre abonnement (sans paiement) !");
+        setShowSubscriptionSponsorModal(false);
+        if (result.data?.quota) {
+          setSubscriptionQuota(result.data.quota);
+        }
+        await loadSponsorData();
+        return;
+      }
+
+      setSponsorError(result.message || "Impossible de créer le sponsoring");
+    } catch {
+      setSponsorError("Une erreur est survenue");
+    } finally {
+      setIsCreatingSubscriptionSponsor(false);
+    }
+  };
+
   const handleCreateSponsor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId || !selectedProductId) return;
@@ -211,6 +253,9 @@ function ProductsPageContent() {
     });
 
   const getSponsorStatus = (record: SponsorProductRecord) => {
+    if (record.source === "subscription" && record.payment_status) {
+      return { label: "Abonnement", className: "bg-blue-100 text-blue-800" };
+    }
     if (record.isActive) {
       return { label: "Actif", className: "bg-green-100 text-green-800" };
     }
@@ -226,7 +271,10 @@ function ProductsPageContent() {
   const activeProductIdSet = useMemo(() => new Set(activeProductIds), [activeProductIds]);
 
   const pendingSponsorProducts = useMemo(
-    () => sponsorProducts.filter((record) => !record.payment_status),
+    () =>
+      sponsorProducts.filter(
+        (record) => !record.payment_status && (record.source ?? "vip") === "vip"
+      ),
     [sponsorProducts]
   );
 
@@ -284,11 +332,17 @@ function ProductsPageContent() {
     });
   };
 
-  const openSponsorModal = () => {
+  const openVipSponsorModal = () => {
     setSelectedPlanId(sponsorPlans[0]?.id || "");
     setSelectedProductId(productsAvailableForSponsor[0]?.id || "");
     setSponsorError(null);
-    setShowSponsorModal(true);
+    setShowVipSponsorModal(true);
+  };
+
+  const openSubscriptionSponsorModal = () => {
+    setSelectedSubscriptionProductId(productsAvailableForSponsor[0]?.id || "");
+    setSponsorError(null);
+    setShowSubscriptionSponsorModal(true);
   };
 
   // Get unique categories and types for filters
@@ -621,31 +675,130 @@ function ProductsPageContent() {
         </div>
       )}
 
-      {/* Sponsor Section */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Megaphone className="w-6 h-6 text-purple-600" />
-              Sponsoring de produits
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Mettez en avant vos produits avec un pack sponsor et payez en ligne via Chargily
-            </p>
+      {/* Sponsor Sections */}
+      <div className="space-y-6">
+        {sponsorSuccess && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 text-green-800">
+            <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <p className="text-sm">{sponsorSuccess}</p>
           </div>
-          <button
-            onClick={openSponsorModal}
-            disabled={
-              products.length === 0 ||
-              sponsorPlans.length === 0 ||
-              productsAvailableForSponsor.length === 0
-            }
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-5 h-5" />
-            Sponsoriser un produit
-          </button>
+        )}
+
+        {sponsorError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <p className="text-sm">{sponsorError}</p>
+          </div>
+        )}
+
+        {/* Subscription sponsor (included in abonnement) */}
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-200 p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-6 h-6 text-blue-600" />
+                Sponsoring abonnement
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Utilisez les sponsors inclus dans votre abonnement actif (sans paiement)
+              </p>
+            </div>
+            <button
+              onClick={openSubscriptionSponsorModal}
+              disabled={
+                products.length === 0 ||
+                productsAvailableForSponsor.length === 0 ||
+                !subscriptionQuota?.canCreateSubscriptionSponsor
+              }
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+              Sponsoriser (abonnement)
+            </button>
+          </div>
+
+          {isLoadingSponsor ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.abonnement ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Abonnement</p>
+                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.abonnement.type}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Jusqu&apos;au {formatDate(subscriptionQuota.abonnement.end)}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Sponsors inclus</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {subscriptionQuota.sponsorsAllocated}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Utilisés</p>
+                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.sponsorsUsed}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Restants</p>
+                <p
+                  className={`text-lg font-bold ${
+                    subscriptionQuota.sponsorsRemaining > 0 ? "text-green-700" : "text-red-600"
+                  }`}
+                >
+                  {subscriptionQuota.sponsorsRemaining}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
+              Aucun abonnement actif. Contactez l&apos;administrateur pour activer votre compte.
+            </div>
+          )}
+
+          {subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.sponsorsAllocated <= 0 && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
+              Votre abonnement n&apos;inclut pas de sponsors gratuits. Utilisez le sponsoring VIP payant
+              ci-dessous.
+            </div>
+          )}
+
+          {subscriptionQuota?.hasActiveAbonnement &&
+            subscriptionQuota.sponsorsAllocated > 0 &&
+            subscriptionQuota.sponsorsRemaining <= 0 && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+                Vous n&apos;avez plus de sponsors disponibles ({subscriptionQuota.sponsorsUsed}/
+                {subscriptionQuota.sponsorsAllocated} utilisés). Vous pouvez utiliser le sponsoring VIP.
+              </div>
+            )}
         </div>
+
+        {/* VIP sponsor (paid via Chargily) */}
+        <div className="bg-white rounded-2xl shadow-lg border border-purple-200 p-4 sm:p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Crown className="w-6 h-6 text-purple-600" />
+                Sponsoring VIP
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Mettez en avant vos produits avec un pack VIP et payez en ligne via Chargily
+              </p>
+            </div>
+            <button
+              onClick={openVipSponsorModal}
+              disabled={
+                products.length === 0 ||
+                sponsorPlans.length === 0 ||
+                productsAvailableForSponsor.length === 0
+              }
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+              Sponsoriser VIP
+            </button>
+          </div>
 
         {pendingSponsorProducts.length > 0 && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
@@ -694,22 +847,8 @@ function ProductsPageContent() {
           </div>
         )}
 
-        {sponsorSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 text-green-800">
-            <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorSuccess}</p>
-          </div>
-        )}
-
-        {sponsorError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorError}</p>
-          </div>
-        )}
-
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Plans sponsor disponibles</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Plans VIP disponibles</h3>
           {isLoadingSponsor ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
@@ -889,20 +1028,21 @@ function ProductsPageContent() {
             <p className="text-gray-500 text-sm">Aucun historique de sponsoring pour vos produits.</p>
           )}
         </div>
+        </div>
       </div>
 
       {mounted &&
-        showSponsorModal &&
+        showVipSponsorModal &&
         createPortal(
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex items-center justify-between rounded-t-2xl">
                 <div className="flex items-center gap-3">
-                  <Megaphone className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">Sponsoriser un produit</h3>
+                  <Crown className="w-6 h-6 text-white" />
+                  <h3 className="text-xl font-bold text-white">Sponsoring VIP</h3>
                 </div>
                 <button
-                  onClick={() => setShowSponsorModal(false)}
+                  onClick={() => setShowVipSponsorModal(false)}
                   className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
                 >
                   <X className="w-6 h-6" />
@@ -942,7 +1082,7 @@ function ProductsPageContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Plan sponsor <span className="text-red-500">*</span>
+                    Plan VIP <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
@@ -966,7 +1106,7 @@ function ProductsPageContent() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowSponsorModal(false)}
+                    onClick={() => setShowVipSponsorModal(false)}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
                   >
                     Annuler
@@ -987,6 +1127,86 @@ function ProductsPageContent() {
                       <CreditCard className="w-4 h-4" />
                     )}
                     Payer avec Chargily
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        showSubscriptionSponsorModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-6 h-6 text-white" />
+                  <h3 className="text-xl font-bold text-white">Sponsoring abonnement</h3>
+                </div>
+                <button
+                  onClick={() => setShowSubscriptionSponsorModal(false)}
+                  className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateSubscriptionSponsor} className="p-6 space-y-4">
+                {subscriptionQuota && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 space-y-1">
+                    <p>
+                      <strong>Abonnement:</strong> {subscriptionQuota.abonnement?.type}
+                    </p>
+                    <p>
+                      <strong>Quota restant:</strong> {subscriptionQuota.sponsorsRemaining} /{" "}
+                      {subscriptionQuota.sponsorsAllocated}
+                    </p>
+                    <p className="text-xs text-blue-700">Durée: 2 jours · Sans paiement</p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Produit à sponsoriser <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={selectedSubscriptionProductId}
+                    onChange={(e) => setSelectedSubscriptionProductId(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">Sélectionner un produit</option>
+                    {productsAvailableForSponsor.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubscriptionSponsorModal(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      isCreatingSubscriptionSponsor ||
+                      !selectedSubscriptionProductId ||
+                      productsAvailableForSponsor.length === 0 ||
+                      !subscriptionQuota?.canCreateSubscriptionSponsor
+                    }
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isCreatingSubscriptionSponsor ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    Activer (gratuit)
                   </button>
                 </div>
               </form>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X, LogOut, Home } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 
@@ -17,19 +17,6 @@ export default function UploadDocumentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (showSuccessAlert) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showSuccessAlert]);
 
   const handleFileChange = (field: keyof typeof files, file: File | null) => {
     if (file && file.type !== "application/pdf") {
@@ -106,7 +93,7 @@ export default function UploadDocumentsPage() {
       const result = await response.json();
 
       if (result.success) {
-        setShowSuccessAlert(true);
+        router.push("/supplier/choose-subscription");
       } else {
         setError(result.message || "Une erreur est survenue");
       }
@@ -319,66 +306,6 @@ export default function UploadDocumentsPage() {
             </div>
           </form>
         </div>
-
-        {/* Success Alert Modal */}
-        {showSuccessAlert && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
-              onClick={() => setShowSuccessAlert(false)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
-                {/* Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-green-100 rounded-xl">
-                      <CheckCircle className="w-8 h-8 text-green-600" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Documents téléchargés avec succès !</h3>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <p className="text-gray-700 mb-2 leading-relaxed">
-                    Vos documents ont été téléchargés avec succès.
-                  </p>
-                  <p className="text-gray-700 mb-6 leading-relaxed">
-                    Vous devez maintenant attendre la dernière étape : <strong>la confirmation de votre compte et de vos documents par l'administrateur</strong>.
-                  </p>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Vous recevrez une notification une fois que votre compte sera approuvé.
-                  </p>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem("authToken");
-                        router.push("/home");
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                    >
-                      <Home className="w-5 h-5" />
-                      <span>Retour à l'accueil</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem("authToken");
-                        router.push("/login");
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span>Se déconnecter</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
