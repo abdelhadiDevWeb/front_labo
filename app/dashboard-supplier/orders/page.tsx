@@ -22,9 +22,8 @@ import {
 } from "lucide-react";
 import { apiFetch, checkAuthSession, getPaymentByCommande, Payment } from "@/lib/api";
 import { printInvoiceSafely } from "@/lib/invoice-print";
-import { createAppSocket } from "@/lib/app-socket";
-import type { Socket } from "socket.io-client";
-import { getApiUrl } from "@/lib/api-config";
+import { io as socketIO } from "socket.io-client";
+import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 
 interface OrderProduct {
@@ -85,7 +84,7 @@ export default function SupplierOrdersPage() {
   }, []);
 
   useEffect(() => {
-    let socket: Socket | null = null;
+    let socket: ReturnType<typeof socketIO> | null = null;
     let cancelled = false;
 
     const refreshOrders = () => {
@@ -96,7 +95,10 @@ export default function SupplierOrdersPage() {
       const authed = await checkAuthSession();
       if (!authed || cancelled) return;
 
-      socket = createAppSocket();
+      socket = socketIO(getBaseUrl(), {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+      });
 
       socket.on("newOrder", refreshOrders);
       socket.on("paymentUploaded", (data: { orderId?: string }) => {

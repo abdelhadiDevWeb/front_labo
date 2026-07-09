@@ -37,9 +37,38 @@ export function useUserLocation() {
   useEffect(() => {
     let cancelled = false;
 
-    const requestBrowserLocation = () => {
+    const resolveLocation = async () => {
+      const authenticated = await checkAuthSession();
+      if (authenticated) {
+        try {
+          const profile = await getProfile();
+          if (
+            !cancelled &&
+            profile.success &&
+            profile.data &&
+            profile.data.latitude != null &&
+            profile.data.longitude != null &&
+            profile.data.latitude !== 0 &&
+            profile.data.longitude !== 0
+          ) {
+            setLocation({
+              latitude: profile.data.latitude,
+              longitude: profile.data.longitude,
+              wilaya: profile.data.wilaya || undefined,
+            });
+            setSource("profile");
+            setStatus("granted");
+            return;
+          }
+        } catch {
+          // fall through to browser
+        }
+      }
+
+      if (cancelled) return;
+
       if (typeof window === "undefined" || !navigator.geolocation) {
-        if (!cancelled) setStatus("prompt");
+        setStatus("prompt");
         return;
       }
 
@@ -50,48 +79,13 @@ export function useUserLocation() {
           }
         },
         () => {
-          if (!cancelled) {
-            setStatus((prev) => (prev === "granted" ? prev : "prompt"));
-          }
+          if (!cancelled) setStatus("prompt");
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
       );
     };
 
-    // Visitors: browser geolocation immediately — do not wait on auth API calls.
-    requestBrowserLocation();
-
-    const resolveProfileLocation = async () => {
-      try {
-        const authenticated = await checkAuthSession();
-        if (!authenticated || cancelled) return;
-
-        const profile = await getProfile();
-        if (
-          cancelled ||
-          !profile.success ||
-          !profile.data ||
-          profile.data.latitude == null ||
-          profile.data.longitude == null ||
-          profile.data.latitude === 0 ||
-          profile.data.longitude === 0
-        ) {
-          return;
-        }
-
-        setLocation({
-          latitude: profile.data.latitude,
-          longitude: profile.data.longitude,
-          wilaya: profile.data.wilaya || undefined,
-        });
-        setSource("profile");
-        setStatus("granted");
-      } catch {
-        // Keep browser location if profile lookup fails.
-      }
-    };
-
-    void resolveProfileLocation();
+    void resolveLocation();
 
     return () => {
       cancelled = true;

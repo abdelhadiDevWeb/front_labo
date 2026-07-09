@@ -29,23 +29,6 @@ const AUTH_SKIP_REFRESH_PATHS = [
 const shouldAttemptRefresh = (url: string): boolean =>
   !AUTH_SKIP_REFRESH_PATHS.some((path) => url.includes(path));
 
-const PUBLIC_FETCH_TIMEOUT_MS = 30_000;
-const AUTH_FETCH_TIMEOUT_MS = 15_000;
-
-const fetchWithTimeout = async (
-  input: RequestInfo | URL,
-  init: RequestInit,
-  timeoutMs: number
-): Promise<Response> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
 let refreshInFlight: Promise<boolean> | null = null;
 
 const refreshSession = async (): Promise<boolean> => {
@@ -53,16 +36,12 @@ const refreshSession = async (): Promise<boolean> => {
 
   refreshInFlight = (async () => {
     try {
-      const response = await fetchWithTimeout(
-        `${getApiBaseUrl()}/client/refresh-token`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({}),
-        },
-        AUTH_FETCH_TIMEOUT_MS
-      );
+      const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
 
       if (response.ok) {
         markSessionActive();
@@ -88,11 +67,10 @@ export const apiFetch = async (
   init?: RequestInit,
   isRetry = false
 ): Promise<Response> => {
-  const response = await fetchWithTimeout(
-    input,
-    { ...init, credentials: "include" },
-    AUTH_FETCH_TIMEOUT_MS
-  );
+  const response = await fetch(input, {
+    ...init,
+    credentials: "include",
+  });
 
   if (response.status !== 401 || typeof window === "undefined") {
     return response;
@@ -114,27 +92,6 @@ export const apiFetch = async (
 
   markSessionInactive();
   return response;
-};
-
-/** Public catalog GET — no cookies, no 401 refresh, retry once for Render cold start. */
-const publicFetch = async (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  attempt = 0
-): Promise<Response> => {
-  try {
-    return await fetchWithTimeout(
-      input,
-      { ...init, credentials: "omit" },
-      PUBLIC_FETCH_TIMEOUT_MS
-    );
-  } catch (error) {
-    if (attempt < 1) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return publicFetch(input, init, attempt + 1);
-    }
-    throw error;
-  }
 };
 
 /** @deprecated Tokens are HttpOnly cookies — use checkAuthSession() */
@@ -1015,7 +972,7 @@ export const getSponsoredProducts = async (): Promise<
   ApiResponse<{ products: SponsoredPublicProduct[] }>
 > => {
   try {
-    const response = await publicFetch(`${getApiBaseUrl()}/sponsored-products`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/sponsored-products`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1064,7 +1021,7 @@ export const getPublicPromotions = async (): Promise<
   ApiResponse<{ promotions: PublicPromotion[] }>
 > => {
   try {
-    const response = await publicFetch(`${getApiBaseUrl()}/public-promotions`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/public-promotions`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1100,7 +1057,7 @@ const params = new URLSearchParams();
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
     const query = params.toString() ? `?${params.toString()}` : "";
     
-    const response = await publicFetch(`${getApiBaseUrl()}/products/public${query}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1119,12 +1076,9 @@ const params = new URLSearchParams();
     return result;
   } catch (error) {
     devError("Get all products error:", error);
-    const isTimeout = error instanceof Error && error.name === "AbortError";
     return {
       success: false,
-      message: isTimeout
-        ? "Le serveur met trop de temps à répondre. Réessayez dans un instant."
-        : "Network error. Please check your connection.",
+      message: "Network error. Please check your connection.",
     };
   }
 };
@@ -1132,7 +1086,7 @@ const params = new URLSearchParams();
 // Get product by ID (public - for clients)
 export const getProductById = async (id: string): Promise<ApiResponse<PublicProduct>> => {
   try {
-const response = await publicFetch(`${getApiBaseUrl()}/products/public/${id}`, {
+const response = await apiFetch(`${getApiBaseUrl()}/products/public/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -3544,7 +3498,7 @@ export interface UpdateSousCategoryData {
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
   try {
-    const response = await publicFetch(`${getApiBaseUrl()}/categories/public`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -3562,7 +3516,7 @@ export const getPublicCategories = async (): Promise<ApiResponse<{ categories: C
 
 export const getPublicCategoryById = async (categoryId: string): Promise<ApiResponse<Category>> => {
   try {
-    const response = await publicFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });

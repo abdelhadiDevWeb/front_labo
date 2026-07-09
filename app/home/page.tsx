@@ -44,8 +44,8 @@ import { getSessionRole, getAllProducts, PublicProduct, getNotifications, markNo
 import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
-import { createAppSocket } from "@/lib/app-socket";
-import { useClientMounted } from "@/hooks/useClientMounted";
+import { io as socketIO } from "socket.io-client";
+import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
 import PromotionsShowcase from "@/components/PromotionsShowcase";
@@ -63,10 +63,10 @@ export default function HomePage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userData, setUserData] = useState<ClientData | null>(null);
   const [products, setProducts] = useState<PublicProduct[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -89,12 +89,9 @@ export default function HomePage() {
   const [supportError, setSupportError] = useState<string | null>(null);
   const [supportSuccess, setSupportSuccess] = useState(false);
   const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
-  const mounted = useClientMounted();
 
-  // Check authentication status and role (non-blocking for catalog)
+  // Check authentication status and role
   useEffect(() => {
-    if (!mounted) return;
-
     const loadUserData = async () => {
       const session = await getSessionRole();
       if (!session) {
@@ -123,7 +120,7 @@ export default function HomePage() {
     };
 
     loadUserData();
-  }, [mounted]);
+  }, []);
 
   useEffect(() => {
     const scrollToHash = () => {
@@ -145,10 +142,8 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Fetch products from API (client-only after mount)
+  // Fetch products from API
   useEffect(() => {
-    if (!mounted) return;
-
     const loadProducts = async () => {
       try {
         setIsLoadingProducts(true);
@@ -174,12 +169,10 @@ export default function HomePage() {
     };
 
     loadProducts();
-  }, [mounted]);
+  }, []);
 
-  // Fetch categories from API (client-only after mount)
+  // Fetch categories from API
   useEffect(() => {
-    if (!mounted) return;
-
     const loadCategories = async () => {
       try {
         setIsLoadingCategories(true);
@@ -197,49 +190,22 @@ export default function HomePage() {
     };
 
     loadCategories();
-  }, [mounted]);
+  }, []);
 
-  // Request notification permission after mount (logged-in clients only)
+  // Request notification permission on mount
   useEffect(() => {
-    if (!mounted || !isAuthenticated || !isClientUser) return;
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-  }, [mounted, isAuthenticated, isClientUser]);
+  }, []);
 
   // Load notifications for clients
   useEffect(() => {
-    if (!isAuthenticated || !isClientUser) return;
-
-    void loadNotifications();
-
-    const socket = createAppSocket();
-
-    socket.on("orderStatusUpdate", async (data: {
-      orderId: string;
-      status: string;
-      message: string;
-      notificationId: string;
-    }) => {
-      await loadNotifications();
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Mise à jour de commande", {
-          body: data.message,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("connect_error", () => {
-      // Socket optional — REST API still works if CORS blocks realtime on Vercel.
-    });
-
-    setupFcmTokenListener();
-
-    return () => {
-      socket.disconnect();
-    };
+    if (isAuthenticated && isClientUser) {
+      loadNotifications();
+      setupSocketConnection();
+      setupFcmTokenListener();
+    }
   }, [isAuthenticated, isClientUser]);
 
   // Listen for FCM token from React Native WebView (mobile app)
@@ -312,6 +278,39 @@ export default function HomePage() {
     } catch (err) {
       // Silent error handling
     }
+  };
+
+  const setupSocketConnection = () => {
+    const socket = socketIO(getBaseUrl(), {
+      withCredentials: true,
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      // Socket connected
+    });
+
+    socket.on("orderStatusUpdate", async (data: {
+      orderId: string;
+      status: string;
+      message: string;
+      notificationId: string;
+    }) => {
+      // Reload notifications when status update arrives
+      await loadNotifications();
+      
+      // Show browser notification if permission granted
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Mise à jour de commande", {
+          body: data.message,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   };
 
   const handleNotificationClick = async (notification: NotificationData) => {
@@ -963,7 +962,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          {!mounted || isLoadingCategories ? (
+          {isLoadingCategories ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="animate-pulse rounded-2xl bg-gray-100 aspect-[4/5]" />
@@ -1311,7 +1310,7 @@ export default function HomePage() {
               Voir tous les produits
             </Link>
           </div>
-          {!mounted || isLoadingProducts ? (
+          {isLoadingProducts ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {[...Array(8)].map((_, index) => (
                 <div

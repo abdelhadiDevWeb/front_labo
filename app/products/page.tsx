@@ -28,7 +28,6 @@ import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
-import { useClientMounted } from "@/hooks/useClientMounted";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, supplierCoversWilaya } from "@/lib/algeria-wilayas";
 
@@ -37,7 +36,7 @@ export default function ProductsPage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const [products, setProducts] = useState<PublicProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -58,7 +57,6 @@ export default function ProductsPage() {
   const [isSorting, setIsSorting] = useState(false);
   const { location: userLocation, status: locationStatus, source: locationSource, requestBrowserLocation } =
     useUserLocation();
-  const mounted = useClientMounted();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
 
@@ -96,20 +94,25 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
-
     const loadProducts = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        const wilayaCode =
-          locationStatus === "granted" ? resolveWilayaCode(userLocation?.wilaya) : null;
+        const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
 
-        const filters =
-          requiresWilayaForCatalog && wilayaCode ? { wilayaCode } : undefined;
+        if (requiresWilayaForCatalog && !wilayaCode) {
+          setProducts([]);
+          return;
+        }
 
-        const result = await getAllProducts(filters);
+        const result = await getAllProducts(
+          wilayaCode
+            ? { wilayaCode }
+            : userLocation?.wilaya
+              ? { wilayaCode: userLocation.wilaya }
+              : undefined
+        );
         if (result.success && result.data) {
           setProducts(result.data.products || []);
         } else {
@@ -122,10 +125,12 @@ export default function ProductsPage() {
       }
     };
 
-    loadProducts();
-  }, [mounted, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+    if (requiresWilayaForCatalog && locationStatus === "loading") {
+      return;
+    }
 
-  const showFullPageLoader = mounted && isLoading && products.length === 0 && !error;
+    loadProducts();
+  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
@@ -289,7 +294,7 @@ export default function ProductsPage() {
     router.push("/products/compare");
   };
 
-  if (showFullPageLoader) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -589,7 +594,7 @@ export default function ProductsPage() {
                 </p>
                 <p className="text-sm text-gray-600">
                   {isGuest
-                    ? "Autorisez la géolocalisation du navigateur pour afficher les produits disponibles dans votre wilaya. En attendant, tous les produits sont visibles."
+                    ? "Sans connexion, nous utilisons la position de votre navigateur pour afficher uniquement les produits disponibles dans votre wilaya."
                     : "Autorisez la localisation pour voir les produits disponibles dans votre wilaya."}
                 </p>
               </div>
