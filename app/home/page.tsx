@@ -44,7 +44,8 @@ import { getSessionRole, getAllProducts, PublicProduct, getNotifications, markNo
 import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
-import { connectSocket } from "@/lib/socket";
+import { io as socketIO } from "socket.io-client";
+import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
 import PromotionsShowcase from "@/components/PromotionsShowcase";
@@ -198,36 +199,13 @@ export default function HomePage() {
     }
   }, []);
 
-  // Load notifications + realtime updates for clients
+  // Load notifications for clients
   useEffect(() => {
-    if (!isAuthenticated || !isClientUser) return;
-
-    loadNotifications();
-    const socket = connectSocket();
-
-    socket.on("orderStatusUpdate", async (data: {
-      orderId: string;
-      status: string;
-      message: string;
-      notificationId: string;
-    }) => {
-      await loadNotifications();
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Mise à jour de commande", {
-          body: data.message,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    const fcmCleanup = setupFcmTokenListener();
-
-    return () => {
-      socket.off("orderStatusUpdate");
-      socket.disconnect();
-      fcmCleanup?.();
-    };
+    if (isAuthenticated && isClientUser) {
+      loadNotifications();
+      setupSocketConnection();
+      setupFcmTokenListener();
+    }
   }, [isAuthenticated, isClientUser]);
 
   // Listen for FCM token from React Native WebView (mobile app)
@@ -300,6 +278,39 @@ export default function HomePage() {
     } catch (err) {
       // Silent error handling
     }
+  };
+
+  const setupSocketConnection = () => {
+    const socket = socketIO(getBaseUrl(), {
+      withCredentials: true,
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      // Socket connected
+    });
+
+    socket.on("orderStatusUpdate", async (data: {
+      orderId: string;
+      status: string;
+      message: string;
+      notificationId: string;
+    }) => {
+      // Reload notifications when status update arrives
+      await loadNotifications();
+      
+      // Show browser notification if permission granted
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Mise à jour de commande", {
+          body: data.message,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   };
 
   const handleNotificationClick = async (notification: NotificationData) => {

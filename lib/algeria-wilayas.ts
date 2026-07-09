@@ -64,6 +64,7 @@ export function supplierCoversWilaya(
   if (!clientWilayaCode || !supplier) return false;
   if (supplier.coversAllWilayas) return true;
   const codes = supplier.wilayas || [];
-  if (codes.length === 0) return false;
+  // Supplier has not configured delivery areas yet — show products everywhere.
+  if (codes.length === 0) return true;
   return codes.includes(clientWilayaCode);
 }

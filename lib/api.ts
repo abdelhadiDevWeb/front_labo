@@ -94,6 +94,16 @@ export const apiFetch = async (
   return response;
 };
 
+/** Public catalog GET — no cookies, no 401 refresh (faster for visitors / home page). */
+const publicFetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> =>
+  fetch(input, {
+    ...init,
+    credentials: "omit",
+  });
+
 /** @deprecated Tokens are HttpOnly cookies — use checkAuthSession() */
 export const getAuthToken = (): string | null => null;
 
@@ -972,7 +982,7 @@ export const getSponsoredProducts = async (): Promise<
   ApiResponse<{ products: SponsoredPublicProduct[] }>
 > => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/sponsored-products`, {
+    const response = await publicFetch(`${getApiBaseUrl()}/sponsored-products`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1021,7 +1031,7 @@ export const getPublicPromotions = async (): Promise<
   ApiResponse<{ promotions: PublicPromotion[] }>
 > => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/public-promotions`, {
+    const response = await publicFetch(`${getApiBaseUrl()}/public-promotions`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -1057,7 +1067,7 @@ const params = new URLSearchParams();
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
     const query = params.toString() ? `?${params.toString()}` : "";
     
-    const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
+    const response = await publicFetch(`${getApiBaseUrl()}/products/public${query}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -1086,7 +1096,7 @@ const params = new URLSearchParams();
 // Get product by ID (public - for clients)
 export const getProductById = async (id: string): Promise<ApiResponse<PublicProduct>> => {
   try {
-const response = await apiFetch(`${getApiBaseUrl()}/products/public/${id}`, {
+const response = await publicFetch(`${getApiBaseUrl()}/products/public/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -3498,7 +3508,7 @@ export interface UpdateSousCategoryData {
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
+    const response = await publicFetch(`${getApiBaseUrl()}/categories/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -3516,7 +3526,7 @@ export const getPublicCategories = async (): Promise<ApiResponse<{ categories: C
 
 export const getPublicCategoryById = async (categoryId: string): Promise<ApiResponse<Category>> => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
+    const response = await publicFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });

@@ -41,7 +41,7 @@ export const getApiUrl = (): string => {
 };
 
 /**
- * Base URL without `/api` — used for public media paths on the backend host.
+ * Base URL without `/api` — used for Socket.io and media paths.
  */
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -57,15 +57,5 @@ export const getBaseUrl = (): string => {
   return getServerBaseUrl();
 };
 
-/**
- * Socket.io URL — browser uses same-origin proxy so auth cookies are sent.
- */
-export const getSocketUrl = (): string => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  return getServerBaseUrl();
-};
-
 /** @deprecated Use getApiUrl() */
-export const getLegacyApiBaseUrl = (): string => getApiUrl();
+export const API_BASE_URL = getApiUrl();

@@ -99,20 +99,13 @@ export default function ProductsPage() {
         setIsLoading(true);
         setError(null);
 
-        const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+        const wilayaCode =
+          locationStatus === "granted" ? resolveWilayaCode(userLocation?.wilaya) : null;
 
-        if (requiresWilayaForCatalog && !wilayaCode) {
-          setProducts([]);
-          return;
-        }
+        const filters =
+          requiresWilayaForCatalog && wilayaCode ? { wilayaCode } : undefined;
 
-        const result = await getAllProducts(
-          wilayaCode
-            ? { wilayaCode }
-            : userLocation?.wilaya
-              ? { wilayaCode: userLocation.wilaya }
-              : undefined
-        );
+        const result = await getAllProducts(filters);
         if (result.success && result.data) {
           setProducts(result.data.products || []);
         } else {
@@ -124,10 +117,6 @@ export default function ProductsPage() {
         setIsLoading(false);
       }
     };
-
-    if (requiresWilayaForCatalog && locationStatus === "loading") {
-      return;
-    }
 
     loadProducts();
   }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
@@ -594,7 +583,7 @@ export default function ProductsPage() {
                 </p>
                 <p className="text-sm text-gray-600">
                   {isGuest
-                    ? "Sans connexion, nous utilisons la position de votre navigateur pour afficher uniquement les produits disponibles dans votre wilaya."
+                    ? "Autorisez la géolocalisation du navigateur pour afficher les produits disponibles dans votre wilaya. En attendant, tous les produits sont visibles."
                     : "Autorisez la localisation pour voir les produits disponibles dans votre wilaya."}
                 </p>
               </div>
