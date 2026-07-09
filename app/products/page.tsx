@@ -55,6 +55,7 @@ export default function ProductsPage() {
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [displayProducts, setDisplayProducts] = useState<PublicProduct[]>([]);
   const [isSorting, setIsSorting] = useState(false);
+  const [locationWaitExpired, setLocationWaitExpired] = useState(false);
   const { location: userLocation, status: locationStatus, source: locationSource, requestBrowserLocation } =
     useUserLocation();
 
@@ -77,6 +78,16 @@ export default function ProductsPage() {
 
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!requiresWilayaForCatalog || locationStatus !== "loading") {
+      setLocationWaitExpired(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setLocationWaitExpired(true), 12000);
+    return () => clearTimeout(timer);
+  }, [requiresWilayaForCatalog, locationStatus]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -125,12 +136,12 @@ export default function ProductsPage() {
       }
     };
 
-    if (requiresWilayaForCatalog && locationStatus === "loading") {
+    if (requiresWilayaForCatalog && locationStatus === "loading" && !locationWaitExpired) {
       return;
     }
 
     loadProducts();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus, locationWaitExpired]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
