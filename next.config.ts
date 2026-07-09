@@ -43,6 +43,15 @@ const buildContentSecurityPolicy = (): string => {
     }
   }
 
+  const frontUrl = process.env.NEXT_PUBLIC_FRONT_URL?.trim();
+  if (frontUrl) {
+    try {
+      connectSrc.add(new URL(frontUrl).origin);
+    } catch {
+      // ignore
+    }
+  }
+
   connectSrc.add("https://maps.googleapis.com");
   connectSrc.add("https://pay.chargily.net");
   connectSrc.add("https://pay.chargily.com");

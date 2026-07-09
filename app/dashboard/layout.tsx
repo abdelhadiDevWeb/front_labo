@@ -25,8 +25,7 @@ import {
 import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
 import { isPathAllowedForSouAdmin, isSouAdminRole, SOU_ADMIN_MENU_HREFS } from "@/lib/admin-access";
-import { io as socketIO } from "socket.io-client";
-import { getBaseUrl } from "@/lib/api-config";
+import { createAppSocket } from "@/lib/app-socket";
 import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
@@ -194,10 +193,7 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    const socket = createAppSocket();
 
     socket.on("connect", () => {
       // Socket connected

@@ -28,6 +28,7 @@ import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { useClientMounted } from "@/hooks/useClientMounted";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, supplierCoversWilaya } from "@/lib/algeria-wilayas";
 
@@ -36,7 +37,7 @@ export default function ProductsPage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const [products, setProducts] = useState<PublicProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -57,6 +58,7 @@ export default function ProductsPage() {
   const [isSorting, setIsSorting] = useState(false);
   const { location: userLocation, status: locationStatus, source: locationSource, requestBrowserLocation } =
     useUserLocation();
+  const mounted = useClientMounted();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
 
@@ -94,6 +96,8 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+
     const loadProducts = async () => {
       try {
         setIsLoading(true);
@@ -119,7 +123,9 @@ export default function ProductsPage() {
     };
 
     loadProducts();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+  }, [mounted, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+
+  const showFullPageLoader = mounted && isLoading && products.length === 0 && !error;
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
@@ -283,7 +289,7 @@ export default function ProductsPage() {
     router.push("/products/compare");
   };
 
-  if (isLoading) {
+  if (showFullPageLoader) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

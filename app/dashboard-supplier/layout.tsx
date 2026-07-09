@@ -27,8 +27,8 @@ import {
 } from "lucide-react";
 import { getSessionRole, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, apiFetch } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
-import { io as socketIO } from "socket.io-client";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { createAppSocket } from "@/lib/app-socket";
+import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
@@ -139,10 +139,7 @@ export default function SupplierDashboardLayout({
   useEffect(() => {
     if (!isAuthenticated || userRole !== "supplier") return;
 
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    const socket = createAppSocket();
 
     socket.on("connect", () => {
       // Socket connected

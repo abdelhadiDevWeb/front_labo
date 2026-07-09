@@ -8,8 +8,8 @@ import { consumePendingPaymentOrderIds } from "@/lib/flow-session";
 import { printInvoiceSafely } from "@/lib/invoice-print";
 import Link from "next/link";
 import Image from "next/image";
-import { io as socketIO } from "socket.io-client";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { createAppSocket } from "@/lib/app-socket";
+import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 
 interface Order {
@@ -81,10 +81,7 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    const socket = createAppSocket();
 
     const refreshOrders = () => {
       loadOrders();
