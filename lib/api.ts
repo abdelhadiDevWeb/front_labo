@@ -24,37 +24,7 @@ const AUTH_SKIP_REFRESH_PATHS = [
   "/client/logout",
   "/client/login",
   "/client/register",
-  "/client/role",
 ];
-
-const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
-
-const fetchWithTimeout = async (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS
-): Promise<Response> => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  const userSignal = init?.signal;
-  if (userSignal) {
-    if (userSignal.aborted) {
-      clearTimeout(timeoutId);
-      throw new DOMException("The operation was aborted.", "AbortError");
-    }
-    userSignal.addEventListener("abort", () => controller.abort(), { once: true });
-  }
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-};
 
 const shouldAttemptRefresh = (url: string): boolean =>
   !AUTH_SKIP_REFRESH_PATHS.some((path) => url.includes(path));
@@ -66,7 +36,7 @@ const refreshSession = async (): Promise<boolean> => {
 
   refreshInFlight = (async () => {
     try {
-      const response = await fetchWithTimeout(`${getApiBaseUrl()}/client/refresh-token`, {
+      const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -97,7 +67,7 @@ export const apiFetch = async (
   init?: RequestInit,
   isRetry = false
 ): Promise<Response> => {
-  const response = await fetchWithTimeout(input, {
+  const response = await fetch(input, {
     ...init,
     credentials: "include",
   });

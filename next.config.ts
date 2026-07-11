@@ -80,6 +80,14 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: `${backendBase}/api/:path*`,
       },
+      {
+        source: "/socket.io/:path*",
+        destination: `${backendBase}/socket.io/:path*`,
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${backendBase}/uploads/:path*`,
+      },
     ];
   },
   async headers() {

@@ -31,7 +31,7 @@ const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, ""
 
 /**
  * Full API URL with `/api` path.
- * Browser: same-origin proxy. Server: explicit env URL.
+ * Browser: same-origin proxy (Vercel rewrite → Render). Server: explicit env URL.
  */
 export const getApiUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -42,17 +42,12 @@ export const getApiUrl = (): string => {
 
 /**
  * Base URL without `/api` — used for Socket.io and media paths.
+ * Browser: same-origin so Socket.io and uploads go through Next rewrites
+ * (`/socket.io`, `/uploads`) and stay cookie-safe on Vercel.
  */
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
-    const fromEnv = resolveEnvApiUrl();
-    if (fromEnv) {
-      return fromEnv.replace(/\/api\/?$/, "");
-    }
-    if (!isDev) {
-      return window.location.origin;
-    }
-    return "http://localhost:8000";
+    return window.location.origin;
   }
   return getServerBaseUrl();
 };

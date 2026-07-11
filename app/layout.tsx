@@ -3,6 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/contexts/CartContext";
 
+/**
+ * Avoid stale Turbopack/ISR prerender shells on Vercel that throw
+ * "Connection closed" and block client hydration (so API calls never run).
+ */
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
