@@ -1,13 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "@/contexts/CartContext";
-
-/**
- * Avoid stale Turbopack/ISR prerender shells on Vercel that throw
- * "Connection closed" and block client hydration (so API calls never run).
- */
-export const dynamic = "force-dynamic";
+import Providers from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,10 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Market Lab - Marketplace des Laboratoires",
   description: "La marketplace professionnelle des laboratoires d'analyses",
-  icons: {
-    icon: '/images/logo.jpeg',
-    apple: '/images/logo.jpeg',
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -34,13 +29,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <CartProvider>
-        {children}
-        </CartProvider>
+    <html lang="fr">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
