@@ -31,8 +31,7 @@ const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, ""
 
 /**
  * Full API URL with `/api` path.
- * Browser: same-origin `/api` (Vercel rewrite → Render) so auth cookies stay on the front domain.
- * Server: explicit env URL.
+ * Browser: same-origin proxy. Server: explicit env URL.
  */
 export const getApiUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -42,8 +41,7 @@ export const getApiUrl = (): string => {
 };
 
 /**
- * Base URL without `/api` — Socket.io + public media.
- * Browser must talk to Render directly: Vercel rewrites do not proxy WebSockets.
+ * Base URL without `/api` — used for Socket.io and media paths.
  */
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {

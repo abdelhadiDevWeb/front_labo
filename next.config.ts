@@ -65,9 +65,6 @@ const buildContentSecurityPolicy = (): string => {
 };
 
 const nextConfig: NextConfig = {
-  // Disable streaming metadata for all UAs. Unresolved AsyncMetadata ($L11)
-  // was aborting the Flight stream with "Connection closed" / white screen.
-  htmlLimitedBots: /.*/,
   async rewrites() {
     const backendBase =
       process.env.API_INTERNAL_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
@@ -111,6 +108,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    dangerouslyAllowLocalIP: isDev,
     remotePatterns: [
       ...(isDev
         ? [

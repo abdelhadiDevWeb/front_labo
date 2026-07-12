@@ -1,12 +1,7 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers";
-
-/**
- * Force request-time render so Vercel never serves a truncated/static Flight shell.
- */
-export const dynamic = "force-dynamic";
+import { CartProvider } from "@/contexts/CartContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,23 +13,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-/**
- * Keep metadata fully static and point icons only at files that exist in /public.
- * A missing icon URL makes Next.js AsyncMetadata hang → browser "Connection closed"
- * → white screen (hydration never completes, so API calls never run).
- */
 export const metadata: Metadata = {
   title: "Market Lab - Marketplace des Laboratoires",
   description: "La marketplace professionnelle des laboratoires d'analyses",
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "any" }],
-    apple: [{ url: "/images/logo.jpeg", type: "image/jpeg" }],
+    icon: '/images/logo.jpeg',
+    apple: '/images/logo.jpeg',
   },
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -43,9 +28,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>{children}</Providers>
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <CartProvider>
+        {children}
+        </CartProvider>
       </body>
     </html>
   );
