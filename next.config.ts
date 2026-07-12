@@ -108,7 +108,6 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    dangerouslyAllowLocalIP: isDev,
     remotePatterns: [
       ...(isDev
         ? [
