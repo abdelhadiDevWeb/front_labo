@@ -12,9 +12,12 @@ import {
 
 const libraries: ("places")[] = ["places"];
 
+/** Shared loader id so client + supplier sections don't re-init Google Maps scripts */
+const GOOGLE_MAPS_LOADER_ID = "marketlab-google-maps";
+
 const mapContainerStyle = {
   width: "100%",
-  height: "220px",
+  height: "280px",
   borderRadius: "0.75rem",
 };
 
@@ -68,6 +71,7 @@ function GoogleLocationPicker({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
+    id: GOOGLE_MAPS_LOADER_ID,
     googleMapsApiKey: apiKey,
     libraries,
     language: "fr",

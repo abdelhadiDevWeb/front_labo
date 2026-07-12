@@ -24,10 +24,26 @@ import {
   Video,
   TrendingDown,
   Percent,
+  Cpu,
+  Wrench,
+  ArrowLeft,
+  Layers,
 } from "lucide-react";
 import { apiFetch, getPublicCategories, Category } from "@/lib/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getApiUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
+
+type ExcelImportType = "machine" | "service" | "product" | null;
+
+type CategoryKind = "machine" | "services" | "product";
+
+const excelTypeToCategoryType = (type: ExcelImportType): CategoryKind | null => {
+  if (type === "machine") return "machine";
+  if (type === "service") return "services";
+  if (type === "product") return "product";
+  return null;
+};
 
 interface ProductFormData {
   name: string;
@@ -41,9 +57,67 @@ interface ProductFormData {
   video: File | null;
 }
 
+const MACHINE_COLUMNS = [
+  { label: "Réference", desc: "Référence de la machine" },
+  { label: "Désignation", desc: "Nom de la machine (obligatoire)" },
+  { label: "Conditionnement", desc: "Conditionnement" },
+  { label: "N° lot", desc: "Numéro de lot" },
+  { label: "DDP", desc: "Date de péremption" },
+  { label: "Quantité", desc: "Quantité en stock" },
+  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
+  { label: "Marque", desc: "Marque" },
+  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
+  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
+  { label: "Commande", desc: "Statut commande" },
+  { label: "R %", desc: "Remise" },
+  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
+  { label: "Image", desc: "Nom(s) d'image" },
+  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
+  { label: "Prix TTC", desc: "Prix TTC" },
+  { label: "TVA", desc: "Taux de TVA" },
+  { label: "Assistance technique", desc: "Assistance technique" },
+];
+
+const SERVICE_COLUMNS = [
+  { label: "Désignation", desc: "Nom du service (obligatoire)" },
+  { label: "Marque", desc: "Marque" },
+  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
+  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
+  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
+  { label: "Image", desc: "Nom(s) d'image" },
+  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
+  { label: "R %", desc: "Remise" },
+  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
+  { label: "Prix TTC", desc: "Prix TTC" },
+  { label: "TVA", desc: "Taux de TVA" },
+];
+
+const PRODUCT_COLUMNS = [
+  { label: "Réference", desc: "Référence du produit" },
+  { label: "Désignation", desc: "Nom du produit (obligatoire)" },
+  { label: "Conditionnement", desc: "Conditionnement" },
+  { label: "N° lot", desc: "Numéro de lot" },
+  { label: "DDP", desc: "Date de péremption" },
+  { label: "Quantité", desc: "Quantité en stock" },
+  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
+  { label: "Marque", desc: "Marque" },
+  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
+  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
+  { label: "Commande", desc: "Statut commande" },
+  { label: "R %", desc: "Remise" },
+  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
+  { label: "Image", desc: "Nom(s) d'image" },
+  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
+  { label: "Prix TTC", desc: "Prix TTC" },
+  { label: "TVA", desc: "Taux de TVA" },
+];
+
 export default function AddProductPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"single" | "excel">("single");
+  const [excelImportType, setExcelImportType] = useState<ExcelImportType>(null);
+  const [excelCategoryId, setExcelCategoryId] = useState("");
+  const [excelSousCategoryId, setExcelSousCategoryId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +142,17 @@ export default function AddProductPage() {
     video: null,
   });
 
+  const resetExcelImportState = () => {
+    setExcelFile(null);
+    setImageFiles([]);
+    setUploadProgress(0);
+    setUploadErrors([]);
+    setError(null);
+    setSuccess(null);
+    setExcelCategoryId("");
+    setExcelSousCategoryId("");
+  };
+
   useEffect(() => {
     const loadCategories = async () => {
       setIsLoadingCategories(true);
@@ -91,6 +176,58 @@ export default function AddProductPage() {
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const availableSousCategories = selectedCategory?.sousCategories ?? [];
+
+  const excelCategoryType = excelTypeToCategoryType(excelImportType);
+  const excelFilteredCategories = excelCategoryType
+    ? categories.filter((c) => (c.type_catgory || "product") === excelCategoryType)
+    : [];
+  const selectedExcelCategory = excelFilteredCategories.find((c) => c.id === excelCategoryId);
+  const excelSousCategories = selectedExcelCategory?.sousCategories ?? [];
+  const hasExcelSousCategories = excelSousCategories.length > 0;
+  const selectedExcelSousCategory = excelSousCategories.find((sc) => sc.id === excelSousCategoryId);
+  // Show XLS section once category is chosen and either no sous-categories exist, or one is selected
+  const showExcelUploadSection =
+    !!selectedExcelCategory && (!hasExcelSousCategories || !!excelSousCategoryId);
+
+  const excelColumnsForType =
+    excelImportType === "machine"
+      ? MACHINE_COLUMNS
+      : excelImportType === "service"
+        ? SERVICE_COLUMNS
+        : PRODUCT_COLUMNS;
+
+  const handlePickExcelCategory = (categoryId: string) => {
+    setExcelCategoryId(categoryId);
+    setExcelSousCategoryId("");
+    setExcelFile(null);
+    setImageFiles([]);
+    setUploadErrors([]);
+  };
+
+  const handlePickExcelSousCategory = (sousCategoryId: string) => {
+    setExcelSousCategoryId(sousCategoryId);
+    setExcelFile(null);
+    setImageFiles([]);
+    setUploadErrors([]);
+  };
+
+  const handleExcelBack = () => {
+    if (showExcelUploadSection && hasExcelSousCategories) {
+      setExcelSousCategoryId("");
+      setExcelFile(null);
+      setImageFiles([]);
+      return;
+    }
+    if (excelCategoryId) {
+      setExcelCategoryId("");
+      setExcelSousCategoryId("");
+      setExcelFile(null);
+      setImageFiles([]);
+      return;
+    }
+    setExcelImportType(null);
+    resetExcelImportState();
+  };
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCategoryId(e.target.value);
@@ -322,30 +459,50 @@ export default function AddProductPage() {
   };
 
   const handleDownloadTemplate = async () => {
+    if (excelImportType !== "machine" && excelImportType !== "service") {
+      return;
+    }
+
+    if (!selectedExcelCategory) {
+      setError("Veuillez choisir une catégorie avant de télécharger le modèle");
+      return;
+    }
+
     try {
       const API_BASE_URL = getApiUrl();
-      const response = await apiFetch(`${API_BASE_URL}/products/download-template`, {
-        method: "GET",
+      const params = new URLSearchParams({
+        category: selectedExcelCategory.name_catgory,
       });
+      if (selectedExcelSousCategory) {
+        params.set("sousCategory", selectedExcelSousCategory.name_sou_catgory);
+      }
+
+      const endpoint =
+        excelImportType === "machine"
+          ? `${API_BASE_URL}/machines/download-template?${params.toString()}`
+          : `${API_BASE_URL}/services/download-template?${params.toString()}`;
+      const filename =
+        excelImportType === "machine"
+          ? "modele_automates_biologie_medicale.xlsx"
+          : "modele_services_divers.xlsx";
+
+      const response = await apiFetch(endpoint, { method: "GET" });
 
       if (!response.ok) {
         setError("Erreur lors du téléchargement du modèle");
         return;
       }
 
-      // Get the blob from response
       const blob = await response.blob();
-      
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "modele_produits.xlsx";
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       setSuccess("Modèle Excel téléchargé avec succès !");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -359,88 +516,84 @@ export default function AddProductPage() {
     setError(null);
     setSuccess(null);
 
+    if (excelImportType !== "machine" && excelImportType !== "service") {
+      setError("Veuillez choisir un type d'import");
+      return;
+    }
+
     if (!excelFile) {
       setError("Veuillez sélectionner un fichier Excel");
       return;
     }
 
     setIsLoading(true);
-    setUploadProgress(0);
+    setUploadProgress(30);
 
     try {
       const API_BASE_URL = getApiUrl();
+      const endpoint =
+        excelImportType === "machine"
+          ? `${API_BASE_URL}/machines/upload-excel`
+          : `${API_BASE_URL}/services/upload-excel`;
+      const itemLabel = excelImportType === "machine" ? "machine(s)" : "service(s)";
 
-      const formData = new FormData();
-      formData.append("excelFile", excelFile);
-      
+      const formDataUpload = new FormData();
+      formDataUpload.append("excelFile", excelFile);
+      if (excelCategoryId) {
+        formDataUpload.append("id_catgory", excelCategoryId);
+      }
+      if (excelSousCategoryId) {
+        formDataUpload.append("id_sous_catgory", excelSousCategoryId);
+      }
+
       imageFiles.forEach((imageFile) => {
-        formData.append("images", imageFile);
+        formDataUpload.append("images", imageFile);
       });
 
-      const response = await apiFetch(`${API_BASE_URL}/products/upload-excel`, {
+      setUploadProgress(60);
+
+      const response = await apiFetch(endpoint, {
         method: "POST",
-        body: formData,
+        body: formDataUpload,
       });
 
       const result = await response.json();
+      setUploadProgress(100);
 
       if (!response.ok) {
-        // Display specific validation errors if available
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          setError(result.errors.join(". "));
-        } else {
+          setUploadErrors(result.errors);
           setError(result.message || "Erreur lors de l'upload du fichier");
+        } else {
+          let errorMessage = result.message || "Erreur lors de l'upload du fichier";
+          if (result.foundColumns) {
+            errorMessage += `\n\nColonnes trouvées: ${result.foundColumns.join(", ")}`;
+          }
+          setError(errorMessage);
+          setUploadErrors([]);
         }
-        setIsLoading(false);
         return;
       }
 
       if (result.success) {
-        let successMessage = `Importation réussie ! ${result.data.imported} produit(s) importé(s) sur ${result.data.total}`;
-        
-        // Show column mapping if available
-        if (result.data.columnMapping) {
-          const mappings = Object.entries(result.data.columnMapping)
-            .map(([eng, fr]) => `${fr} = ${eng}`)
-            .join(", ");
-          successMessage += `\n\nColonnes mappées: ${mappings}`;
-        }
-        
-        setSuccess(successMessage);
+        setSuccess(
+          `Importation réussie ! ${result.data.imported} ${itemLabel} importé(s) sur ${result.data.total}`
+        );
         setExcelFile(null);
-        // Reset file input
+        setImageFiles([]);
         const fileInput = document.getElementById("excelFile") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
+        const imagesInput = document.getElementById("productImages") as HTMLInputElement;
+        if (imagesInput) imagesInput.value = "";
 
-        // Display errors if any
         if (result.errorDetails && result.errorDetails.length > 0) {
           setUploadErrors(result.errorDetails);
         } else {
           setUploadErrors([]);
         }
       } else {
-        // Display errors from backend with column mapping info
-        let errorMessage = result.message || "Erreur lors de l'upload du fichier";
-        
-        if (result.columnMapping) {
-          const mappings = Object.entries(result.columnMapping)
-            .map(([eng, fr]) => `${fr} = ${eng}`)
-            .join(", ");
-          errorMessage += `\n\nColonnes détectées: ${mappings}`;
-        }
-        
-        if (result.foundColumns) {
-          errorMessage += `\n\nColonnes trouvées dans le fichier: ${result.foundColumns.join(", ")}`;
-        }
-        
-        // Display errors from backend
-        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          setUploadErrors(result.errors);
-          setError(errorMessage);
-        } else {
-          setError(errorMessage);
-          setUploadErrors([]);
-        }
+        setError(result.message || "Erreur lors de l'upload du fichier");
+        setUploadErrors(result.errors || []);
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
@@ -534,6 +687,8 @@ export default function AddProductPage() {
           <button
             onClick={() => {
               setActiveTab("excel");
+              setExcelImportType(null);
+              resetExcelImportState();
               setError(null);
               setSuccess(null);
             }}
@@ -983,7 +1138,6 @@ export default function AddProductPage() {
       {/* Excel Upload Form */}
       {activeTab === "excel" && (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-          {/* Excel Form Header */}
           <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200 px-6 sm:px-8 py-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -991,243 +1145,439 @@ export default function AddProductPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Importation Excel</h2>
-                <p className="text-sm text-gray-600">Importez plusieurs produits en une seule fois</p>
+                <p className="text-sm text-gray-600">
+                  {excelImportType
+                    ? excelImportType === "machine"
+                      ? "Import Automates de biologie médicale"
+                      : excelImportType === "service"
+                        ? "Import Services divers"
+                        : "Import Produits"
+                    : "Choisissez le type d'import"}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="p-6 sm:p-8">
-            {/* Format Info - Enhanced */}
-            <div className="mb-6 p-5 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 border-2 border-blue-200 rounded-2xl shadow-sm">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                  <h3 className="font-bold text-blue-900 mb-2 text-lg">Format Excel requis</h3>
-                      <p className="text-sm text-blue-700">
-                    Votre fichier Excel doit contenir les colonnes suivantes (dans l'ordre) :
-                  </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleDownloadTemplate}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-semibold"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Télécharger le modèle
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    {[
-                      { label: "nom", desc: "Nom du produit", english: "name" },
-                      { label: "brand", desc: "Marque", english: "brand" },
-                      { label: "quantité", desc: "Quantité", english: "quantity" },
-                      { label: "prix d'achat", desc: "Prix d'achat en DA", english: "purchasePrice" },
-                      { label: "délai de livraison", desc: "Délai de livraison (optionnel)", english: "deliveryTime" },
-                      { label: "prix vente", desc: "Prix de vente en DA", english: "sellingPrice" },
-                      { label: "category", desc: "Catégorie", english: "category" },
-                      { label: "type", desc: 'Type: "Labo médical" ou "labo d\'ana pathologies"', english: "productType" },
-                      { label: "conditionnement", desc: "Conditionnement", english: "conditionnement" },
-                      { label: "image", desc: "Nom image (ou plusieurs noms séparés par virgule)", english: "image" },
-                    ].map((col, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-blue-100"
-                      >
-                        <div className="w-6 h-6 bg-blue-600 text-white rounded text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {idx + 1}
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-xs font-semibold text-blue-900">{col.label}</span>
-                          <p className="text-xs text-blue-700">{col.desc}</p>
-                          {col.english !== col.label && (
-                            <p className="text-xs text-gray-500 italic">({col.english})</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleExcelSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="excelFile" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-                  <span>Fichier Excel</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                {excelFile ? (
-                  <div className="flex items-center justify-between p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl shadow-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
-                        <FileSpreadsheet className="w-7 h-7 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900 mb-1">{excelFile.name}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-600">
-                          <span>{(excelFile.size / 1024).toFixed(2)} KB</span>
-                          <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
-                            Prêt à importer
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExcelFile(null);
-                        const fileInput = document.getElementById("excelFile") as HTMLInputElement;
-                        if (fileInput) fileInput.value = "";
-                      }}
-                      className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors hover:scale-110"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:from-blue-50 hover:to-cyan-50 hover:border-blue-400 transition-all duration-300 group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6 relative z-10">
-                      <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg">
-                        <Upload className="w-10 h-10 text-blue-600 group-hover:text-green-600 transition-colors" />
-                      </div>
-                      <p className="mb-2 text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">
-                        Cliquez pour télécharger
-                      </p>
-                      <p className="text-xs text-gray-500 mb-1">ou glissez-déposez votre fichier ici</p>
-                      <p className="text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full mt-2">
-                        Excel uniquement (.xlsx, .xls) - MAX. 10MB
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      id="excelFile"
-                      name="excelFile"
-                      accept=".xlsx,.xls"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Images Folder Upload */}
-              <div>
-                <label htmlFor="productImages" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <ImageIcon className="w-4 h-4 text-blue-600" />
-                  <span>Dossier d'images (optionnel)</span>
-                </label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Sélectionnez toutes les images qui correspondent aux noms dans la colonne "image" de votre fichier Excel
-                </p>
-                {imageFiles.length > 0 ? (
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <ImageIcon className="w-5 h-5 text-blue-600" />
-                        <span className="text-sm font-semibold text-gray-900">
-                          {imageFiles.length} image(s) sélectionnée(s)
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFiles([]);
-                          const imagesInput = document.getElementById("productImages") as HTMLInputElement;
-                          if (imagesInput) imagesInput.value = "";
-                        }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-40 overflow-y-auto">
-                      {imageFiles.map((file, idx) => (
-                        <div key={idx} className="relative group">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={file.name}
-                            className="w-full h-20 object-cover rounded-lg border-2 border-gray-200"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                            <span className="text-xs text-white text-center px-1 truncate w-full">{file.name}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:from-blue-50 hover:to-cyan-50 hover:border-blue-400 transition-all duration-300 group">
-                    <div className="flex flex-col items-center justify-center pt-3 pb-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-all duration-300">
-                        <ImageIcon className="w-8 h-8 text-blue-600 group-hover:text-green-600 transition-colors" />
-                      </div>
-                      <p className="mb-1 text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">
-                        Cliquez pour sélectionner les images
-                      </p>
-                      <p className="text-xs text-gray-500">ou glissez-déposez plusieurs images</p>
-                    </div>
-                    <input
-                      type="file"
-                      id="productImages"
-                      name="productImages"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImagesChange}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Upload Progress */}
-              {isLoading && (
-                <div className="space-y-3 p-5 bg-blue-50 rounded-2xl border-2 border-blue-200">
-                  <div className="flex items-center justify-between text-sm font-semibold text-blue-900">
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Importation en cours...
-                    </span>
-                    <span className="font-bold">{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-blue-600 to-cyan-600 h-3 rounded-full transition-all duration-500 shadow-lg relative overflow-hidden"
-                      style={{ width: `${uploadProgress}%` }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <div className="flex gap-4 pt-6 border-t border-gray-200">
+            {!excelImportType && (
+              <div className="grid sm:grid-cols-3 gap-4">
                 <button
-                  type="submit"
-                  disabled={isLoading || !excelFile}
-                  className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group relative overflow-hidden"
+                  type="button"
+                  onClick={() => {
+                    resetExcelImportState();
+                    setExcelImportType("machine");
+                  }}
+                  className="p-6 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 hover:border-blue-500 hover:shadow-lg transition-all text-left group"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-6 h-6 animate-spin relative z-10" />
-                      <span className="relative z-10">Importation en cours...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="w-6 h-6 relative z-10 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="relative z-10">Importer les produits</span>
-                    </>
-                  )}
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Cpu className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Machine</h3>
+                  <p className="text-sm text-gray-600">
+                    Automates de biologie médicale
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetExcelImportState();
+                    setExcelImportType("service");
+                  }}
+                  className="p-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 hover:border-emerald-500 hover:shadow-lg transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Wrench className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Services</h3>
+                  <p className="text-sm text-gray-600">Services divers</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetExcelImportState();
+                    setExcelImportType("product");
+                  }}
+                  className="p-6 rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50 hover:border-gray-400 hover:shadow-lg transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-gray-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Package className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Produit</h3>
+                  <p className="text-sm text-gray-600">Réactifs, consommables, etc.</p>
                 </button>
               </div>
-            </form>
+            )}
+
+            {excelImportType && (
+              <div className="space-y-6">
+                <button
+                  type="button"
+                  onClick={handleExcelBack}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  {showExcelUploadSection && hasExcelSousCategories
+                    ? "Retour aux sous-catégories"
+                    : excelCategoryId
+                      ? "Retour aux catégories"
+                      : "Retour aux options"}
+                </button>
+
+                {/* Step 1: pick category */}
+                {!excelCategoryId && (
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      {excelImportType === "machine"
+                        ? "Catégories Machine"
+                        : excelImportType === "service"
+                          ? "Catégories Services"
+                          : "Catégories Produit"}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choisissez une catégorie (
+                      <span className="font-semibold">
+                        type {excelCategoryType}
+                      </span>
+                      )
+                    </p>
+                    {isLoadingCategories ? (
+                      <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Chargement des catégories...
+                      </div>
+                    ) : excelFilteredCategories.length === 0 ? (
+                      <div className="p-8 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
+                        <Package className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          Aucune catégorie de type {excelCategoryType} pour le moment.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {excelFilteredCategories.map((cat) => {
+                          const imageUrl = getMediaUrl(cat.image);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => handlePickExcelCategory(cat.id)}
+                              className="text-left rounded-2xl border-2 border-gray-200 overflow-hidden transition-all hover:border-blue-400 hover:shadow-md"
+                            >
+                              <div className="h-28 bg-gray-100">
+                                {imageUrl ? (
+                                  <img src={imageUrl} alt={cat.name_catgory} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-8 h-8 text-gray-300" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-3">
+                                <p className="font-semibold text-gray-900 truncate">{cat.name_catgory}</p>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{cat.des}</p>
+                                <p className="text-xs text-blue-600 mt-2">
+                                  {cat.sousCategories?.length || 0} sous-catégorie(s)
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 2: pick sous-category if any */}
+                {selectedExcelCategory && hasExcelSousCategories && !excelSousCategoryId && (
+                  <div>
+                    <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                      Catégorie : <strong>{selectedExcelCategory.name_catgory}</strong>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Sous-catégories</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choisissez une sous-catégorie pour continuer
+                    </p>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {excelSousCategories.map((sc) => {
+                        const imageUrl = getMediaUrl(sc.image);
+                        return (
+                          <button
+                            key={sc.id}
+                            type="button"
+                            onClick={() => handlePickExcelSousCategory(sc.id)}
+                            className="text-left rounded-2xl border-2 border-gray-200 overflow-hidden transition-all hover:border-emerald-400 hover:shadow-md"
+                          >
+                            <div className="h-24 bg-gray-100">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={sc.name_sou_catgory} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Layers className="w-8 h-8 text-gray-300" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <p className="font-semibold text-gray-900 truncate">{sc.name_sou_catgory}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: XLS download + columns + upload */}
+                {showExcelUploadSection && selectedExcelCategory && (
+                  <>
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800 space-y-1">
+                      <p>
+                        Catégorie : <strong>{selectedExcelCategory.name_catgory}</strong>
+                      </p>
+                      {selectedExcelSousCategory && (
+                        <p>
+                          Sous-catégorie : <strong>{selectedExcelSousCategory.name_sou_catgory}</strong>
+                        </p>
+                      )}
+                      {!hasExcelSousCategories && (
+                        <p className="text-green-700 text-xs">
+                          Aucune sous-catégorie — la colonne « Sous catégorie » restera vide dans le XLS.
+                        </p>
+                      )}
+                      {hasExcelSousCategories && selectedExcelSousCategory && (
+                        <p className="text-green-700 text-xs">
+                          Catégorie et sous-catégorie seront remplies automatiquement à l&apos;import.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-5 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 border-2 border-blue-200 rounded-2xl shadow-sm">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                            <div>
+                              <h3 className="font-bold text-blue-900 mb-2 text-lg">
+                                Modèle Excel — {selectedExcelCategory.name_catgory}
+                              </h3>
+                              <p className="text-sm text-blue-700">
+                                Votre fichier Excel doit contenir les colonnes suivantes :
+                              </p>
+                            </div>
+                            {(excelImportType === "machine" || excelImportType === "service") && (
+                              <button
+                                type="button"
+                                onClick={handleDownloadTemplate}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-semibold whitespace-nowrap"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Télécharger le modèle
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid sm:grid-cols-2 gap-2">
+                            {excelColumnsForType.map((col, idx) => (
+                              <div
+                                key={col.label}
+                                className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-blue-100"
+                              >
+                                <div className="w-6 h-6 bg-blue-600 text-white rounded text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                  {idx + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs font-semibold text-blue-900">{col.label}</span>
+                                  <p className="text-xs text-blue-700">{col.desc}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {(excelImportType === "machine" || excelImportType === "service") ? (
+                      <form onSubmit={handleExcelSubmit} className="space-y-6">
+                        <div>
+                          <label htmlFor="excelFile" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+                            <span>Fichier Excel</span>
+                            <span className="text-red-500">*</span>
+                          </label>
+                          {excelFile ? (
+                            <div className="flex items-center justify-between p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl shadow-lg">
+                              <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
+                                  <FileSpreadsheet className="w-7 h-7 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-gray-900 mb-1">{excelFile.name}</p>
+                                  <div className="flex items-center gap-3 text-xs text-gray-600">
+                                    <span>{(excelFile.size / 1024).toFixed(2)} KB</span>
+                                    <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
+                                      Prêt à importer
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExcelFile(null);
+                                  const fileInput = document.getElementById("excelFile") as HTMLInputElement;
+                                  if (fileInput) fileInput.value = "";
+                                }}
+                                className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                              >
+                                <X className="w-5 h-5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:from-blue-50 hover:to-cyan-50 hover:border-blue-400 transition-all group">
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-lg">
+                                  <Upload className="w-10 h-10 text-blue-600" />
+                                </div>
+                                <p className="mb-2 text-sm font-semibold text-gray-700">Cliquez pour télécharger</p>
+                                <p className="text-xs text-gray-500 mb-1">ou glissez-déposez votre fichier ici</p>
+                                <p className="text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full mt-2">
+                                  Excel (.xlsx, .xls) — MAX. 10MB
+                                </p>
+                              </div>
+                              <input
+                                type="file"
+                                id="excelFile"
+                                name="excelFile"
+                                accept=".xlsx,.xls"
+                                onChange={handleFileChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        <div>
+                          <label htmlFor="productImages" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                            <ImageIcon className="w-4 h-4 text-blue-600" />
+                            <span>Images (optionnel)</span>
+                          </label>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Images correspondant à la colonne &quot;Image&quot; du fichier Excel
+                          </p>
+                          {imageFiles.length > 0 ? (
+                            <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {imageFiles.length} image(s)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setImageFiles([]);
+                                    const imagesInput = document.getElementById("productImages") as HTMLInputElement;
+                                    if (imagesInput) imagesInput.value = "";
+                                  }}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-40 overflow-y-auto">
+                                {imageFiles.map((file, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt={file.name}
+                                      className="w-full h-20 object-cover rounded-lg border-2 border-gray-200"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:border-blue-400 transition-all">
+                              <ImageIcon className="w-8 h-8 text-blue-600 mb-2" />
+                              <p className="text-sm font-semibold text-gray-700">Sélectionner les images</p>
+                              <input
+                                type="file"
+                                id="productImages"
+                                name="productImages"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImagesChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        {uploadErrors.length > 0 && (
+                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <p className="text-sm font-semibold text-amber-900 mb-2">
+                              Avertissements ({uploadErrors.length})
+                            </p>
+                            <ul className="text-xs text-amber-800 space-y-1 max-h-40 overflow-y-auto">
+                              {uploadErrors.map((errMsg, idx) => (
+                                <li key={idx}>• {errMsg}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {isLoading && (
+                          <div className="space-y-3 p-5 bg-blue-50 rounded-2xl border-2 border-blue-200">
+                            <div className="flex items-center justify-between text-sm font-semibold text-blue-900">
+                              <span className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Importation en cours...
+                              </span>
+                              <span className="font-bold">{uploadProgress}%</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+                              <div
+                                className="bg-gradient-to-r from-blue-600 to-cyan-600 h-3 rounded-full transition-all"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-4 pt-6 border-t border-gray-200">
+                          <button
+                            type="submit"
+                            disabled={isLoading || !excelFile}
+                            className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                          >
+                            {isLoading ? (
+                              <>
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <span>Importation en cours...</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileSpreadsheet className="w-6 h-6" />
+                                <span>
+                                  Importer les {excelImportType === "machine" ? "machines" : "services"}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="p-6 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
+                        <Package className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">
+                          Colonnes du modèle produit affichées ci-dessus. L&apos;upload Excel produit sera ajouté bientôt.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

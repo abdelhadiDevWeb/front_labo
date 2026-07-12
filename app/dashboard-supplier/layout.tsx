@@ -33,7 +33,7 @@ import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
-  { icon: Package, label: "Mes Produits", href: "/dashboard-supplier/products" },
+  { icon: Package, label: "MarketPlace", href: "/dashboard-supplier/products" },
   { icon: Percent, label: "Promotions", href: "/dashboard-supplier/promotions" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },
   { icon: ShoppingCart, label: "Commandes", href: "/dashboard-supplier/orders" },

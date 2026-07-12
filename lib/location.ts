@@ -49,5 +49,8 @@ export function getGoogleMapsApiKey(): string {
 
 export function getMapProvider(): "google" | "osm" {
   const provider = process.env.NEXT_PUBLIC_WORKSHOP_MAP_PROVIDER?.trim().toLowerCase();
+  if (provider === "osm") return "osm";
+  // Default to Google when a Maps API key is present (register page depends on it)
+  if (getGoogleMapsApiKey()) return "google";
   return provider === "google" ? "google" : "osm";
 }

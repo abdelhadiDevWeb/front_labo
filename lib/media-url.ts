@@ -48,6 +48,7 @@ const SENSITIVE_UPLOAD_PREFIXES = [
 /**
  * Build a full media URL from a backend relative path.
  * Sensitive uploads are routed through the authenticated /api/files proxy.
+ * Public uploads use same-origin /uploads/* (Next.js rewrite → backend).
  */
 export const getMediaUrl = (path: string | null | undefined): string => {
   if (!path) return "";
@@ -68,6 +69,11 @@ export const getMediaUrl = (path: string | null | undefined): string => {
     if (isSensitive) {
       const filePath = normalizedPath.replace(/^uploads\//, "");
       return `/api/files/${filePath}`;
+    }
+
+    // Same-origin path — proxied by next.config rewrite to the backend
+    if (normalizedPath.startsWith("uploads/")) {
+      return `/${normalizedPath}`;
     }
   }
 

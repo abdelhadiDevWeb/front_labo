@@ -26,8 +26,6 @@ import {
   X,
   ShoppingBag,
   Building2,
-  Tag,
-  Clock,
   Bell,
   MessageCircle,
   Mail,
@@ -40,7 +38,7 @@ import {
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
-import { getSessionRole, getAllProducts, PublicProduct, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
+import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
 import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
@@ -49,6 +47,11 @@ import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
 import PromotionsShowcase from "@/components/PromotionsShowcase";
+import UniqueDataFields from "@/components/UniqueDataFields";
+import {
+  getUniqueDataTitle,
+  productToUniqueData,
+} from "@/lib/unique-data-display";
 
 export default function HomePage() {
   const router = useRouter();
@@ -65,6 +68,10 @@ export default function HomePage() {
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
+  const [machines, setMachines] = useState<PublicCatalogItem[]>([]);
+  const [services, setServices] = useState<PublicCatalogItem[]>([]);
+  const [isLoadingMachines, setIsLoadingMachines] = useState(true);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -169,6 +176,44 @@ export default function HomePage() {
     };
 
     loadProducts();
+  }, []);
+
+  useEffect(() => {
+    const loadMachines = async () => {
+      try {
+        setIsLoadingMachines(true);
+        const result = await getPublicMachines();
+        if (result.success && result.data?.machines) {
+          setMachines(result.data.machines.slice(0, 8));
+        } else {
+          setMachines([]);
+        }
+      } catch {
+        setMachines([]);
+      } finally {
+        setIsLoadingMachines(false);
+      }
+    };
+    void loadMachines();
+  }, []);
+
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        setIsLoadingServices(true);
+        const result = await getPublicServices();
+        if (result.success && result.data?.services) {
+          setServices(result.data.services.slice(0, 8));
+        } else {
+          setServices([]);
+        }
+      } catch {
+        setServices([]);
+      } finally {
+        setIsLoadingServices(false);
+      }
+    };
+    void loadServices();
   }, []);
 
   // Fetch categories from API
@@ -958,7 +1003,7 @@ export default function HomePage() {
               Nos catégories
             </h2>
             <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-              Parcourez nos catégories et découvrez les produits par sous-catégorie
+              Parcourez nos catégories produits, machines et services
             </p>
           </div>
 
@@ -977,6 +1022,15 @@ export default function HomePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
               {categories.map((cat) => {
                 const catImage = getMediaUrl(cat.image);
+                const type = cat.type_catgory || "product";
+                const typeLabel =
+                  type === "machine" ? "Machine" : type === "services" ? "Service" : "Produit";
+                const typeClass =
+                  type === "machine"
+                    ? "bg-blue-100 text-blue-700"
+                    : type === "services"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-green-100 text-green-700";
                 return (
                   <Link
                     key={cat.id}
@@ -996,13 +1050,19 @@ export default function HomePage() {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <span
+                        className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${typeClass}`}
+                      >
+                        {typeLabel}
+                      </span>
                       <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
                         <h3 className="font-bold text-white text-sm sm:text-base line-clamp-2">
                           {cat.name_catgory}
                         </h3>
                         {cat.sousCategories.length > 0 && (
                           <p className="text-xs text-white/80 mt-1">
-                            {cat.sousCategories.length} sous-catégorie{cat.sousCategories.length > 1 ? "s" : ""}
+                            {cat.sousCategories.length} sous-catégorie
+                            {cat.sousCategories.length > 1 ? "s" : ""}
                           </p>
                         )}
                       </div>
@@ -1337,6 +1397,8 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {products.map((product, index) => {
+                const uniqueData = productToUniqueData(product);
+                const displayName = getUniqueDataTitle(uniqueData, product.name);
                 const mainImage = product.images && product.images.length > 0
                   ? getMediaUrl(product.images[0])
                   : null;
@@ -1357,7 +1419,7 @@ export default function HomePage() {
                         {mainImage ? (
                           <img
                             src={mainImage}
-                            alt={product.name}
+                            alt={displayName}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -1370,14 +1432,8 @@ export default function HomePage() {
                           </div>
                         )}
                         <div className="absolute top-3 right-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              product.productType === "Labo médical"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-purple-100 text-purple-700"
-                            }`}
-                          >
-                            {product.productType}
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                            Produit
                           </span>
                         </div>
                         {product.quantity === 0 && (
@@ -1391,22 +1447,20 @@ export default function HomePage() {
                     </Link>
 
                     {/* Content Section */}
-                    <div className="p-5">
-                      {/* Product Name */}
+                    <div className="p-5 space-y-3">
                       <Link href={`/products/${product.id}`}>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                          {product.name}
+                        <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {displayName}
                         </h3>
                       </Link>
 
-                      {/* Supplier Info */}
                       {product.supplier && (
                         <Link
                           href={`/supplier/${product.supplier.id}`}
-                          className="flex items-center gap-2 mb-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+                          className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
                         >
-                          <Building2 className="w-4 h-4 group-hover:text-blue-600" />
-                          <span className="truncate group-hover:underline">{product.supplier.name}</span>
+                          <Building2 className="w-4 h-4" />
+                          <span className="truncate hover:underline">{product.supplier.name}</span>
                           {product.supplier.certife && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
                               Certifie
@@ -1415,35 +1469,15 @@ export default function HomePage() {
                         </Link>
                       )}
 
-                      {/* Brand and Category */}
-                      <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Tag className="w-4 h-4" />
-                          <span className="truncate">{product.category}</span>
-                        </div>
-                        <span>•</span>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">{product.brand}</span>
-                        </div>
-                      </div>
+                      <UniqueDataFields data={uniqueData} max={8} />
 
-                      {/* Price */}
-                      <div className="mb-4">
-                        <p className="text-2xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                          <Clock className="w-3 h-3" />
-                          <span>{product.deliveryTime}</span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
                             if (isClientUser) {
                               addToCart({
                                 id: product.id,
-                                name: product.name,
+                                name: displayName,
                                 price: product.price,
                                 supplierId: product.supplier?.id || "",
                               });
@@ -1467,6 +1501,158 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Machines Section */}
+      <section id="machines" className="py-12 sm:py-16 md:py-24 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
+              Machines
+            </h2>
+            <Link
+              href="/machines"
+              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
+            >
+              Voir toutes les machines
+            </Link>
+          </div>
+          {isLoadingMachines ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {[...Array(4)].map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ))}
+            </div>
+          ) : machines.length === 0 ? (
+            <div className="text-center py-12">
+              <Microscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Aucune machine disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {machines.map((machine) => {
+                const uniqueData = machine.unique_data || {};
+                const displayName = getUniqueDataTitle(uniqueData, machine.name);
+                const mainImage =
+                  machine.images && machine.images.length > 0
+                    ? getMediaUrl(machine.images[0])
+                    : null;
+                return (
+                  <Link
+                    key={machine.id}
+                    href={`/machines/${machine.id}`}
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
+                  >
+                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                      {mainImage ? (
+                        <img
+                          src={mainImage}
+                          alt={displayName}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Microscope className="w-16 h-16 text-gray-400" />
+                        </div>
+                      )}
+                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                        Machine
+                      </span>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
+                        {displayName}
+                      </h3>
+                      <UniqueDataFields data={uniqueData} max={8} />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section id="services" className="py-12 sm:py-16 md:py-24 bg-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
+              Services
+            </h2>
+            <Link
+              href="/services"
+              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-amber-600 text-white rounded-full font-medium hover:bg-amber-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
+            >
+              Voir tous les services
+            </Link>
+          </div>
+          {isLoadingServices ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {[...Array(4)].map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ))}
+            </div>
+          ) : services.length === 0 ? (
+            <div className="text-center py-12">
+              <Laptop className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Aucun service disponible pour le moment</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {services.map((service) => {
+                const uniqueData = service.unique_data || {};
+                const displayName = getUniqueDataTitle(uniqueData, service.name);
+                const mainImage =
+                  service.images && service.images.length > 0
+                    ? getMediaUrl(service.images[0])
+                    : null;
+                return (
+                  <Link
+                    key={service.id}
+                    href={`/services/${service.id}`}
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
+                  >
+                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                      {mainImage ? (
+                        <img
+                          src={mainImage}
+                          alt={displayName}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Laptop className="w-16 h-16 text-gray-400" />
+                        </div>
+                      )}
+                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                        Service
+                      </span>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
+                        {displayName}
+                      </h3>
+                      <UniqueDataFields data={uniqueData} max={8} />
+                    </div>
+                  </Link>
                 );
               })}
             </div>
@@ -1499,7 +1685,9 @@ export default function HomePage() {
               <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Navigation</h3>
               <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
                 <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
-                <li><Link href="/products" className="hover:text-white transition-colors">Marketplace</Link></li>
+                <li><Link href="/products" className="hover:text-white transition-colors">Produits</Link></li>
+                <li><Link href="/machines" className="hover:text-white transition-colors">Machines</Link></li>
+                <li><Link href="/services" className="hover:text-white transition-colors">Services</Link></li>
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
             </div>

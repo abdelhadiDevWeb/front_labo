@@ -632,6 +632,7 @@ export interface Product {
   productType: "Labo médical" | "labo d'ana pathologies";
   images: string[];
   video?: string;
+  unique_data?: Record<string, unknown>;
   wilaya?: string | null;
   daira?: string | null;
   commune?: string | null;
@@ -741,6 +742,65 @@ const response = await apiFetch(`${getApiBaseUrl()}/products`, {
     return result;
   } catch (error) {
     devError("Get products error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export interface UniqueDataItem {
+  id: string;
+  unique_data: Record<string, unknown>;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getSupplierMachines = async (): Promise<
+  ApiResponse<{ machines: UniqueDataItem[]; total: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/machines`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch machines",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get machines error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getSupplierServices = async (): Promise<
+  ApiResponse<{ services: UniqueDataItem[]; total: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/services`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch services",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get services error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -945,6 +1005,7 @@ export interface PublicProduct {
   productType: "Labo médical" | "labo d'ana pathologies";
   images: string[];
   video?: string;
+  unique_data?: Record<string, unknown>;
   wilaya?: string | null;
   daira?: string | null;
   commune?: string | null;
@@ -1040,6 +1101,153 @@ export const getPublicPromotions = async (): Promise<
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export interface PublicCatalogItem {
+  id: string;
+  name: string;
+  price: number;
+  purchasePrice?: number;
+  sellingPrice?: number;
+  quantity: number;
+  category: string;
+  sousCategory?: string | null;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
+  deliveryTime: string;
+  brand: string;
+  images: string[];
+  unique_data?: Record<string, unknown>;
+  supplier: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    certife?: boolean;
+    wilayas?: string[];
+    coversAllWilayas?: boolean;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const getPublicMachines = async (filters?: {
+  categoryId?: string;
+  sousCategoryId?: string;
+  wilayaCode?: string;
+}): Promise<
+  ApiResponse<{ machines: PublicCatalogItem[]; total: number; clientWilayaCode?: string | null }>
+> => {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const response = await apiFetch(`${getApiBaseUrl()}/machines/public${query}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch machines",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get public machines error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getPublicServices = async (filters?: {
+  categoryId?: string;
+  sousCategoryId?: string;
+  wilayaCode?: string;
+}): Promise<
+  ApiResponse<{ services: PublicCatalogItem[]; total: number; clientWilayaCode?: string | null }>
+> => {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const response = await apiFetch(`${getApiBaseUrl()}/services/public${query}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch services",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get public services error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getPublicMachineById = async (
+  id: string
+): Promise<ApiResponse<PublicCatalogItem>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/machines/public/${id}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch machine",
+      };
+    }
+    const result = await response.json();
+    return { success: true, data: result.data, message: result.message };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getPublicServiceById = async (
+  id: string
+): Promise<ApiResponse<PublicCatalogItem>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/services/public/${id}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch service",
+      };
+    }
+    const result = await response.json();
+    return { success: true, data: result.data, message: result.message };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
     };
   }
 };
@@ -3468,6 +3676,7 @@ export interface Category {
   name_catgory: string;
   image: string;
   des: string;
+  type_catgory: "machine" | "services" | "product";
   createdAt: string;
   updatedAt: string;
   sousCategories: SousCategory[];
@@ -3476,12 +3685,15 @@ export interface Category {
 export interface CreateCategoryData {
   name_catgory: string;
   des: string;
+  type_catgory: "machine" | "services" | "product";
   image: File;
+  excelFile?: File;
 }
 
 export interface UpdateCategoryData {
   name_catgory?: string;
   des?: string;
+  type_catgory?: "machine" | "services" | "product";
   image?: File;
 }
 
@@ -3556,7 +3768,11 @@ export const createCategory = async (data: CreateCategoryData): Promise<ApiRespo
 const formData = new FormData();
     formData.append("name_catgory", data.name_catgory);
     formData.append("des", data.des);
+    formData.append("type_catgory", data.type_catgory);
     formData.append("image", data.image);
+    if (data.excelFile) {
+      formData.append("excelFile", data.excelFile);
+    }
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories`, {
       method: "POST",
@@ -3579,6 +3795,7 @@ export const updateCategory = async (categoryId: string, data: UpdateCategoryDat
 const formData = new FormData();
     if (data.name_catgory) formData.append("name_catgory", data.name_catgory);
     if (data.des) formData.append("des", data.des);
+    if (data.type_catgory) formData.append("type_catgory", data.type_catgory);
     if (data.image) formData.append("image", data.image);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {

@@ -11,14 +11,9 @@ import {
   Edit,
   Trash2,
   Image as ImageIcon,
-  Video,
   DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Box,
   Tag,
   Clock,
-  Building2,
   Plus,
   Loader2,
   AlertCircle,
@@ -34,7 +29,10 @@ import {
 } from "lucide-react";
 import {
   getSupplierProducts,
+  getSupplierMachines,
+  getSupplierServices,
   Product,
+  UniqueDataItem,
   getSponsorPlans,
   getSupplierSponsorProducts,
   createSponsorProduct,
@@ -49,15 +47,130 @@ import { validateCheckoutUrl } from "@/lib/security";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
 
+type MarketplaceKind = "product" | "machine" | "service";
+
+interface MarketplaceItem {
+  id: string;
+  kind: MarketplaceKind;
+  unique_data: Record<string, unknown>;
+  images: string[];
+  video?: string;
+}
+
+const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
+const HIDDEN_UNIQUE_KEYS = new Set([
+  "images",
+  "video",
+  "latitude",
+  "longitude",
+  "wilaya",
+  "daira",
+  "commune",
+]);
+
+const pickStr = (data: Record<string, unknown>, keys: string[], fallback = ""): string => {
+  for (const key of keys) {
+    const value = data[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  const lower = new Map(
+    Object.entries(data).map(([k, v]) => [k.toLowerCase().trim(), v])
+  );
+  for (const key of keys) {
+    const value = lower.get(key.toLowerCase().trim());
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return fallback;
+};
+
+const getItemTitle = (item: MarketplaceItem): string => {
+  const fromData = pickStr(item.unique_data, TITLE_KEYS);
+  if (fromData) return fromData;
+  return item.kind === "machine" ? "Machine" : item.kind === "service" ? "Service" : "Produit";
+};
+
+const getUniqueDataEntries = (data: Record<string, unknown>) =>
+  Object.entries(data).filter(([key, value]) => {
+    if (HIDDEN_UNIQUE_KEYS.has(key)) return false;
+    if (value === undefined || value === null || value === "") return false;
+    if (Array.isArray(value)) return false;
+    if (typeof value === "object") return false;
+    return true;
+  });
+
+const formatUniqueValue = (value: unknown): string => {
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
+  return String(value);
+};
+
+const getItemImages = (data: Record<string, unknown>): string[] =>
+  Array.isArray(data.images) ? (data.images as string[]).filter(Boolean) : [];
+
+const getSearchHaystack = (item: MarketplaceItem): string =>
+  Object.entries(item.unique_data)
+    .filter(([, v]) => v !== undefined && v !== null && typeof v !== "object")
+    .map(([k, v]) => `${k} ${String(v)}`)
+    .join(" ")
+    .toLowerCase();
+
+const getItemCategory = (item: MarketplaceItem): string =>
+  pickStr(item.unique_data, ["Catégorie", "category", "categorie"]);
+
+const uniqueDataToItem = (item: UniqueDataItem, kind: "machine" | "service"): MarketplaceItem => {
+  const d = item.unique_data || {};
+  return {
+    id: String(item.id),
+    kind,
+    unique_data: d,
+    images: getItemImages(d),
+    video: pickStr(d, ["video"]) || undefined,
+  };
+};
+
+const productToItem = (product: Product): MarketplaceItem => {
+  const d: Record<string, unknown> = {
+    ...(product.unique_data || {}),
+  };
+  // Keep flat API fields if unique_data is missing some keys
+  if (!d.name && product.name) d.name = product.name;
+  if (!d.brand && product.brand) d.brand = product.brand;
+  if (!d.Catégorie && !d.category && product.category) d.Catégorie = product.category;
+  if (d.purchasePrice === undefined && product.purchasePrice != null) {
+    d.purchasePrice = product.purchasePrice;
+  }
+  if (d.sellingPrice === undefined && product.sellingPrice != null) {
+    d.sellingPrice = product.sellingPrice;
+  }
+  if (d.quantity === undefined && product.quantity != null) d.quantity = product.quantity;
+  if (!d.deliveryTime && product.deliveryTime) d.deliveryTime = product.deliveryTime;
+  if (!d.productType && product.productType) d.productType = product.productType;
+  if (!Array.isArray(d.images) && product.images?.length) d.images = product.images;
+  if (!d.video && product.video) d.video = product.video;
+
+  return {
+    id: product.id,
+    kind: "product",
+    unique_data: d,
+    images: getItemImages(d),
+    video: pickStr(d, ["video"]) || product.video,
+  };
+};
+
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isChecking } = useAuthGuard();
   const [products, setProducts] = useState<Product[]>([]);
+  const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterKind, setFilterKind] = useState<"all" | MarketplaceKind>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [sponsorPlans, setSponsorPlans] = useState<SponsorPlan[]>([]);
   const [sponsorProducts, setSponsorProducts] = useState<SponsorProductRecord[]>([]);
@@ -123,15 +236,37 @@ function ProductsPageContent() {
     const init = async () => {
       try {
         setIsLoading(true);
-        const result = await getSupplierProducts();
-        if (result.success && result.data) {
-          setProducts(result.data.products || []);
-        } else {
-          setError(result.message || "Erreur lors du chargement des produits");
+        const [productsResult, machinesResult, servicesResult] = await Promise.all([
+          getSupplierProducts(),
+          getSupplierMachines(),
+          getSupplierServices(),
+        ]);
+
+        const loadedProducts =
+          productsResult.success && productsResult.data ? productsResult.data.products || [] : [];
+        const loadedMachines =
+          machinesResult.success && machinesResult.data ? machinesResult.data.machines || [] : [];
+        const loadedServices =
+          servicesResult.success && servicesResult.data ? servicesResult.data.services || [] : [];
+
+        setProducts(loadedProducts);
+        setMarketplaceItems([
+          ...loadedProducts.map(productToItem),
+          ...loadedMachines.map((m) => uniqueDataToItem(m, "machine")),
+          ...loadedServices.map((s) => uniqueDataToItem(s, "service")),
+        ]);
+
+        if (!productsResult.success && !machinesResult.success && !servicesResult.success) {
+          setError(
+            productsResult.message ||
+              machinesResult.message ||
+              servicesResult.message ||
+              "Erreur lors du chargement du MarketPlace"
+          );
         }
       } catch (err) {
         setError("Une erreur est survenue");
-        console.error("Load products error:", err);
+        console.error("Load marketplace error:", err);
       } finally {
         setIsLoading(false);
       }
@@ -352,28 +487,171 @@ function ProductsPageContent() {
     setShowSubscriptionSponsorModal(true);
   };
 
-  // Get unique categories and types for filters
-  const categories = Array.from(new Set(products.map((p) => p.category))).sort();
-  const types = Array.from(new Set(products.map((p) => p.productType))).sort();
+  // Get unique categories for filters (from unique_data keys as stored)
+  const categories = Array.from(
+    new Set(marketplaceItems.map((item) => getItemCategory(item)).filter(Boolean))
+  ).sort();
 
-  // Filter products
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesCategory = filterCategory === "all" || product.category === filterCategory;
-    const matchesType = filterType === "all" || product.productType === filterType;
-
-    return matchesSearch && matchesCategory && matchesType;
+  const filteredItems = marketplaceItems.filter((item) => {
+    const matchesSearch = getSearchHaystack(item).includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      filterCategory === "all" || getItemCategory(item) === filterCategory;
+    const matchesKind = filterKind === "all" || item.kind === filterKind;
+    const productType = pickStr(item.unique_data, ["productType", "type", "Type"]);
+    const matchesType =
+      filterType === "all" ||
+      item.kind !== "product" ||
+      productType === filterType;
+    return matchesSearch && matchesCategory && matchesKind && matchesType;
   });
 
-  // Calculate profit for a product
-  const calculateProfit = (product: Product) => {
-    const profit = product.sellingPrice - product.purchasePrice;
-    const profitPercentage = product.purchasePrice > 0 ? ((profit / product.purchasePrice) * 100).toFixed(2) : "0";
-    return { profit, profitPercentage };
+  const types = Array.from(
+    new Set(
+      marketplaceItems
+        .filter((item) => item.kind === "product")
+        .map((item) => pickStr(item.unique_data, ["productType", "type", "Type"]))
+        .filter(Boolean)
+    )
+  ).sort();
+
+  const kindCounts = {
+    all: marketplaceItems.length,
+    product: marketplaceItems.filter((i) => i.kind === "product").length,
+    machine: marketplaceItems.filter((i) => i.kind === "machine").length,
+    service: marketplaceItems.filter((i) => i.kind === "service").length,
+  };
+
+  const kindLabel = (kind: MarketplaceKind) =>
+    kind === "product" ? "Produit" : kind === "machine" ? "Machine" : "Service";
+
+  const kindBadgeClass = (kind: MarketplaceKind) =>
+    kind === "product"
+      ? "bg-green-100 text-green-700"
+      : kind === "machine"
+        ? "bg-blue-100 text-blue-700"
+        : "bg-amber-100 text-amber-800";
+
+  const kindSectionClass = (kind: MarketplaceKind) =>
+    kind === "product"
+      ? "border-green-200"
+      : kind === "machine"
+        ? "border-blue-200"
+        : "border-amber-200";
+
+  const sectionsToShow: MarketplaceKind[] =
+    filterKind === "all" ? ["product", "machine", "service"] : [filterKind];
+
+  const renderMarketplaceCard = (item: MarketplaceItem) => {
+    const title = getItemTitle(item);
+    const entries = getUniqueDataEntries(item.unique_data);
+    const activeSponsor =
+      item.kind === "product" ? getActiveSponsorForProduct(item.id) : undefined;
+    const pendingSponsor =
+      item.kind === "product" ? getPendingSponsorForProduct(item.id) : undefined;
+    const itemKey = `${item.kind}-${item.id}`;
+    const mainImage =
+      item.images && item.images.length > 0 ? getMediaUrl(item.images[0]) : null;
+
+    return (
+      <div
+        key={itemKey}
+        className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 group"
+      >
+        <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+          {mainImage && !failedImageIds.has(itemKey) ? (
+            <img
+              src={mainImage}
+              alt={title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={() => {
+                setFailedImageIds((prev) => new Set(prev).add(itemKey));
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-14 h-14 text-gray-400" />
+            </div>
+          )}
+          <span
+            className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold ${kindBadgeClass(item.kind)}`}
+          >
+            {kindLabel(item.kind)}
+          </span>
+          {activeSponsor && (
+            <span className="absolute top-3 left-3 px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
+              <Megaphone className="w-3 h-3" />
+              Sponsorisé
+            </span>
+          )}
+        </div>
+
+        <div className="p-4 space-y-3">
+          <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{title}</h3>
+
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+            {entries.length === 0 ? (
+              <p className="text-xs text-gray-500">Aucune donnée dans unique_data</p>
+            ) : (
+              entries.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="flex justify-between gap-3 text-sm border-b border-gray-100 last:border-0 pb-1.5 last:pb-0"
+                >
+                  <span className="text-gray-500 font-medium shrink-0">{key}</span>
+                  <span className="text-gray-900 text-right break-all font-semibold">
+                    {formatUniqueValue(value)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {item.images.length > 0 && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <ImageIcon className="w-3.5 h-3.5" />
+              {item.images.length} image{item.images.length > 1 ? "s" : ""}
+            </div>
+          )}
+
+          {activeSponsor && (
+            <p className="text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
+              Sponsoring actif jusqu&apos;au {formatDate(activeSponsor.end_time)}
+            </p>
+          )}
+          {pendingSponsor && !activeSponsor && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-xs text-amber-900 mb-2">
+                Paiement en attente — {pendingSponsor.price.toLocaleString("fr-FR")} DA
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleCompletePayment(pendingSponsor.id)}
+                disabled={resumingPaymentId === pendingSponsor.id}
+                className="w-full px-3 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {resumingPaymentId === pendingSponsor.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CreditCard className="w-4 h-4" />
+                )}
+                Compléter le paiement
+              </button>
+            </div>
+          )}
+
+          {item.kind === "product" && (
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard-supplier/products/${item.id}`)}
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
+            >
+              <Eye className="w-4 h-4" />
+              Voir les détails
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -381,7 +659,7 @@ function ProductsPageContent() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des produits...</p>
+          <p className="text-gray-600">Chargement du MarketPlace...</p>
         </div>
       </div>
     );
@@ -392,9 +670,12 @@ function ProductsPageContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Mes Produits</h1>
+          <h1 className="text-3xl font-bold text-gray-900">MarketPlace</h1>
           <p className="text-gray-600 mt-1">
-            {products.length} produit{products.length > 1 ? "s" : ""} au total
+            {marketplaceItems.length} élément{marketplaceItems.length > 1 ? "s" : ""} —{" "}
+            {kindCounts.product} produit{kindCounts.product > 1 ? "s" : ""},{" "}
+            {kindCounts.machine} machine{kindCounts.machine > 1 ? "s" : ""},{" "}
+            {kindCounts.service} service{kindCounts.service > 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -402,7 +683,7 @@ function ProductsPageContent() {
           className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          <span>Ajouter un produit</span>
+          <span>Ajouter</span>
         </button>
       </div>
 
@@ -414,22 +695,45 @@ function ProductsPageContent() {
         </div>
       )}
 
+      {/* Kind tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["all", "Tous", kindCounts.all],
+            ["product", "Produits", kindCounts.product],
+            ["machine", "Machines", kindCounts.machine],
+            ["service", "Services", kindCounts.service],
+          ] as const
+        ).map(([value, label, count]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFilterKind(value)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+              filterKind === value
+                ? "bg-green-600 text-white border-green-600"
+                : "bg-white text-gray-700 border-gray-200 hover:border-green-300"
+            }`}
+          >
+            {label} ({count})
+          </button>
+        ))}
+      </div>
+
       {/* Filters and Search */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher un produit..."
+              placeholder="Rechercher dans unique_data..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
             />
           </div>
 
-          {/* Category Filter */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <select
@@ -446,15 +750,14 @@ function ProductsPageContent() {
             </select>
           </div>
 
-          {/* Type Filter */}
           <div className="relative">
-            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer"
             >
-              <option value="all">Tous les types</option>
+              <option value="all">Tous les types labo</option>
               {types.map((type) => (
                 <option key={type} value={type}>
                   {type}
@@ -465,212 +768,51 @@ function ProductsPageContent() {
         </div>
       </div>
 
-      {/* Products Grid */}
-      {filteredProducts.length === 0 ? (
+      {/* Separate sections: Product / Machine / Service */}
+      {filteredItems.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {products.length === 0 ? "Aucun produit" : "Aucun produit trouvé"}
+            {marketplaceItems.length === 0 ? "MarketPlace vide" : "Aucun résultat"}
           </h3>
           <p className="text-gray-600 mb-6">
-            {products.length === 0
-              ? "Commencez par ajouter votre premier produit"
+            {marketplaceItems.length === 0
+              ? "Ajoutez des produits, machines ou services pour les voir ici"
               : "Essayez de modifier vos filtres de recherche"}
           </p>
-          {products.length === 0 && (
+          {marketplaceItems.length === 0 && (
             <button
               onClick={() => router.push("/dashboard-supplier/add-product")}
               className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
             >
-              Ajouter un produit
+              Ajouter
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => {
-            const profit = calculateProfit(product);
-            const activeSponsor = getActiveSponsorForProduct(product.id);
-            const pendingSponsor = getPendingSponsorForProduct(product.id);
-            let mainImage = null;
-            if (product.images && product.images.length > 0) {
-              mainImage = getMediaUrl(product.images[0]);
-            }
-
+        <div className="space-y-8">
+          {sectionsToShow.map((kind) => {
+            const sectionItems = filteredItems.filter((item) => item.kind === kind);
+            if (sectionItems.length === 0) return null;
             return (
-              <div
-                key={product.id}
-                className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group cursor-pointer"
-                onClick={() => router.push(`/dashboard-supplier/products/${product.id}`)}
+              <section
+                key={kind}
+                className={`bg-white rounded-2xl border-2 ${kindSectionClass(kind)} p-4 sm:p-6 space-y-4`}
               >
-                {/* Image Section */}
-                <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                  {mainImage && !failedImageIds.has(product.id) ? (
-                    <img
-                      src={mainImage}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={() => {
-                        setFailedImageIds((prev) => new Set(prev).add(product.id));
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="w-16 h-16 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="absolute top-3 right-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        product.productType === "Labo médical"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-purple-100 text-purple-700"
-                      }`}
-                    >
-                      {product.productType}
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-sm ${kindBadgeClass(kind)}`}>
+                      {kindLabel(kind)}
                     </span>
-                  </div>
-                  {product.quantity === 0 && (
-                    <div className="absolute top-3 left-3">
-                      <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-semibold">
-                        Rupture de stock
-                      </span>
-                    </div>
-                  )}
-                  {activeSponsor && (
-                    <div className={`absolute ${product.quantity === 0 ? "top-12" : "top-3"} left-3`}>
-                      <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
-                        <Megaphone className="w-3 h-3" />
-                        Sponsorisé
-                      </span>
-                    </div>
-                  )}
+                    <span className="text-gray-500 text-base font-medium">
+                      ({sectionItems.length})
+                    </span>
+                  </h2>
                 </div>
-
-                {/* Content Section */}
-                <div className="p-5">
-                  {/* Product Name */}
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-green-600 transition-colors">
-                    {product.name}
-                  </h3>
-
-                  {/* Brand and Category */}
-                  <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Building2 className="w-4 h-4" />
-                      <span className="truncate">{product.brand}</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Tag className="w-4 h-4" />
-                      <span className="truncate">{product.category}</span>
-                    </div>
-                  </div>
-
-                  {/* Prices and Profit */}
-                  <div className="space-y-2 mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <TrendingDown className="w-4 h-4 text-gray-500" />
-                        <span>Achat:</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{product.purchasePrice.toFixed(2)} DA</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span>Vente:</span>
-                      </div>
-                      <span className="font-semibold text-green-600">{product.sellingPrice.toFixed(2)} DA</span>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-green-200">
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <DollarSign className="w-4 h-4 text-green-600" />
-                        <span>Bénéfice:</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-green-600">+{profit.profit.toFixed(2)} DA</span>
-                        <span className="text-xs text-gray-600 ml-2">({profit.profitPercentage}%)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quantity and Delivery */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                      <Box className="w-4 h-4 text-gray-600" />
-                      <div>
-                        <p className="text-xs text-gray-500">Stock</p>
-                        <p className="text-sm font-semibold text-gray-900">{product.quantity}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                      <Clock className="w-4 h-4 text-gray-600" />
-                      <div>
-                        <p className="text-xs text-gray-500">Livraison</p>
-                        <p className="text-sm font-semibold text-gray-900 truncate">{product.deliveryTime}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Media Info */}
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
-                    {product.images && product.images.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <ImageIcon className="w-4 h-4" />
-                        <span>{product.images.length} image{product.images.length > 1 ? "s" : ""}</span>
-                      </div>
-                    )}
-                    {product.video && (
-                      <div className="flex items-center gap-1">
-                        <Video className="w-4 h-4" />
-                        <span>Vidéo</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* View Details Button */}
-                  {activeSponsor && (
-                    <p className="text-xs text-purple-700 mb-2 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
-                      Sponsoring actif jusqu&apos;au {formatDate(activeSponsor.end_time)}
-                    </p>
-                  )}
-                  {pendingSponsor && !activeSponsor && (
-                    <div className="mb-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                      <p className="text-xs text-amber-900 mb-2">
-                        Paiement en attente — {pendingSponsor.price.toLocaleString("fr-FR")} DA ·{" "}
-                        {pendingSponsor.time} jours
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleCompletePayment(pendingSponsor.id);
-                        }}
-                        disabled={resumingPaymentId === pendingSponsor.id}
-                        className="w-full px-3 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {resumingPaymentId === pendingSponsor.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CreditCard className="w-4 h-4" />
-                        )}
-                        Compléter le paiement
-                      </button>
-                    </div>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/dashboard-supplier/products/${product.id}`);
-                    }}
-                    className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>Voir les détails</span>
-                  </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {sectionItems.map((item) => renderMarketplaceCard(item))}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>

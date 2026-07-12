@@ -24,8 +24,19 @@ const envRemotePattern = parseRemotePatternFromApiUrl();
 const buildContentSecurityPolicy = (): string => {
   const connectSrc = new Set<string>(["'self'"]);
   const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
-  const scriptSrc = new Set<string>(["'self'", "https://maps.googleapis.com"]);
-  const styleSrc = new Set<string>(["'self'", "'unsafe-inline'"]);
+  const scriptSrc = new Set<string>([
+    "'self'",
+    "https://maps.googleapis.com",
+    "https://maps.gstatic.com",
+  ]);
+  const styleSrc = new Set<string>([
+    "'self'",
+    "'unsafe-inline'",
+    "https://fonts.googleapis.com",
+  ]);
+  const fontSrc = new Set<string>(["'self'", "data:", "https://fonts.gstatic.com"]);
+  const frameSrc = new Set<string>(["'self'", "https://maps.googleapis.com", "https://www.google.com"]);
+  const workerSrc = new Set<string>(["'self'", "blob:"]);
 
   if (isDev) {
     scriptSrc.add("'unsafe-eval'");
@@ -43,7 +54,17 @@ const buildContentSecurityPolicy = (): string => {
     }
   }
 
-  connectSrc.add("https://maps.googleapis.com");
+  // Google Maps (JS API + Places + map tiles)
+  [
+    "https://maps.googleapis.com",
+    "https://maps.gstatic.com",
+    "https://*.googleapis.com",
+    "https://*.gstatic.com",
+  ].forEach((origin) => {
+    connectSrc.add(origin);
+    imgSrc.add(origin);
+  });
+
   connectSrc.add("https://pay.chargily.net");
   connectSrc.add("https://pay.chargily.com");
   connectSrc.add("https://test.pay.chargily.net");
@@ -56,7 +77,9 @@ const buildContentSecurityPolicy = (): string => {
     `style-src ${Array.from(styleSrc).join(" ")}`,
     `img-src ${Array.from(imgSrc).join(" ")}`,
     `connect-src ${Array.from(connectSrc).join(" ")}`,
-    "font-src 'self' data:",
+    `font-src ${Array.from(fontSrc).join(" ")}`,
+    `frame-src ${Array.from(frameSrc).join(" ")}`,
+    `worker-src ${Array.from(workerSrc).join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

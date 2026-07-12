@@ -14,6 +14,7 @@ import {
   Layers,
   AlertCircle,
   CheckCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   getAllCategories,
@@ -35,6 +36,24 @@ type ModalType =
   | "editSousCategory"
   | null;
 
+const formatApiError = (result: {
+  message?: string;
+  errors?: string[];
+}): string => {
+  const details = (result.errors || []).filter(Boolean);
+  if (details.length === 0) {
+    return result.message || "Une erreur est survenue";
+  }
+  if (details.length === 1) {
+    return details[0];
+  }
+  const header =
+    result.message && !details.includes(result.message)
+      ? `${result.message}\n`
+      : "Corrigez les points suivants :\n";
+  return `${header}${details.map((e, i) => `${i + 1}. ${e}`).join("\n")}`;
+};
+
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,8 +70,10 @@ export default function CategoriesPage() {
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryDes, setCategoryDes] = useState("");
+  const [categoryType, setCategoryType] = useState<"machine" | "services" | "product">("product");
   const [categoryImage, setCategoryImage] = useState<File | null>(null);
   const [categoryImagePreview, setCategoryImagePreview] = useState<string | null>(null);
+  const [categoryExcelFile, setCategoryExcelFile] = useState<File | null>(null);
 
   const [sousCategoryName, setSousCategoryName] = useState("");
   const [sousCategoryImage, setSousCategoryImage] = useState<File | null>(null);
@@ -83,8 +104,10 @@ export default function CategoriesPage() {
   const resetForms = () => {
     setCategoryName("");
     setCategoryDes("");
+    setCategoryType("product");
     setCategoryImage(null);
     setCategoryImagePreview(null);
+    setCategoryExcelFile(null);
     setSousCategoryName("");
     setSousCategoryImage(null);
     setSousCategoryImagePreview(null);
@@ -128,6 +151,7 @@ export default function CategoriesPage() {
     setSelectedCategory(category);
     setCategoryName(category.name_catgory);
     setCategoryDes(category.des);
+    setCategoryType(category.type_catgory || "product");
     setCategoryImagePreview(getMediaUrl(category.image));
     setModalType("editCategory");
   };
@@ -148,8 +172,25 @@ export default function CategoriesPage() {
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fixes: string[] = [];
+    if (!categoryName.trim() || categoryName.trim().length < 2) {
+      fixes.push("Saisissez un nom de catégorie (au moins 2 caractères).");
+    }
+    if (!categoryDes.trim() || categoryDes.trim().length < 2) {
+      fixes.push("Ajoutez une description (au moins 2 caractères).");
+    }
+    if (!categoryType) {
+      fixes.push("Choisissez le type : Machine, Services ou Produit.");
+    }
     if (!categoryImage) {
-      setError("L'image de la catégorie est requise");
+      fixes.push("Ajoutez une image de catégorie (JPEG, PNG, GIF, WebP ou BMP).");
+    }
+    if (fixes.length > 0) {
+      setError(
+        fixes.length === 1
+          ? fixes[0]
+          : `Corrigez les points suivants :\n${fixes.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
+      );
       return;
     }
     setIsSubmitting(true);
@@ -158,15 +199,22 @@ export default function CategoriesPage() {
       const result = await createCategory({
         name_catgory: categoryName.trim(),
         des: categoryDes.trim(),
-        image: categoryImage,
+        type_catgory: categoryType,
+        image: categoryImage!,
+        excelFile: categoryExcelFile || undefined,
       });
       if (result.success) {
-        setSuccess("Catégorie créée avec succès");
+        const imported = (result.data as any)?.excelImport?.imported;
+        setSuccess(
+          imported
+            ? `Catégorie créée — ${imported} élément(s) importé(s) depuis Excel`
+            : "Catégorie créée avec succès"
+        );
         closeModal();
         await loadCategories();
-        setTimeout(() => setSuccess(null), 3000);
+        setTimeout(() => setSuccess(null), 4000);
       } else {
-        setError(result.message || "Erreur lors de la création");
+        setError(formatApiError(result));
       }
     } finally {
       setIsSubmitting(false);
@@ -182,6 +230,7 @@ export default function CategoriesPage() {
       const result = await updateCategory(selectedCategory.id, {
         name_catgory: categoryName.trim(),
         des: categoryDes.trim(),
+        type_catgory: categoryType,
         image: categoryImage || undefined,
       });
       if (result.success) {
@@ -190,7 +239,7 @@ export default function CategoriesPage() {
         await loadCategories();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.message || "Erreur lors de la mise à jour");
+        setError(formatApiError(result));
       }
     } finally {
       setIsSubmitting(false);
@@ -208,7 +257,7 @@ export default function CategoriesPage() {
         await loadCategories();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.message || "Erreur lors de la suppression");
+        setError(formatApiError(result));
       }
     } finally {
       setDeletingId(null);
@@ -218,7 +267,11 @@ export default function CategoriesPage() {
   const handleCreateSousCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory || !sousCategoryImage) {
-      setError("L'image de la sous-catégorie est requise");
+      setError("L'image de la sous-catégorie est obligatoire. Ajoutez une image puis réessayez.");
+      return;
+    }
+    if (!sousCategoryName.trim() || sousCategoryName.trim().length < 2) {
+      setError("Le nom de la sous-catégorie est obligatoire (au moins 2 caractères).");
       return;
     }
     setIsSubmitting(true);
@@ -235,7 +288,7 @@ export default function CategoriesPage() {
         setExpandedIds((prev) => new Set(prev).add(selectedCategory.id));
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.message || "Erreur lors de la création");
+        setError(formatApiError(result));
       }
     } finally {
       setIsSubmitting(false);
@@ -258,7 +311,7 @@ export default function CategoriesPage() {
         await loadCategories();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.message || "Erreur lors de la mise à jour");
+        setError(formatApiError(result));
       }
     } finally {
       setIsSubmitting(false);
@@ -276,7 +329,7 @@ export default function CategoriesPage() {
         await loadCategories();
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.message || "Erreur lors de la suppression");
+        setError(formatApiError(result));
       }
     } finally {
       setDeletingId(null);
@@ -324,6 +377,12 @@ export default function CategoriesPage() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4 p-6">
+            {error && (
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                <p className="whitespace-pre-line">{error}</p>
+              </div>
+            )}
             {isCategoryModal && (
               <>
                 <div>
@@ -336,6 +395,21 @@ export default function CategoriesPage() {
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     placeholder="Ex: Réactifs"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Type *</label>
+                  <select
+                    required
+                    value={categoryType}
+                    onChange={(e) =>
+                      setCategoryType(e.target.value as "machine" | "services" | "product")
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="product">Produit</option>
+                    <option value="machine">Machine</option>
+                    <option value="services">Services</option>
+                  </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Description *</label>
@@ -373,6 +447,66 @@ export default function CategoriesPage() {
                     />
                   )}
                 </div>
+                {modalType === "createCategory" && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <FileSpreadsheet className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-800">
+                          Fichier Excel (optionnel)
+                        </label>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Importez le listing XLS de cette catégorie. Les lignes seront enregistrées
+                          selon le type sélectionné (
+                          {categoryType === "machine"
+                            ? "machines"
+                            : categoryType === "services"
+                              ? "services"
+                              : "produits"}
+                          ). Les sous-catégories ne sont pas créées automatiquement — ajoutez-les
+                          manuellement si besoin.
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+                          if (![".xlsx", ".xls"].includes(ext)) {
+                            setError("Seuls les fichiers Excel (.xlsx, .xls) sont acceptés");
+                            setCategoryExcelFile(null);
+                            e.target.value = "";
+                            return;
+                          }
+                          if (file.size > 10 * 1024 * 1024) {
+                            setError("Le fichier Excel ne doit pas dépasser 10MB");
+                            setCategoryExcelFile(null);
+                            e.target.value = "";
+                            return;
+                          }
+                          setError(null);
+                        }
+                        setCategoryExcelFile(file);
+                      }}
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm"
+                    />
+                    {categoryExcelFile && (
+                      <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
+                        <span className="truncate text-green-800 font-medium">{categoryExcelFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCategoryExcelFile(null)}
+                          className="ml-2 rounded p-1 text-red-600 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -465,7 +599,7 @@ export default function CategoriesPage() {
       {error && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-          {error}
+          <p className="whitespace-pre-line">{error}</p>
         </div>
       )}
       {success && (
@@ -521,6 +655,21 @@ export default function CategoriesPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h2 className="text-lg font-bold text-gray-900">{category.name_catgory}</h2>
+                        <span
+                          className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            category.type_catgory === "machine"
+                              ? "bg-blue-100 text-blue-700"
+                              : category.type_catgory === "services"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-violet-100 text-violet-700"
+                          }`}
+                        >
+                          {category.type_catgory === "machine"
+                            ? "Machine"
+                            : category.type_catgory === "services"
+                              ? "Services"
+                              : "Produit"}
+                        </span>
                         <p className="mt-1 text-sm text-gray-600 line-clamp-2">{category.des}</p>
                         <p className="mt-2 text-xs text-gray-500">
                           {category.sousCategories.length} sous-catégorie
