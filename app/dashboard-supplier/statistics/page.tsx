@@ -414,7 +414,7 @@ export default function SupplierStatisticsPage() {
             </div>
             <TrendingUp className="w-5 h-5 text-purple-600" />
           </div>
-          <h3 className="text-gray-500 text-sm font-medium mb-1">Total Commandes</h3>
+          <h3 className="text-gray-500 text-sm font-medium mb-1">Total Réserves</h3>
           <p className="text-2xl sm:text-3xl font-bold text-gray-900">
             {statistics.totalOrders}
           </p>
@@ -499,7 +499,7 @@ export default function SupplierStatisticsPage() {
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingCart className="w-5 h-5 text-red-600" />
-              <h3 className="text-lg font-bold text-gray-900">Commandes par Statut</h3>
+              <h3 className="text-lg font-bold text-gray-900">Réserves par Statut</h3>
             </div>
             <div className="h-80">
               <Pie data={ordersByStatusPieConfig} options={chartOptions} />
@@ -620,8 +620,8 @@ export default function SupplierStatisticsPage() {
                   <ShoppingCart className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Comparaison Commandes</h2>
-                  <p className="text-sm text-gray-500">Commandes: Ce mois vs Mois précédent</p>
+                  <h2 className="text-xl font-bold text-gray-900">Comparaison Réserves</h2>
+                  <p className="text-sm text-gray-500">Réserves: Ce mois vs Mois précédent</p>
                 </div>
               </div>
             </div>
@@ -630,7 +630,7 @@ export default function SupplierStatisticsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-600">Ce mois</span>
                   <span className="text-lg font-bold text-gray-900">
-                    {statistics.comparison.currentMonthOrders} commande{statistics.comparison.currentMonthOrders > 1 ? "s" : ""}
+                    {statistics.comparison.currentMonthOrders} réserve{statistics.comparison.currentMonthOrders > 1 ? "s" : ""}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-4">
@@ -654,7 +654,7 @@ export default function SupplierStatisticsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-600">Mois précédent</span>
                   <span className="text-lg font-bold text-gray-900">
-                    {statistics.comparison.previousMonthOrders} commande{statistics.comparison.previousMonthOrders > 1 ? "s" : ""}
+                    {statistics.comparison.previousMonthOrders} réserve{statistics.comparison.previousMonthOrders > 1 ? "s" : ""}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-4">
@@ -763,7 +763,7 @@ export default function SupplierStatisticsPage() {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">#</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Nom du Produit</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Quantité Vendue</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Nombre de Commandes</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Nombre de Réserves</th>
                   <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Revenus Générés</th>
                 </tr>
               </thead>
@@ -783,7 +783,7 @@ export default function SupplierStatisticsPage() {
                         <div className="flex-1">
                           <p className="font-semibold text-gray-900">{product.name}</p>
                           <p className="text-sm text-gray-500 mt-1">
-                            {product.orders} commande{product.orders > 1 ? "s" : ""}
+                            {product.orders} réserve{product.orders > 1 ? "s" : ""}
                           </p>
                         </div>
                       </div>
@@ -835,7 +835,7 @@ export default function SupplierStatisticsPage() {
                   <ShoppingCart className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Commandes</p>
+                  <p className="text-sm text-gray-600">Total Réserves</p>
                   <p className="text-xl font-bold text-gray-900">
                     {statistics.bestProducts.reduce((sum, p) => sum + p.orders, 0)}
                   </p>

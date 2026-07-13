@@ -15,7 +15,7 @@ export function useUserLocation() {
     const wilaya = await reverseGeocodeWilaya(latitude, longitude);
     setLocation({ latitude, longitude, wilaya: wilaya || undefined });
     setSource("browser");
-    setStatus("granted");
+    setStatus(wilaya ? "granted" : "prompt");
   }, []);
 
   const requestBrowserLocation = useCallback(() => {
@@ -42,23 +42,26 @@ export function useUserLocation() {
       if (authenticated) {
         try {
           const profile = await getProfile();
-          if (
-            !cancelled &&
-            profile.success &&
-            profile.data &&
-            profile.data.latitude != null &&
-            profile.data.longitude != null &&
-            profile.data.latitude !== 0 &&
-            profile.data.longitude !== 0
-          ) {
-            setLocation({
-              latitude: profile.data.latitude,
-              longitude: profile.data.longitude,
-              wilaya: profile.data.wilaya || undefined,
-            });
-            setSource("profile");
-            setStatus("granted");
-            return;
+          if (!cancelled && profile.success && profile.data) {
+            const wilaya = profile.data.wilaya?.trim() || "";
+            const lat = profile.data.latitude;
+            const lng = profile.data.longitude;
+            const hasCoords =
+              lat != null &&
+              lng != null &&
+              Number(lat) !== 0 &&
+              Number(lng) !== 0;
+            // Labo / client profile: wilaya alone is enough to filter catalog
+            if (hasCoords || wilaya) {
+              setLocation({
+                latitude: hasCoords ? Number(lat) : 0,
+                longitude: hasCoords ? Number(lng) : 0,
+                wilaya: wilaya || undefined,
+              });
+              setSource("profile");
+              setStatus(wilaya || hasCoords ? "granted" : "prompt");
+              return;
+            }
           }
         } catch {
           // fall through to browser
@@ -72,6 +75,7 @@ export function useUserLocation() {
         return;
       }
 
+      // Auto-ask visitors for location permission
       navigator.geolocation.getCurrentPosition(
         (position) => {
           if (!cancelled) {

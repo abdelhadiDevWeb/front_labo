@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { apiFetch, checkAuthSession } from "@/lib/api";
-import { setPendingPaymentOrderIds } from "@/lib/flow-session";
 import { getApiUrl } from "@/lib/api-config";
 
 interface CartPanelProps {
@@ -14,7 +13,7 @@ interface CartPanelProps {
 }
 
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
-  const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearProductItems } = useCart();
   const [showInvoice, setShowInvoice] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const router = useRouter();
@@ -46,8 +45,21 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
     try {
       const API_BASE_URL = getApiUrl();
 
+      const productCartItems = cartItems.filter(
+        (item) => (item.itemType || "product") === "product"
+      );
+      const machineCartItems = cartItems.filter((item) => item.itemType === "machine");
+
+      if (productCartItems.length === 0 && machineCartItems.length > 0) {
+        alert(
+          "Vos machines sont réservées dans le panier. La confirmation fournisseur pour les machines sera bientôt disponible."
+        );
+        setIsCreatingOrder(false);
+        return;
+      }
+
       const productsWithSupplierId = await Promise.all(
-        cartItems.map(async (item) => {
+        productCartItems.map(async (item) => {
           if (item.supplierId) {
             return { ...item, supplierId: item.supplierId };
           }
@@ -116,32 +128,35 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
           }
         } catch (err) {
           console.error(`Error creating order for supplier ${supplierId}:`, err);
-          errors.push(`Erreur lors de la création de la commande pour le fournisseur ${supplierId}`);
+          errors.push(`Erreur lors de la création de la réserve pour le fournisseur ${supplierId}`);
         }
       }
 
       if (orderIds.length > 0) {
-        const message = orderIds.length === 1
-          ? "Commande créée avec succès ! Vous pouvez maintenant uploader la preuve de paiement."
-          : `${orderIds.length} commandes créées avec succès ! Vous pouvez maintenant uploader les preuves de paiement.`;
+        let message = orderIds.length === 1
+          ? "Réserve envoyée ! En attente de confirmation du fournisseur."
+          : `${orderIds.length} réserves envoyées ! En attente de confirmation des fournisseurs.`;
+
+        if (machineCartItems.length > 0) {
+          message += `\n\n${machineCartItems.length} machine(s) restent dans votre panier.`;
+        }
         
         if (errors.length > 0) {
-          alert(`${message}\n\nNote: ${errors.length} erreur(s) lors de la création de certaines commandes.`);
+          alert(`${message}\n\nNote: ${errors.length} erreur(s) lors de la création de certaines réserves.`);
         } else {
           alert(message);
         }
         
         setShowInvoice(false);
-        clearCart();
-        onClose();
-        
-        // Redirect to orders page with all order IDs for payment upload
-        setPendingPaymentOrderIds(orderIds);
-        router.push("/orders?uploadPayment=true");
+        clearProductItems();
+        if (machineCartItems.length === 0) {
+          onClose();
+          router.push("/orders");
+        }
       } else {
         alert(errors.length > 0 
-          ? `Aucune commande n'a pu être créée:\n${errors.join("\n")}`
-          : "Aucune commande n'a pu être créée. Veuillez réessayer.");
+          ? `Aucune réserve n'a pu être créée:\n${errors.join("\n")}`
+          : "Aucune réserve n'a pu être créée. Veuillez réessayer.");
       }
     } catch (err) {
       console.error("Create order error:", err);
@@ -204,7 +219,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                 </button>
                 <div className="flex items-center gap-3 mb-4">
                   <FileText className="w-8 h-8 text-blue-600" />
-                  <h3 className="text-2xl font-bold text-gray-900">Facture</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">Réserve</h3>
                 </div>
               </div>
 
@@ -256,7 +271,14 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
                       >
                         <div className="flex-1">
-                          <h5 className="font-semibold text-gray-900">{item.name}</h5>
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-semibold text-gray-900">{item.name}</h5>
+                            {(item.itemType || "product") === "machine" && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                                Machine
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600">
                             {displayPrice} × {item.quantity}
                           </p>
@@ -288,7 +310,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                   {isCreatingOrder ? (
                     <>
                       <Loader2 className="w-6 h-6 animate-spin" />
-                      Création de la commande...
+                      Création de la réserve...
                     </>
                   ) : (
                     <>
@@ -321,15 +343,24 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {cartItems.map((item) => (
+                {cartItems.map((item) => {
+                    const type = item.itemType || "product";
+                    return (
                   <div
-                    key={item.id}
+                    key={`${type}-${item.id}`}
                     className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        {item.name}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {item.name}
+                        </h3>
+                        {type === "machine" && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                            Machine
+                          </span>
+                        )}
+                      </div>
                       <p className="text-blue-600 font-bold text-lg mb-3">
                         {typeof item.price === "number" 
                           ? `${item.price.toFixed(2)} DA` 
@@ -340,7 +371,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                         <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
                           <button
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
+                              updateQuantity(item.id, item.quantity - 1, type)
                             }
                             className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-700"
                           >
@@ -351,7 +382,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                           </span>
                           <button
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
+                              updateQuantity(item.id, item.quantity + 1, type)
                             }
                             className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-700"
                           >
@@ -361,13 +392,14 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id, type)}
                       className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
-                ))}
+                    );
+                })}
               </div>
             )}
           </div>
@@ -387,7 +419,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                     onClick={handleCheckout}
                     className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
                   >
-                    Passer la commande
+                    Passer la réserve
                   </button>
                 </div>
               )}

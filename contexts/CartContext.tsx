@@ -8,14 +8,21 @@ export interface CartItem {
   price: string | number;
   quantity: number;
   supplierId?: string;
+  /** Defaults to product when omitted (legacy cart entries). */
+  itemType?: "product" | "machine" | "service";
 }
 
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeFromCart: (id: string | number) => void;
-  updateQuantity: (id: string | number, quantity: number) => void;
+  removeFromCart: (id: string | number, itemType?: CartItem["itemType"]) => void;
+  updateQuantity: (
+    id: string | number,
+    quantity: number,
+    itemType?: CartItem["itemType"]
+  ) => void;
   clearCart: () => void;
+  clearProductItems: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
 }
@@ -52,32 +59,51 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartItems, isLoaded]);
 
   const addToCart = (item: Omit<CartItem, "quantity">, quantity: number = 1) => {
+    const itemType = item.itemType || "product";
     setCartItems((prev) => {
-      const existingItem = prev.find((cartItem) => cartItem.id === item.id);
-      
+      const existingItem = prev.find(
+        (cartItem) =>
+          cartItem.id === item.id &&
+          (cartItem.itemType || "product") === itemType
+      );
+
       if (existingItem) {
         return prev.map((cartItem) =>
-          cartItem.id === item.id
+          cartItem.id === item.id && (cartItem.itemType || "product") === itemType
             ? { ...cartItem, quantity: cartItem.quantity + quantity }
             : cartItem
         );
       } else {
-        return [...prev, { ...item, quantity }];
+        return [...prev, { ...item, itemType, quantity }];
       }
     });
   };
 
-  const removeFromCart = (id: string | number) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  const removeFromCart = (id: string | number, itemType?: CartItem["itemType"]) => {
+    const type = itemType || "product";
+    setCartItems((prev) =>
+      prev.filter(
+        (item) => !(item.id === id && (item.itemType || "product") === type)
+      )
+    );
   };
 
-  const updateQuantity = (id: string | number, quantity: number) => {
+  const updateQuantity = (
+    id: string | number,
+    quantity: number,
+    itemType?: CartItem["itemType"]
+  ) => {
+    const type = itemType || "product";
     if (quantity <= 0) {
-      removeFromCart(id);
+      removeFromCart(id, type);
       return;
     }
     setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+      prev.map((item) =>
+        item.id === id && (item.itemType || "product") === type
+          ? { ...item, quantity }
+          : item
+      )
     );
   };
 
@@ -87,6 +113,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("cart");
       window.dispatchEvent(new Event("cartUpdated"));
     }
+  };
+
+  const clearProductItems = () => {
+    setCartItems((prev) =>
+      prev.filter((item) => (item.itemType || "product") !== "product")
+    );
   };
 
   const getTotalItems = () => {
@@ -124,6 +156,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         updateQuantity,
         clearCart,
+        clearProductItems,
         getTotalItems,
         getTotalPrice,
       }}

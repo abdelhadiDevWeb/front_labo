@@ -146,7 +146,7 @@ export default function SupplierDashboardPage() {
                 <ShoppingCart className="w-6 h-6 text-white" />
               </div>
             </div>
-            <h3 className="text-gray-500 text-sm font-medium mb-1">Commandes</h3>
+            <h3 className="text-gray-500 text-sm font-medium mb-1">Réserves</h3>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">
               {statistics.totalOrders}
             </p>
@@ -174,7 +174,7 @@ export default function SupplierDashboardPage() {
       {/* Recent Orders */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Commandes Récentes</h3>
+          <h3 className="text-xl font-bold text-gray-900">Réserves Récentes</h3>
           <Link
             href="/dashboard-supplier/orders"
             className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
@@ -186,7 +186,7 @@ export default function SupplierDashboardPage() {
         {isLoadingStats ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-4" />
-            <p className="text-gray-500">Chargement des commandes...</p>
+            <p className="text-gray-500">Chargement des réserves...</p>
           </div>
         ) : statistics && statistics.recentOrders.length > 0 ? (
           <div className="overflow-x-auto">
@@ -256,8 +256,8 @@ export default function SupplierDashboardPage() {
         ) : (
           <div className="p-12 text-center text-gray-500">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium">Aucune commande récente</p>
-            <p className="text-sm mt-1">Vos commandes récentes apparaîtront ici</p>
+            <p className="font-medium">Aucune réserve récente</p>
+            <p className="text-sm mt-1">Vos réserves récentes apparaîtront ici</p>
           </div>
         )}
       </div>

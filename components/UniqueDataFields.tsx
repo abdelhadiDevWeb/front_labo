@@ -6,10 +6,16 @@ type Props = {
   data: Record<string, unknown> | null | undefined;
   max?: number;
   className?: string;
+  excludeKeys?: string[];
 };
 
-export default function UniqueDataFields({ data, max = 8, className = "" }: Props) {
-  const entries = getUniqueDataEntries(data, { max });
+export default function UniqueDataFields({
+  data,
+  max = 8,
+  className = "",
+  excludeKeys,
+}: Props) {
+  const entries = getUniqueDataEntries(data, { max, excludeKeys });
 
   if (entries.length === 0) {
     return (

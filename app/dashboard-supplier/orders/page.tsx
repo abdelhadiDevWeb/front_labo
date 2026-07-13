@@ -45,7 +45,9 @@ interface Order {
     phone?: string;
   } | null;
   idSupplier: string;
-  status: "en cours" | "on route" | "arrived";
+  status: "en attente" | "refusée" | "en cours" | "on route" | "arrived";
+  source?: "cart" | "group_sell";
+  groupSelleId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,7 +189,7 @@ export default function SupplierOrdersPage() {
         setPayments(paymentsMap);
       }
     } catch (err) {
-      setError("Erreur lors du chargement des commandes");
+      setError("Erreur lors du chargement des réserves");
     } finally {
       setIsLoading(false);
     }
@@ -259,6 +261,10 @@ export default function SupplierOrdersPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "en attente":
+        return <Clock className="w-5 h-5 text-amber-600" />;
+      case "refusée":
+        return <X className="w-5 h-5 text-red-600" />;
       case "en cours":
         return <Clock className="w-5 h-5 text-blue-600" />;
       case "on route":
@@ -271,17 +277,53 @@ export default function SupplierOrdersPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
+      "en attente": "bg-amber-100 text-amber-800 border-amber-300",
+      "refusée": "bg-red-100 text-red-700 border-red-300",
       "en cours": "bg-blue-100 text-blue-700 border-blue-300",
       "on route": "bg-orange-100 text-orange-700 border-orange-300",
       "arrived": "bg-green-100 text-green-700 border-green-300",
     };
+    const labels: Record<string, string> = {
+      "en attente": "En attente",
+      "refusée": "Refusée",
+      "en cours": "en cours",
+      "on route": "on route",
+      "arrived": "arrived",
+    };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status as keyof typeof styles]}`}>
-        {status}
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || "bg-gray-100 text-gray-700 border-gray-300"}`}>
+        {labels[status] || status}
       </span>
     );
+  };
+
+  const respondToPendingOrder = async (orderId: string, action: "accept" | "reject") => {
+    const confirmMsg =
+      action === "accept"
+        ? "Accepter cette réserve ? Le stock sera déduit."
+        : "Refuser cette réserve ? Le client sera notifié.";
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setUpdatingStatus(orderId);
+      const API_BASE_URL = getApiUrl();
+      const response = await apiFetch(`${API_BASE_URL}/commandes/${orderId}/${action}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(result.message || "Action impossible");
+        return;
+      }
+      await loadOrders();
+    } catch {
+      alert("Une erreur est survenue");
+    } finally {
+      setUpdatingStatus(null);
+    }
   };
 
   if (isLoading) {
@@ -289,7 +331,7 @@ export default function SupplierOrdersPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des commandes...</p>
+          <p className="text-gray-600">Chargement des réserves...</p>
         </div>
       </div>
     );
@@ -313,9 +355,9 @@ export default function SupplierOrdersPage() {
                   <Package className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Mes Commandes</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Mes Réserves</h1>
                   <p className="text-sm text-gray-600">
-                    {orders.length} commande{orders.length > 1 ? "s" : ""} au total
+                    {orders.length} réserve{orders.length > 1 ? "s" : ""} au total
                   </p>
                 </div>
               </div>
@@ -335,6 +377,17 @@ export default function SupplierOrdersPage() {
                 }`}
               >
                 Toutes
+              </button>
+              <button
+                onClick={() => setStatusFilter("en attente")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  statusFilter === "en attente"
+                    ? "bg-amber-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                En attente
               </button>
               <button
                 onClick={() => setStatusFilter("en cours")}
@@ -369,6 +422,17 @@ export default function SupplierOrdersPage() {
                 <CheckCircle className="w-4 h-4" />
                 Arrivées
               </button>
+              <button
+                onClick={() => setStatusFilter("refusée")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  statusFilter === "refusée"
+                    ? "bg-red-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <X className="w-4 h-4" />
+                Refusée
+              </button>
             </div>
           </div>
         </div>
@@ -386,11 +450,11 @@ export default function SupplierOrdersPage() {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {orders.length === 0 ? "Aucune commande" : "Aucune commande trouvée"}
+              {orders.length === 0 ? "Aucune réserve" : "Aucune réserve trouvée"}
             </h3>
             <p className="text-gray-600">
               {orders.length === 0
-                ? "Aucune commande n'a été passée pour le moment"
+                ? "Aucune réserve n'a été passée pour le moment"
                 : "Essayez de modifier vos filtres"}
             </p>
           </div>
@@ -405,12 +469,17 @@ export default function SupplierOrdersPage() {
                   {/* Order Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         {getStatusIcon(order.status)}
                         <h3 className="text-lg font-bold text-gray-900">
-                          Commande #{order._id.slice(-8).toUpperCase()}
+                          Réserve #{order._id.slice(-8).toUpperCase()}
                         </h3>
                         {getStatusBadge(order.status)}
+                        {(order.source === "group_sell" || !!order.groupSelleId) && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-200">
+                            Depuis annonce (vente groupée)
+                          </span>
+                        )}
                       </div>
                       {order.idBuyer ? (
                         <>
@@ -503,6 +572,30 @@ export default function SupplierOrdersPage() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     {/* Status Update Actions */}
                     <div className="flex items-center gap-3">
+                      {order.status === "en attente" && (
+                        <>
+                          <button
+                            onClick={() => respondToPendingOrder(order._id, "accept")}
+                            disabled={updatingStatus === order._id}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {updatingStatus === order._id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                            Accepter
+                          </button>
+                          <button
+                            onClick={() => respondToPendingOrder(order._id, "reject")}
+                            disabled={updatingStatus === order._id}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <X className="w-4 h-4" />
+                            Refuser
+                          </button>
+                        </>
+                      )}
                       {order.status === "en cours" && (
                         <button
                           onClick={() => updateOrderStatus(order._id, "on route")}
@@ -544,7 +637,13 @@ export default function SupplierOrdersPage() {
                       {order.status === "arrived" && (
                         <div className="flex items-center gap-2 text-green-600">
                           <CheckCircle className="w-5 h-5" />
-                          <span className="font-semibold">Commande livrée</span>
+                          <span className="font-semibold">Réserve livrée</span>
+                        </div>
+                      )}
+                      {order.status === "refusée" && (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <X className="w-5 h-5" />
+                          <span className="font-semibold">Réserve refusée</span>
                         </div>
                       )}
                     </div>
@@ -710,7 +809,7 @@ export default function SupplierOrdersPage() {
                     Confirmer le changement de statut
                   </h3>
                   <p className="text-xs sm:text-sm text-white/90 mt-1">
-                    {pendingStatusChange.newStatus === "on route" ? "Mettre la commande en route" : "Marquer la commande comme arrivée"}
+                    {pendingStatusChange.newStatus === "on route" ? "Mettre la réserve en route" : "Marquer la réserve comme arrivée"}
                   </p>
                 </div>
               </div>
@@ -763,7 +862,7 @@ export default function SupplierOrdersPage() {
                     </button>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-600 text-center">
-                    La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir {pendingStatusChange.newStatus === "on route" ? "mettre cette commande en route" : "marquer cette commande comme arrivée"} ?
+                    La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir {pendingStatusChange.newStatus === "on route" ? "mettre cette réserve en route" : "marquer cette réserve comme arrivée"} ?
                   </p>
                 </>
               ) : (
@@ -774,7 +873,7 @@ export default function SupplierOrdersPage() {
                       <p className="font-semibold text-sm sm:text-base text-yellow-900">Aucune preuve de paiement</p>
                     </div>
                     <p className="text-xs sm:text-sm text-yellow-800">
-                      Aucune preuve de paiement n'a été uploadée pour cette commande. Voulez-vous quand même {pendingStatusChange.newStatus === "on route" ? "mettre la commande en route" : "marquer la commande comme arrivée"} ?
+                      Aucune preuve de paiement n'a été uploadée pour cette réserve. Voulez-vous quand même {pendingStatusChange.newStatus === "on route" ? "mettre la réserve en route" : "marquer la réserve comme arrivée"} ?
                     </p>
                   </div>
                 </>
@@ -844,7 +943,7 @@ export default function SupplierOrdersPage() {
                 <div className="min-w-0">
                   <h3 className="text-base sm:text-lg md:text-xl font-bold text-white">Preuve de paiement confirmée</h3>
                   <p className="text-xs sm:text-sm text-green-100 mt-1">
-                    Commande mise en route avec succès
+                    Réserve mise en route avec succès
                   </p>
                 </div>
               </div>
@@ -853,7 +952,7 @@ export default function SupplierOrdersPage() {
             {/* Content */}
             <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               <p className="text-xs sm:text-sm text-gray-600">
-                La commande a été confirmée et mise en route. Voici les détails de la preuve de paiement :
+                La réserve a été confirmée et mise en route. Voici les détails de la preuve de paiement :
               </p>
               
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border-2 border-green-200 space-y-2 sm:space-y-3">

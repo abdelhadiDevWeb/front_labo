@@ -8,6 +8,7 @@ import { apiFetch, checkAuthSession } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { validatePdfFile } from "@/lib/file-validation";
+import { validateOnboardingRedirect } from "@/lib/security";
 
 export default function UploadDocumentsPage() {
   const router = useRouter();
@@ -90,7 +91,10 @@ export default function UploadDocumentsPage() {
       const result = await response.json();
 
       if (result.success) {
-        router.push("/supplier/choose-subscription");
+        const next =
+          validateOnboardingRedirect(result.data?.redirectTo) ||
+          "/supplier/choose-subscription";
+        router.push(next);
       } else {
         setError(result.message || "Une erreur est survenue");
       }
@@ -126,8 +130,14 @@ export default function UploadDocumentsPage() {
             Télécharger vos documents
           </h1>
           <p className="text-gray-600">
-            Veuillez télécharger les documents suivants pour finaliser votre inscription en tant que fournisseur
+            Étape 2/3 — Après l&apos;envoi, vous choisirez votre plan d&apos;abonnement,
+            puis votre demande sera envoyée à l&apos;administrateur.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
+            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">1. Inscription</span>
+            <span className="px-3 py-1 rounded-full bg-blue-600 text-white font-medium">2. Documents</span>
+            <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">3. Choisir un plan</span>
+          </div>
         </div>
 
         {/* Form */}
@@ -301,7 +311,9 @@ export default function UploadDocumentsPage() {
                 }
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                {isLoading ? "Téléchargement en cours..." : "Télécharger les documents"}
+                {isLoading
+                  ? "Téléchargement en cours..."
+                  : "Continuer vers le choix d'abonnement"}
               </button>
               {(!files.Tax_number || !files.identity || !files.commercial_register) && (
                 <p className="mt-2 text-sm text-gray-500 text-center">

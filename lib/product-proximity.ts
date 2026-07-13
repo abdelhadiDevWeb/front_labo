@@ -1,5 +1,6 @@
 import { PublicProduct } from "@/lib/api";
 import { getGoogleMapsApiKey } from "@/lib/location";
+import { resolveWilayaFromCoordinates } from "@/lib/algeria-wilayas";
 
 export interface GeoPoint {
   latitude: number;
@@ -67,23 +68,26 @@ async function geocodeAddress(query: string): Promise<GeoPoint | null> {
 
 export async function reverseGeocodeWilaya(latitude: number, longitude: number): Promise<string> {
   const apiKey = getGoogleMapsApiKey();
-  if (!apiKey) return "";
-
-  try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}&language=fr`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.status !== "OK" || !data.results?.[0]) return "";
-
-    const components = data.results[0].address_components || [];
-    return (
-      components.find((c: { types: string[] }) =>
-        c.types.includes("administrative_area_level_1")
-      )?.long_name || ""
-    );
-  } catch {
-    return "";
+  if (apiKey) {
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}&language=fr`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === "OK" && data.results?.[0]) {
+        const components = data.results[0].address_components || [];
+        const fromGoogle =
+          components.find((c: { types: string[] }) =>
+            c.types.includes("administrative_area_level_1")
+          )?.long_name || "";
+        if (fromGoogle) return fromGoogle;
+      }
+    } catch {
+      // fall through to offline nearest wilaya
+    }
   }
+
+  const nearest = resolveWilayaFromCoordinates(latitude, longitude);
+  return nearest?.name || "";
 }
 
 async function resolveProductCoords(product: PublicProduct): Promise<GeoPoint | null> {

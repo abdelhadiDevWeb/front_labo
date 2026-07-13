@@ -29,7 +29,7 @@ interface Order {
     email: string;
     phone?: string;
   };
-  status: "en cours" | "on route" | "arrived";
+  status: "en attente" | "refusée" | "en cours" | "on route" | "arrived";
   createdAt: string;
   updatedAt: string;
 }
@@ -190,6 +190,10 @@ export default function OrdersPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "en attente":
+        return <Clock className="w-5 h-5 text-amber-600" />;
+      case "refusée":
+        return <X className="w-5 h-5 text-red-600" />;
       case "en cours":
         return <Clock className="w-5 h-5 text-blue-600" />;
       case "on route":
@@ -202,15 +206,24 @@ export default function OrdersPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
+      "en attente": "bg-amber-100 text-amber-800 border-amber-300",
+      "refusée": "bg-red-100 text-red-700 border-red-300",
       "en cours": "bg-blue-100 text-blue-700 border-blue-300",
       "on route": "bg-orange-100 text-orange-700 border-orange-300",
       "arrived": "bg-green-100 text-green-700 border-green-300",
     };
+    const labels: Record<string, string> = {
+      "en attente": "En attente",
+      "refusée": "Refusée",
+      "en cours": "en cours",
+      "on route": "on route",
+      "arrived": "arrived",
+    };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status as keyof typeof styles]}`}>
-        {status}
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || "bg-gray-100 text-gray-700 border-gray-300"}`}>
+        {labels[status] || status}
       </span>
     );
   };
@@ -248,9 +261,9 @@ export default function OrdersPage() {
                   <ShoppingBag className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Mes Commandes</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Mes Réserves</h1>
                   <p className="text-sm text-gray-600">
-                    {orders.length} commande{orders.length > 1 ? "s" : ""} au total
+                    {orders.length} réserve{orders.length > 1 ? "s" : ""} au total
                   </p>
                 </div>
               </div>
@@ -270,6 +283,17 @@ export default function OrdersPage() {
                 }`}
               >
                 Toutes
+              </button>
+              <button
+                onClick={() => setStatusFilter("en attente")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  statusFilter === "en attente"
+                    ? "bg-amber-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                En attente
               </button>
               <button
                 onClick={() => setStatusFilter("en cours")}
@@ -304,6 +328,17 @@ export default function OrdersPage() {
                 <CheckCircle className="w-4 h-4" />
                 Arrivées
               </button>
+              <button
+                onClick={() => setStatusFilter("refusée")}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  statusFilter === "refusée"
+                    ? "bg-red-600 text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <X className="w-4 h-4" />
+                Refusée
+              </button>
             </div>
           </div>
         </div>
@@ -319,9 +354,9 @@ export default function OrdersPage() {
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Package className="w-12 h-12 text-gray-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Aucune commande</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Aucune réserve</h2>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Vous n'avez pas encore passé de commande. Parcourez notre marketplace pour découvrir nos services.
+              Vous n'avez pas encore passé de réserve. Parcourez notre marketplace pour découvrir nos services.
             </p>
             <Link
               href="/home#marketplace"
@@ -345,7 +380,7 @@ export default function OrdersPage() {
                       <div className="flex items-center gap-3 mb-2">
                         {getStatusIcon(order.status)}
                         <h3 className="text-lg font-bold text-gray-900">
-                          Commande #{order._id.slice(-8).toUpperCase()}
+                          Réserve #{order._id.slice(-8).toUpperCase()}
                         </h3>
                         {getStatusBadge(order.status)}
                       </div>
@@ -395,7 +430,21 @@ export default function OrdersPage() {
                   {/* Payment Section */}
                   <div className="mb-4 pt-4 border-t border-gray-200">
                     <h4 className="font-semibold text-gray-900 mb-3">Preuve de paiement:</h4>
-                    {payments[order._id] ? (
+                    {order.status === "en attente" ? (
+                      <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <Clock className="w-5 h-5 text-amber-600" />
+                        <span className="text-sm text-amber-800">
+                          En attente de confirmation du fournisseur. Le paiement sera possible après acceptation.
+                        </span>
+                      </div>
+                    ) : order.status === "refusée" ? (
+                      <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                        <X className="w-5 h-5 text-red-600" />
+                        <span className="text-sm text-red-700 font-medium">
+                          Le fournisseur a rejeté votre réservation.
+                        </span>
+                      </div>
+                    ) : payments[order._id] ? (
                       <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <span className="text-sm text-green-700 font-medium">Preuve de paiement uploadée</span>
@@ -438,7 +487,7 @@ export default function OrdersPage() {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
                     >
                       <Printer className="w-4 h-4" />
-                      Imprimer la facture
+                      Imprimer la réserve
                     </button>
                   </div>
                 </div>
@@ -456,7 +505,7 @@ export default function OrdersPage() {
               <div>
                 <h3 className="text-xl font-bold text-gray-900">Uploader les preuves de paiement</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  {pendingOrderIds.length} commande{pendingOrderIds.length > 1 ? "s" : ""} nécessite{pendingOrderIds.length > 1 ? "nt" : ""} une preuve de paiement
+                  {pendingOrderIds.length} réserve{pendingOrderIds.length > 1 ? "s" : ""} nécessite{pendingOrderIds.length > 1 ? "nt" : ""} une preuve de paiement
                 </p>
               </div>
               <button
@@ -499,7 +548,7 @@ export default function OrdersPage() {
                             </div>
                             <div>
                               <h4 className="text-lg font-bold text-gray-900">
-                                Commande #{order._id.slice(-8).toUpperCase()}
+                                Réserve #{order._id.slice(-8).toUpperCase()}
                               </h4>
                               <p className="text-sm text-gray-500">
                                 Date: {new Date(order.createdAt).toLocaleDateString("fr-FR")}
@@ -641,7 +690,7 @@ export default function OrdersPage() {
                                     setUploadErrors({});
                                     setUploadingOrders(new Set());
                                     setPendingOrderIds([]);
-                                    alert(`Toutes les preuves de paiement ont été uploadées avec succès ! (${pendingOrderIds.length} commande${pendingOrderIds.length > 1 ? "s" : ""})`);
+                                    alert(`Toutes les preuves de paiement ont été uploadées avec succès ! (${pendingOrderIds.length} réserve${pendingOrderIds.length > 1 ? "s" : ""})`);
                                   }, 500);
                                 }
                               } else {

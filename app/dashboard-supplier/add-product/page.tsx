@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Package,
   Upload,
@@ -14,106 +13,36 @@ import {
   Sparkles,
   TrendingUp,
   FileText,
-  DollarSign,
-  Box,
-  Clock,
-  Tag,
-  Building2,
-  ChevronDown,
   Image as ImageIcon,
-  Video,
-  TrendingDown,
-  Percent,
   Cpu,
   Wrench,
   ArrowLeft,
   Layers,
 } from "lucide-react";
 import { apiFetch, getPublicCategories, Category } from "@/lib/api";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import {
+  SingleCatalogType,
+  MACHINE_COLUMNS,
+  SERVICE_COLUMNS,
+  PRODUCT_COLUMNS,
+  editableFieldsForType,
+  typeHasFicheTechnique,
+  catalogTypeToCategoryKind,
+  createEndpointForType,
+} from "@/lib/catalog-form-fields";
 
-type ExcelImportType = "machine" | "service" | "product" | null;
+type ExcelImportType = SingleCatalogType | null;
 
 type CategoryKind = "machine" | "services" | "product";
 
 const excelTypeToCategoryType = (type: ExcelImportType): CategoryKind | null => {
-  if (type === "machine") return "machine";
-  if (type === "service") return "services";
-  if (type === "product") return "product";
-  return null;
+  if (!type) return null;
+  return catalogTypeToCategoryKind(type);
 };
 
-interface ProductFormData {
-  name: string;
-  purchasePrice: string;
-  sellingPrice: string;
-  quantity: string;
-  deliveryTime: string;
-  brand: string;
-  productType: "Labo médical" | "labo d'ana pathologies";
-  images: File[];
-  video: File | null;
-}
-
-const MACHINE_COLUMNS = [
-  { label: "Réference", desc: "Référence de la machine" },
-  { label: "Désignation", desc: "Nom de la machine (obligatoire)" },
-  { label: "Conditionnement", desc: "Conditionnement" },
-  { label: "N° lot", desc: "Numéro de lot" },
-  { label: "DDP", desc: "Date de péremption" },
-  { label: "Quantité", desc: "Quantité en stock" },
-  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
-  { label: "Marque", desc: "Marque" },
-  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
-  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
-  { label: "Commande", desc: "Statut commande" },
-  { label: "R %", desc: "Remise" },
-  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
-  { label: "Image", desc: "Nom(s) d'image" },
-  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
-  { label: "Prix TTC", desc: "Prix TTC" },
-  { label: "TVA", desc: "Taux de TVA" },
-  { label: "Assistance technique", desc: "Assistance technique" },
-];
-
-const SERVICE_COLUMNS = [
-  { label: "Désignation", desc: "Nom du service (obligatoire)" },
-  { label: "Marque", desc: "Marque" },
-  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
-  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
-  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
-  { label: "Image", desc: "Nom(s) d'image" },
-  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
-  { label: "R %", desc: "Remise" },
-  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
-  { label: "Prix TTC", desc: "Prix TTC" },
-  { label: "TVA", desc: "Taux de TVA" },
-];
-
-const PRODUCT_COLUMNS = [
-  { label: "Réference", desc: "Référence du produit" },
-  { label: "Désignation", desc: "Nom du produit (obligatoire)" },
-  { label: "Conditionnement", desc: "Conditionnement" },
-  { label: "N° lot", desc: "Numéro de lot" },
-  { label: "DDP", desc: "Date de péremption" },
-  { label: "Quantité", desc: "Quantité en stock" },
-  { label: "Disponibilité", desc: "Ex: D, ND, Arrivage" },
-  { label: "Marque", desc: "Marque" },
-  { label: "Catégorie", desc: "Remplie automatiquement (votre choix)" },
-  { label: "Sous catégorie", desc: "Auto si choisie, sinon laissez vide" },
-  { label: "Commande", desc: "Statut commande" },
-  { label: "R %", desc: "Remise" },
-  { label: "Fiche Technique", desc: "Nom du fichier fiche technique" },
-  { label: "Image", desc: "Nom(s) d'image" },
-  { label: "Prix HT", desc: "Prix hors taxe (obligatoire)" },
-  { label: "Prix TTC", desc: "Prix TTC" },
-  { label: "TVA", desc: "Taux de TVA" },
-];
-
 export default function AddProductPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"single" | "excel">("single");
   const [excelImportType, setExcelImportType] = useState<ExcelImportType>(null);
   const [excelCategoryId, setExcelCategoryId] = useState("");
@@ -123,34 +52,38 @@ export default function AddProductPage() {
   const [error, setError] = useState<string | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [selectedSousCategoryId, setSelectedSousCategoryId] = useState("");
 
-  const [formData, setFormData] = useState<ProductFormData>({
-    name: "",
-    purchasePrice: "",
-    sellingPrice: "",
-    quantity: "",
-    deliveryTime: "",
-    brand: "",
-    productType: "Labo médical",
-    images: [],
-    video: null,
-  });
+  // One-by-one form state
+  const [singleType, setSingleType] = useState<SingleCatalogType | null>(null);
+  const [singleCategoryId, setSingleCategoryId] = useState("");
+  const [singleSousCategoryId, setSingleSousCategoryId] = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [singleImages, setSingleImages] = useState<File[]>([]);
+  const [fichePdf, setFichePdf] = useState<File | null>(null);
 
   const resetExcelImportState = () => {
     setExcelFile(null);
     setImageFiles([]);
+    setPdfFiles([]);
     setUploadProgress(0);
     setUploadErrors([]);
     setError(null);
     setSuccess(null);
     setExcelCategoryId("");
     setExcelSousCategoryId("");
+  };
+
+  const resetSingleForm = () => {
+    setFieldValues({});
+    setSingleImages([]);
+    setFichePdf(null);
+    setSingleCategoryId("");
+    setSingleSousCategoryId("");
   };
 
   useEffect(() => {
@@ -174,9 +107,6 @@ export default function AddProductPage() {
     loadCategories();
   }, []);
 
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
-  const availableSousCategories = selectedCategory?.sousCategories ?? [];
-
   const excelCategoryType = excelTypeToCategoryType(excelImportType);
   const excelFilteredCategories = excelCategoryType
     ? categories.filter((c) => (c.type_catgory || "product") === excelCategoryType)
@@ -185,7 +115,6 @@ export default function AddProductPage() {
   const excelSousCategories = selectedExcelCategory?.sousCategories ?? [];
   const hasExcelSousCategories = excelSousCategories.length > 0;
   const selectedExcelSousCategory = excelSousCategories.find((sc) => sc.id === excelSousCategoryId);
-  // Show XLS section once category is chosen and either no sous-categories exist, or one is selected
   const showExcelUploadSection =
     !!selectedExcelCategory && (!hasExcelSousCategories || !!excelSousCategoryId);
 
@@ -196,11 +125,27 @@ export default function AddProductPage() {
         ? SERVICE_COLUMNS
         : PRODUCT_COLUMNS;
 
+  const singleCategoryKind = singleType ? catalogTypeToCategoryKind(singleType) : null;
+  const singleFilteredCategories = singleCategoryKind
+    ? categories.filter((c) => (c.type_catgory || "product") === singleCategoryKind)
+    : [];
+  const selectedSingleCategory = singleFilteredCategories.find((c) => c.id === singleCategoryId);
+  const singleSousCategories = selectedSingleCategory?.sousCategories ?? [];
+  const hasSingleSousCategories = singleSousCategories.length > 0;
+  const selectedSingleSousCategory = singleSousCategories.find(
+    (sc) => sc.id === singleSousCategoryId
+  );
+  const showSingleFields =
+    !!selectedSingleCategory && (!hasSingleSousCategories || !!singleSousCategoryId);
+  const singleEditableFields = singleType ? editableFieldsForType(singleType) : [];
+  const showFicheUpload = singleType ? typeHasFicheTechnique(singleType) : false;
+
   const handlePickExcelCategory = (categoryId: string) => {
     setExcelCategoryId(categoryId);
     setExcelSousCategoryId("");
     setExcelFile(null);
     setImageFiles([]);
+    setPdfFiles([]);
     setUploadErrors([]);
   };
 
@@ -208,6 +153,7 @@ export default function AddProductPage() {
     setExcelSousCategoryId(sousCategoryId);
     setExcelFile(null);
     setImageFiles([]);
+    setPdfFiles([]);
     setUploadErrors([]);
   };
 
@@ -216,6 +162,7 @@ export default function AddProductPage() {
       setExcelSousCategoryId("");
       setExcelFile(null);
       setImageFiles([]);
+      setPdfFiles([]);
       return;
     }
     if (excelCategoryId) {
@@ -223,105 +170,94 @@ export default function AddProductPage() {
       setExcelSousCategoryId("");
       setExcelFile(null);
       setImageFiles([]);
+      setPdfFiles([]);
       return;
     }
     setExcelImportType(null);
     resetExcelImportState();
   };
 
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedCategoryId(e.target.value);
-    setSelectedSousCategoryId("");
+  const handlePickSingleCategory = (categoryId: string) => {
+    setSingleCategoryId(categoryId);
+    setSingleSousCategoryId("");
+    setFieldValues({});
+    setSingleImages([]);
+    setFichePdf(null);
   };
 
-  const handleSousCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedSousCategoryId(e.target.value);
+  const handlePickSingleSousCategory = (sousCategoryId: string) => {
+    setSingleSousCategoryId(sousCategoryId);
+    setFieldValues({});
+    setSingleImages([]);
+    setFichePdf(null);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleSingleBack = () => {
+    if (showSingleFields && hasSingleSousCategories) {
+      setSingleSousCategoryId("");
+      setFieldValues({});
+      setSingleImages([]);
+      setFichePdf(null);
+      return;
+    }
+    if (singleCategoryId) {
+      setSingleCategoryId("");
+      setSingleSousCategoryId("");
+      setFieldValues({});
+      setSingleImages([]);
+      setFichePdf(null);
+      return;
+    }
+    setSingleType(null);
+    resetSingleForm();
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFieldChange = (label: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [label]: value }));
+  };
+
+  const handleSingleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-      if (imageFiles.length !== files.length) {
+      const imgs = Array.from(files).filter((file) => file.type.startsWith("image/"));
+      if (imgs.length !== files.length) {
         setError("Seuls les fichiers image sont acceptés");
       }
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...imageFiles].slice(0, 10), // Max 10 images
-      }));
+      setSingleImages((prev) => [...prev, ...imgs].slice(0, 10));
     }
   };
 
-  const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+  const removeSingleImage = (index: number) => {
+    setSingleImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFichePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("video/")) {
-        setError("Seuls les fichiers vidéo sont acceptés");
-        return;
-      }
-      if (file.size > 50 * 1024 * 1024) {
-        setError("La taille de la vidéo ne doit pas dépasser 50MB");
-        return;
-      }
-      setFormData((prev) => ({
-        ...prev,
-        video: file,
-      }));
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setError("Seuls les fichiers PDF sont acceptés pour la fiche technique");
+      return;
     }
-  };
-
-  const removeVideo = () => {
-    setFormData((prev) => ({
-      ...prev,
-      video: null,
-    }));
-    const videoInput = document.getElementById("video") as HTMLInputElement;
-    if (videoInput) videoInput.value = "";
-  };
-
-  // Calculate profit
-  const calculateProfit = () => {
-    const purchase = parseFloat(formData.purchasePrice) || 0;
-    const selling = parseFloat(formData.sellingPrice) || 0;
-    if (selling > 0 && purchase > 0) {
-      const profit = selling - purchase;
-      const profitPercentage = ((profit / purchase) * 100).toFixed(2);
-      return { profit, profitPercentage };
+    if (file.size > 20 * 1024 * 1024) {
+      setError("La fiche technique PDF ne doit pas dépasser 20MB");
+      return;
     }
-    return { profit: 0, profitPercentage: "0" };
+    setFichePdf(file);
+    setError(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       const allowedExtensions = [".xlsx", ".xls"];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
-      
+
       if (!allowedExtensions.includes(fileExtension)) {
         setError("Seuls les fichiers Excel (.xlsx, .xls) sont acceptés");
         setExcelFile(null);
         return;
       }
 
-      // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
         setError("La taille du fichier ne doit pas dépasser 10MB");
         setExcelFile(null);
@@ -346,120 +282,144 @@ export default function AddProductPage() {
     }
   };
 
+  const handlePdfsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const pdfFilesArray = Array.from(files).filter(
+        (file) =>
+          file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+      );
+      if (pdfFilesArray.length !== files.length) {
+        setError("Seuls les fichiers PDF sont acceptés pour la fiche technique");
+        return;
+      }
+      const tooLarge = pdfFilesArray.find((f) => f.size > 20 * 1024 * 1024);
+      if (tooLarge) {
+        setError(`Le PDF « ${tooLarge.name} » dépasse 20MB`);
+        return;
+      }
+      setPdfFiles(pdfFilesArray);
+      setError(null);
+    }
+  };
+
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!singleType || !selectedSingleCategory) {
+      setError("Veuillez choisir un type et une catégorie");
+      return;
+    }
+
+    if (hasSingleSousCategories && !singleSousCategoryId) {
+      setError("Veuillez sélectionner une sous-catégorie");
+      return;
+    }
+
+    for (const field of singleEditableFields) {
+      if (field.required && !(fieldValues[field.label] || "").trim()) {
+        setError(`Le champ « ${field.label} » est obligatoire`);
+        return;
+      }
+    }
+
+    const totalBytes =
+      singleImages.reduce((sum, f) => sum + f.size, 0) + (fichePdf?.size || 0);
+    const maxBytes = 45 * 1024 * 1024;
+    if (totalBytes > maxBytes) {
+      setError(
+        "Les fichiers sont trop volumineux (max ~45MB au total). Réduisez la taille des images ou du PDF."
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      if (!selectedCategoryId) {
-        setError("Veuillez sélectionner une catégorie");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!selectedSousCategoryId) {
-        setError("Veuillez sélectionner une sous-catégorie");
-        setIsLoading(false);
-        return;
-      }
-
-      const selectedSousCategory = availableSousCategories.find(
-        (sc) => sc.id === selectedSousCategoryId
-      );
-
-      if (!selectedSousCategory) {
-        setError("Sous-catégorie invalide");
-        setIsLoading(false);
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
+      const unique_data: Record<string, string | number> = {};
+      for (const [key, value] of Object.entries(fieldValues)) {
+        const trimmed = value.trim();
+        if (!trimmed) continue;
+        const def = singleEditableFields.find((f) => f.label === key);
+        if (def?.inputType === "number") {
+          const num = Number(trimmed.replace(",", "."));
+          unique_data[key] = Number.isFinite(num) ? num : trimmed;
+        } else {
+          unique_data[key] = trimmed;
+        }
+      }
 
-      // Create FormData for file uploads
       const formDataToSend = new FormData();
-      formDataToSend.append("name", formData.name.trim());
-      formDataToSend.append("purchasePrice", formData.purchasePrice);
-      formDataToSend.append("sellingPrice", formData.sellingPrice);
-      formDataToSend.append("quantity", formData.quantity);
-      formDataToSend.append("id_catgory", selectedCategoryId);
-      formDataToSend.append("id_sous_catgory", selectedSousCategoryId);
-      formDataToSend.append("category", selectedSousCategory.name_sou_catgory);
-      formDataToSend.append("deliveryTime", formData.deliveryTime.trim());
-      formDataToSend.append("brand", formData.brand.trim());
-      formDataToSend.append("productType", formData.productType);
+      formDataToSend.append("id_catgory", singleCategoryId);
+      if (singleSousCategoryId) {
+        formDataToSend.append("id_sous_catgory", singleSousCategoryId);
+      }
+      formDataToSend.append("unique_data", JSON.stringify(unique_data));
 
-      // Append images
-      formData.images.forEach((image) => {
+      singleImages.forEach((image) => {
         formDataToSend.append("images", image);
       });
 
-      // Append video if exists
-      if (formData.video) {
-        formDataToSend.append("video", formData.video);
+      if (fichePdf) {
+        formDataToSend.append("ficheTechnique", fichePdf);
       }
 
-      const response = await apiFetch(`${API_BASE_URL}/products`, {
+      const endpoint = `${API_BASE_URL}${createEndpointForType(singleType)}`;
+      const response = await apiFetch(endpoint, {
         method: "POST",
         body: formDataToSend,
       });
 
-      const result = await response.json();
+      let result: { success?: boolean; message?: string; errors?: string[] } = {};
+      try {
+        result = await response.json();
+      } catch {
+        setError(
+          response.ok
+            ? "Réponse invalide du serveur"
+            : "Échec de la création (fichier trop volumineux ou serveur indisponible). Réessayez avec des images plus légères."
+        );
+        return;
+      }
 
       if (!response.ok) {
-        // Display specific validation errors if available
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
           setError(result.errors.join(". "));
         } else {
-          setError(result.message || "Erreur lors de la création du produit");
+          setError(result.message || "Erreur lors de la création");
         }
-        setIsLoading(false);
         return;
       }
 
       if (result.success) {
-        setSuccess("Produit créé avec succès !");
-        // Reset form
-        setFormData({
-          name: "",
-          purchasePrice: "",
-          sellingPrice: "",
-          quantity: "",
-          deliveryTime: "",
-          brand: "",
-          productType: "Labo médical",
-          images: [],
-          video: null,
-        });
-        setSelectedCategoryId("");
-        setSelectedSousCategoryId("");
-        // Reset file inputs
-        const imageInput = document.getElementById("images") as HTMLInputElement;
-        const videoInput = document.getElementById("video") as HTMLInputElement;
-        if (imageInput) imageInput.value = "";
-        if (videoInput) videoInput.value = "";
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
+        const label =
+          singleType === "machine"
+            ? "Machine créée"
+            : singleType === "service"
+              ? "Service créé"
+              : "Produit créé";
+        setSuccess(`${label} avec succès !`);
+        resetSingleForm();
+        setSingleType(null);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        // Display specific validation errors if available
-        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          setError(result.errors.join(". "));
-        } else {
-          setError(result.message || "Erreur lors de la création du produit");
-        }
+        setError(result.message || "Erreur lors de la création");
       }
     } catch (err) {
-      setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Create product error:", err);
+      setError(
+        "Impossible de contacter le serveur. Vérifiez votre connexion, ou réduisez la taille des images/PDF."
+      );
+      console.error("Create catalog item error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDownloadTemplate = async () => {
-    if (excelImportType !== "machine" && excelImportType !== "service") {
+    if (!excelImportType) {
       return;
     }
 
@@ -480,11 +440,15 @@ export default function AddProductPage() {
       const endpoint =
         excelImportType === "machine"
           ? `${API_BASE_URL}/machines/download-template?${params.toString()}`
-          : `${API_BASE_URL}/services/download-template?${params.toString()}`;
+          : excelImportType === "service"
+            ? `${API_BASE_URL}/services/download-template?${params.toString()}`
+            : `${API_BASE_URL}/products/download-template?${params.toString()}`;
       const filename =
         excelImportType === "machine"
           ? "modele_automates_biologie_medicale.xlsx"
-          : "modele_services_divers.xlsx";
+          : excelImportType === "service"
+            ? "modele_services_divers.xlsx"
+            : "modele_produits.xlsx";
 
       const response = await apiFetch(endpoint, { method: "GET" });
 
@@ -516,13 +480,23 @@ export default function AddProductPage() {
     setError(null);
     setSuccess(null);
 
-    if (excelImportType !== "machine" && excelImportType !== "service") {
+    if (!excelImportType) {
       setError("Veuillez choisir un type d'import");
       return;
     }
 
     if (!excelFile) {
       setError("Veuillez sélectionner un fichier Excel");
+      return;
+    }
+
+    if (!excelCategoryId) {
+      setError("Veuillez sélectionner une catégorie (les colonnes catégorie de l'Excel sont ignorées)");
+      return;
+    }
+
+    if (hasExcelSousCategories && !excelSousCategoryId) {
+      setError("Veuillez sélectionner une sous-catégorie");
       return;
     }
 
@@ -534,20 +508,29 @@ export default function AddProductPage() {
       const endpoint =
         excelImportType === "machine"
           ? `${API_BASE_URL}/machines/upload-excel`
-          : `${API_BASE_URL}/services/upload-excel`;
-      const itemLabel = excelImportType === "machine" ? "machine(s)" : "service(s)";
+          : excelImportType === "service"
+            ? `${API_BASE_URL}/services/upload-excel`
+            : `${API_BASE_URL}/products/upload-excel`;
+      const itemLabel =
+        excelImportType === "machine"
+          ? "machine(s)"
+          : excelImportType === "service"
+            ? "service(s)"
+            : "produit(s)";
 
       const formDataUpload = new FormData();
       formDataUpload.append("excelFile", excelFile);
-      if (excelCategoryId) {
-        formDataUpload.append("id_catgory", excelCategoryId);
-      }
+      formDataUpload.append("id_catgory", excelCategoryId);
       if (excelSousCategoryId) {
         formDataUpload.append("id_sous_catgory", excelSousCategoryId);
       }
 
       imageFiles.forEach((imageFile) => {
         formDataUpload.append("images", imageFile);
+      });
+
+      pdfFiles.forEach((pdfFile) => {
+        formDataUpload.append("ficheTechniques", pdfFile);
       });
 
       setUploadProgress(60);
@@ -563,6 +546,9 @@ export default function AddProductPage() {
       if (!response.ok) {
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
           setUploadErrors(result.errors);
+          setError(result.message || "Erreur lors de l'upload du fichier");
+        } else if (result.errorDetails && Array.isArray(result.errorDetails)) {
+          setUploadErrors(result.errorDetails);
           setError(result.message || "Erreur lors de l'upload du fichier");
         } else {
           let errorMessage = result.message || "Erreur lors de l'upload du fichier";
@@ -581,10 +567,13 @@ export default function AddProductPage() {
         );
         setExcelFile(null);
         setImageFiles([]);
+        setPdfFiles([]);
         const fileInput = document.getElementById("excelFile") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
         const imagesInput = document.getElementById("productImages") as HTMLInputElement;
         if (imagesInput) imagesInput.value = "";
+        const pdfsInput = document.getElementById("excelFichePdfs") as HTMLInputElement;
+        if (pdfsInput) pdfsInput.value = "";
 
         if (result.errorDetails && result.errorDetails.length > 0) {
           setUploadErrors(result.errorDetails);
@@ -593,7 +582,7 @@ export default function AddProductPage() {
         }
       } else {
         setError(result.message || "Erreur lors de l'upload du fichier");
-        setUploadErrors(result.errors || []);
+        setUploadErrors(result.errors || result.errorDetails || []);
       }
     } catch (err) {
       setError("Une erreur est survenue. Veuillez réessayer.");
@@ -667,6 +656,8 @@ export default function AddProductPage() {
           <button
             onClick={() => {
               setActiveTab("single");
+              setSingleType(null);
+              resetSingleForm();
               setError(null);
               setSuccess(null);
             }}
@@ -737,401 +728,383 @@ export default function AddProductPage() {
       {/* Single Product Form */}
       {activeTab === "single" && (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-          {/* Form Header */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200 px-6 sm:px-8 py-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
                 <Plus className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Formulaire d'ajout</h2>
-                <p className="text-sm text-gray-600">Remplissez les informations du produit</p>
+                <h2 className="text-xl font-bold text-gray-900">Ajout un par un</h2>
+                <p className="text-sm text-gray-600">
+                  {singleType
+                    ? singleType === "machine"
+                      ? "Machine — champs de la catégorie"
+                      : singleType === "service"
+                        ? "Service — champs de la catégorie"
+                        : "Produit — champs de la catégorie"
+                    : "Choisissez le type : Produit, Machine ou Service"}
+                </p>
               </div>
             </div>
           </div>
 
-          <form onSubmit={handleSingleSubmit} className="p-6 sm:p-8 space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Product Name */}
-              <div className="md:col-span-2">
-                <label htmlFor="name" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Package className="w-4 h-4 text-green-600" />
-                  <span>Nom du produit</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    required
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="Ex: Analyse de sang complète"
-                  />
-                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
-              </div>
+          <div className="p-6 sm:p-8">
+            {!singleType && (
+              <div className="grid sm:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetSingleForm();
+                    setSingleType("product");
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="p-6 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 hover:border-emerald-500 hover:shadow-lg transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Package className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Produit</h3>
+                  <p className="text-sm text-gray-600">Réactifs, consommables, etc.</p>
+                </button>
 
-              {/* Purchase Price */}
-              <div>
-                <label htmlFor="purchasePrice" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <TrendingDown className="w-4 h-4 text-green-600" />
-                  <span>Prix d'achat (DA)</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="purchasePrice"
-                    name="purchasePrice"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.purchasePrice}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="0.00"
-                  />
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetSingleForm();
+                    setSingleType("machine");
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="p-6 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 hover:border-blue-500 hover:shadow-lg transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Cpu className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Machine</h3>
+                  <p className="text-sm text-gray-600">Automates de biologie médicale</p>
+                </button>
 
-              {/* Selling Price */}
-              <div>
-                <label htmlFor="sellingPrice" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
-                  <span>Prix de vente (DA)</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="sellingPrice"
-                    name="sellingPrice"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.sellingPrice}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="0.00"
-                  />
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetSingleForm();
+                    setSingleType("service");
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="p-6 rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 hover:border-amber-500 hover:shadow-lg transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Wrench className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-1">Services</h3>
+                  <p className="text-sm text-gray-600">Services divers</p>
+                </button>
               </div>
+            )}
 
-              {/* Profit Display */}
-              {formData.purchasePrice && formData.sellingPrice && parseFloat(formData.sellingPrice) >= parseFloat(formData.purchasePrice) && (
-                <div className="md:col-span-2 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <Percent className="w-5 h-5 text-green-600" />
+            {singleType && (
+              <div className="space-y-6">
+                <button
+                  type="button"
+                  onClick={handleSingleBack}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  {showSingleFields && hasSingleSousCategories
+                    ? "Retour aux sous-catégories"
+                    : singleCategoryId
+                      ? "Retour aux catégories"
+                      : "Retour aux options"}
+                </button>
+
+                {!singleCategoryId && (
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Catégories{" "}
+                      {singleType === "machine"
+                        ? "Machine"
+                        : singleType === "service"
+                          ? "Services"
+                          : "Produit"}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choisissez une catégorie (type{" "}
+                      <span className="font-semibold">{singleCategoryKind}</span>)
+                    </p>
+                    {isLoadingCategories ? (
+                      <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Chargement des catégories...
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Bénéfice estimé</p>
-                        <p className="text-xs text-gray-500">Par unité vendue</p>
+                    ) : singleFilteredCategories.length === 0 ? (
+                      <div className="p-8 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
+                        <Package className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          Aucune catégorie de type {singleCategoryKind} pour le moment.
+                        </p>
                       </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {singleFilteredCategories.map((cat) => {
+                          const imageUrl = getMediaUrl(cat.image);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => handlePickSingleCategory(cat.id)}
+                              className="text-left rounded-2xl border-2 border-gray-200 overflow-hidden transition-all hover:border-green-400 hover:shadow-md"
+                            >
+                              <div className="h-28 bg-gray-100">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={cat.name_catgory}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-8 h-8 text-gray-300" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-3">
+                                <p className="font-semibold text-gray-900 truncate">
+                                  {cat.name_catgory}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{cat.des}</p>
+                                <p className="text-xs text-green-600 mt-2">
+                                  {cat.sousCategories?.length || 0} sous-catégorie(s)
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedSingleCategory && hasSingleSousCategories && !singleSousCategoryId && (
+                  <div>
+                    <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+                      Catégorie : <strong>{selectedSingleCategory.name_catgory}</strong>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600">
-                        +{calculateProfit().profit.toFixed(2)} DA
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        ({calculateProfit().profitPercentage}% de marge)
-                      </p>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Sous-catégories</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choisissez une sous-catégorie pour continuer
+                    </p>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {singleSousCategories.map((sc) => {
+                        const imageUrl = getMediaUrl(sc.image);
+                        return (
+                          <button
+                            key={sc.id}
+                            type="button"
+                            onClick={() => handlePickSingleSousCategory(sc.id)}
+                            className="text-left rounded-2xl border-2 border-gray-200 overflow-hidden transition-all hover:border-emerald-400 hover:shadow-md"
+                          >
+                            <div className="h-24 bg-gray-100">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={sc.name_sou_catgory}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Layers className="w-8 h-8 text-gray-300" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {sc.name_sou_catgory}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Quantity */}
-              <div>
-                <label htmlFor="quantity" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Box className="w-4 h-4 text-green-600" />
-                  <span>Quantité</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    id="quantity"
-                    name="quantity"
-                    required
-                    min="0"
-                    value={formData.quantity}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="0"
-                  />
-                  <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Category */}
-              <div>
-                <label htmlFor="category" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Tag className="w-4 h-4 text-green-600" />
-                  <span>Catégorie</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="category"
-                    name="category"
-                    required
-                    value={selectedCategoryId}
-                    onChange={handleCategoryChange}
-                    disabled={isLoadingCategories}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400 appearance-none disabled:opacity-60"
-                  >
-                    <option value="">
-                      {isLoadingCategories ? "Chargement..." : "Sélectionner une catégorie"}
-                    </option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name_catgory}
-                      </option>
-                    ))}
-                  </select>
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Sous-category */}
-              <div>
-                <label htmlFor="sousCategory" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Tag className="w-4 h-4 text-green-600" />
-                  <span>Sous-catégorie</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="sousCategory"
-                    name="sousCategory"
-                    required
-                    value={selectedSousCategoryId}
-                    onChange={handleSousCategoryChange}
-                    disabled={!selectedCategoryId || availableSousCategories.length === 0}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400 appearance-none disabled:opacity-60"
-                  >
-                    <option value="">
-                      {!selectedCategoryId
-                        ? "Choisissez d'abord une catégorie"
-                        : availableSousCategories.length === 0
-                          ? "Aucune sous-catégorie disponible"
-                          : "Sélectionner une sous-catégorie"}
-                    </option>
-                    {availableSousCategories.map((sc) => (
-                      <option key={sc.id} value={sc.id}>
-                        {sc.name_sou_catgory}
-                      </option>
-                    ))}
-                  </select>
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Delivery Time */}
-              <div>
-                <label htmlFor="deliveryTime" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Clock className="w-4 h-4 text-green-600" />
-                  <span>Délai de livraison</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="deliveryTime"
-                    name="deliveryTime"
-                    required
-                    value={formData.deliveryTime}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="Ex: 24-48 heures"
-                  />
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Brand */}
-              <div>
-                <label htmlFor="brand" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Building2 className="w-4 h-4 text-green-600" />
-                  <span>Marque</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id="brand"
-                    name="brand"
-                    required
-                    value={formData.brand}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400"
-                    placeholder="Ex: LaboPro"
-                  />
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Product Type */}
-              <div>
-                <label htmlFor="productType" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Package className="w-4 h-4 text-green-600" />
-                  <span>Type de produit</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="productType"
-                    name="productType"
-                    required
-                    value={formData.productType}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3.5 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white hover:border-gray-400 appearance-none cursor-pointer"
-                  >
-                    <option value="Labo médical">Labo médical</option>
-                    <option value="labo d'ana pathologies">labo d'ana pathologies</option>
-                  </select>
-                  <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Images Upload */}
-              <div className="md:col-span-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <ImageIcon className="w-4 h-4 text-green-600" />
-                  <span>Images du produit</span>
-                  <span className="text-xs text-gray-500">(Jusqu'à 10 images)</span>
-                </label>
-                <div className="space-y-3">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-                    <div className="flex flex-col items-center justify-center">
-                      <ImageIcon className="w-8 h-8 mb-2 text-gray-400 group-hover:text-green-600 transition-colors" />
-                      <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Cliquez pour ajouter</span> ou glissez-déposez
+                {showSingleFields && selectedSingleCategory && (
+                  <form onSubmit={handleSingleSubmit} className="space-y-6">
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800 space-y-1">
+                      <p>
+                        Type :{" "}
+                        <strong>
+                          {singleType === "machine"
+                            ? "Machine"
+                            : singleType === "service"
+                              ? "Service"
+                              : "Produit"}
+                        </strong>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Images uniquement - MAX. 50MB par image</p>
+                      <p>
+                        Catégorie : <strong>{selectedSingleCategory.name_catgory}</strong>
+                      </p>
+                      {selectedSingleSousCategory && (
+                        <p>
+                          Sous-catégorie :{" "}
+                          <strong>{selectedSingleSousCategory.name_sou_catgory}</strong>
+                        </p>
+                      )}
+                      {!hasSingleSousCategories && (
+                        <p className="text-xs text-green-700">
+                          Aucune sous-catégorie — le champ « Sous catégorie » restera vide.
+                        </p>
+                      )}
                     </div>
-                    <input
-                      type="file"
-                      id="images"
-                      name="images"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                  </label>
-                  
-                  {/* Image Preview */}
-                  {formData.images.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {formData.images.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-xl border-2 border-gray-200"
+
+                    <div className="grid md:grid-cols-2 gap-5">
+                      {singleEditableFields.map((field) => (
+                        <div
+                          key={field.label}
+                          className={
+                            field.label === "Désignation" || field.label === "Assistance technique"
+                              ? "md:col-span-2"
+                              : ""
+                          }
+                        >
+                          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                            <FileText className="w-4 h-4 text-green-600" />
+                            <span>{field.label}</span>
+                            {field.required && <span className="text-red-500">*</span>}
+                          </label>
+                          <p className="text-xs text-gray-500 mb-2">{field.desc}</p>
+                          <input
+                            type={field.inputType === "number" ? "number" : "text"}
+                            step={field.inputType === "number" ? "any" : undefined}
+                            required={!!field.required}
+                            value={fieldValues[field.label] || ""}
+                            onChange={(e) => handleFieldChange(field.label, e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white"
+                            placeholder={field.desc}
                           />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 rounded-b-xl truncate">
-                            {image.name}
-                          </div>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Video Upload */}
-              <div className="md:col-span-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Video className="w-4 h-4 text-green-600" />
-                  <span>Vidéo du produit</span>
-                  <span className="text-xs text-gray-500">(Optionnel - 1 vidéo max)</span>
-                </label>
-                {formData.video ? (
-                  <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                          <Video className="w-6 h-6 text-green-600" />
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                        <ImageIcon className="w-4 h-4 text-green-600" />
+                        <span>Images</span>
+                        <span className="text-xs text-gray-500">(jusqu&apos;à 10)</span>
+                      </label>
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
+                        <ImageIcon className="w-8 h-8 mb-2 text-gray-400 group-hover:text-green-600" />
+                        <p className="text-sm text-gray-600">
+                          <span className="font-semibold">Cliquez pour ajouter</span> des images
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleSingleImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {singleImages.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3">
+                          {singleImages.map((image, index) => (
+                            <div key={`${image.name}-${index}`} className="relative group">
+                              <img
+                                src={URL.createObjectURL(image)}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-28 object-cover rounded-xl border-2 border-gray-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeSingleImage(index)}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{formData.video.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {(formData.video.size / (1024 * 1024)).toFixed(2)} MB
-                          </p>
-                        </div>
+                      )}
+                    </div>
+
+                    {showFicheUpload && (
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <span>Fiche Technique (PDF)</span>
+                        </label>
+                        {fichePdf ? (
+                          <div className="flex items-center justify-between p-4 bg-green-50 border-2 border-green-200 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <FileText className="w-6 h-6 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{fichePdf.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {(fichePdf.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFichePdf(null)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-600 font-semibold">
+                              Téléverser le PDF de la fiche technique
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">PDF uniquement — max 20MB</p>
+                            <input
+                              type="file"
+                              accept="application/pdf,.pdf"
+                              onChange={handleFichePdfChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
                       </div>
+                    )}
+
+                    <div className="flex gap-4 pt-6 border-t border-gray-200">
                       <button
-                        type="button"
-                        onClick={removeVideo}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        type="submit"
+                        disabled={isLoading}
+                        className="flex-1 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                       >
-                        <X className="w-5 h-5" />
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            <span>Création en cours...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-6 h-6" />
+                            <span>
+                              Créer{" "}
+                              {singleType === "machine"
+                                ? "la machine"
+                                : singleType === "service"
+                                  ? "le service"
+                                  : "le produit"}
+                            </span>
+                          </>
+                        )}
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-                    <div className="flex flex-col items-center justify-center">
-                      <Video className="w-8 h-8 mb-2 text-gray-400 group-hover:text-green-600 transition-colors" />
-                      <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Cliquez pour ajouter</span> ou glissez-déposez
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Vidéo (mp4, mov, avi) - MAX. 50MB</p>
-                    </div>
-                    <input
-                      type="file"
-                      id="video"
-                      name="video"
-                      accept="video/*"
-                      onChange={handleVideoChange}
-                      className="hidden"
-                    />
-                  </label>
+                  </form>
                 )}
               </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex gap-4 pt-6 border-t border-gray-200">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group relative overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-6 h-6 animate-spin relative z-10" />
-                    <span className="relative z-10">Création en cours...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-6 h-6 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
-                    <span className="relative z-10">Créer le produit</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+            )}
+          </div>
         </div>
       )}
 
@@ -1367,7 +1340,7 @@ export default function AddProductPage() {
                                 Votre fichier Excel doit contenir les colonnes suivantes :
                               </p>
                             </div>
-                            {(excelImportType === "machine" || excelImportType === "service") && (
+                            {excelImportType && (
                               <button
                                 type="button"
                                 onClick={handleDownloadTemplate}
@@ -1398,7 +1371,7 @@ export default function AddProductPage() {
                       </div>
                     </div>
 
-                    {(excelImportType === "machine" || excelImportType === "service") ? (
+                    {excelImportType && (
                       <form onSubmit={handleExcelSubmit} className="space-y-6">
                         <div>
                           <label htmlFor="excelFile" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
@@ -1465,6 +1438,7 @@ export default function AddProductPage() {
                           </label>
                           <p className="text-xs text-gray-500 mb-3">
                             Images correspondant à la colonne &quot;Image&quot; du fichier Excel
+                            (ex: <code className="bg-gray-100 px-1 rounded">photo1.jpg</code>)
                           </p>
                           {imageFiles.length > 0 ? (
                             <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
@@ -1513,6 +1487,76 @@ export default function AddProductPage() {
                           )}
                         </div>
 
+                        {excelImportType && typeHasFicheTechnique(excelImportType) && (
+                          <div>
+                            <label
+                              htmlFor="excelFichePdfs"
+                              className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3"
+                            >
+                              <FileText className="w-4 h-4 text-emerald-600" />
+                              <span>Fiches techniques PDF (optionnel)</span>
+                            </label>
+                            <p className="text-xs text-gray-500 mb-3">
+                              Si la colonne &quot;Fiche Technique&quot; de l&apos;Excel contient un nom de fichier
+                              (ex: <code className="bg-gray-100 px-1 rounded">fiche_produit1.pdf</code>),
+                              uploadez ici les PDF correspondants — un PDF par ligne / produit.
+                            </p>
+                            {pdfFiles.length > 0 ? (
+                              <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 rounded-2xl">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {pdfFiles.length} PDF(s)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPdfFiles([]);
+                                      const pdfsInput = document.getElementById(
+                                        "excelFichePdfs"
+                                      ) as HTMLInputElement;
+                                      if (pdfsInput) pdfsInput.value = "";
+                                    }}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <ul className="space-y-2 max-h-40 overflow-y-auto">
+                                  {pdfFiles.map((file, idx) => (
+                                    <li
+                                      key={`${file.name}-${idx}`}
+                                      className="flex items-center gap-2 text-sm text-gray-800 bg-white/70 rounded-lg px-3 py-2 border border-emerald-100"
+                                    >
+                                      <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                                      <span className="truncate font-medium">{file.name}</span>
+                                      <span className="text-xs text-gray-500 shrink-0 ml-auto">
+                                        {(file.size / 1024).toFixed(1)} KB
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : (
+                              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:border-emerald-400 transition-all">
+                                <FileText className="w-8 h-8 text-emerald-600 mb-2" />
+                                <p className="text-sm font-semibold text-gray-700">
+                                  Sélectionner les PDF
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">PDF — MAX. 20MB chacun</p>
+                                <input
+                                  type="file"
+                                  id="excelFichePdfs"
+                                  name="excelFichePdfs"
+                                  accept="application/pdf,.pdf"
+                                  multiple
+                                  onChange={handlePdfsChange}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                          </div>
+                        )}
+
                         {uploadErrors.length > 0 && (
                           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                             <p className="text-sm font-semibold text-amber-900 mb-2">
@@ -1559,20 +1603,18 @@ export default function AddProductPage() {
                               <>
                                 <FileSpreadsheet className="w-6 h-6" />
                                 <span>
-                                  Importer les {excelImportType === "machine" ? "machines" : "services"}
+                                  Importer les{" "}
+                                  {excelImportType === "machine"
+                                    ? "machines"
+                                    : excelImportType === "service"
+                                      ? "services"
+                                      : "produits"}
                                 </span>
                               </>
                             )}
                           </button>
                         </div>
                       </form>
-                    ) : (
-                      <div className="p-6 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
-                        <Package className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">
-                          Colonnes du modèle produit affichées ci-dessus. L&apos;upload Excel produit sera ajouté bientôt.
-                        </p>
-                      </div>
                     )}
                   </>
                 )}

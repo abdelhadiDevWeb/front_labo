@@ -34,6 +34,7 @@ import {
   FolderTree,
   Megaphone,
   Percent,
+  Eye,
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
@@ -47,11 +48,16 @@ import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
 import PromotionsShowcase from "@/components/PromotionsShowcase";
+import GroupSelleShowcase from "@/components/GroupSelleShowcase";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import CatalogItemDetailsModal from "@/components/CatalogItemDetailsModal";
+import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import {
   getUniqueDataTitle,
   productToUniqueData,
 } from "@/lib/unique-data-display";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
 export default function HomePage() {
   const router = useRouter();
@@ -79,6 +85,14 @@ export default function HomePage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const cartItemCount = getTotalItems();
   const isClientUser = userRole === "client";
+  const {
+    location: userLocation,
+    status: locationStatus,
+    source: locationSource,
+    requestBrowserLocation,
+  } = useUserLocation();
+  const requiresWilayaForCatalog = !isAuthenticated || userRole === "client";
+  const visitorWilayaCode = resolveWilayaCode(userLocation?.wilaya);
   const [particles, setParticles] = useState<Array<{
     left: number;
     top: number;
@@ -88,6 +102,10 @@ export default function HomePage() {
     animationDuration: number;
   }>>([]);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [catalogDetails, setCatalogDetails] = useState<{
+    item: PublicCatalogItem;
+    kind: "machine" | "service";
+  } | null>(null);
   const [supportFormData, setSupportFormData] = useState({
     email: "",
     phone: "",
@@ -149,72 +167,78 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Fetch products from API
+  // Fetch products / machines / services filtered by visitor or labo wilaya
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setIsLoadingProducts(true);
+    const loadCatalog = async () => {
+      if (requiresWilayaForCatalog && locationStatus === "loading") {
+        return;
+      }
+
+      const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+      const filters =
+        wilayaCode
+          ? { wilayaCode }
+          : userLocation?.wilaya
+            ? { wilayaCode: userLocation.wilaya }
+            : undefined;
+
+      if (requiresWilayaForCatalog && !wilayaCode) {
+        setProducts([]);
+        setMachines([]);
+        setServices([]);
+        setIsLoadingProducts(false);
+        setIsLoadingMachines(false);
+        setIsLoadingServices(false);
         setProductsError(null);
-        const result = await getAllProducts();
-        if (result.success && result.data && result.data.products) {
-          // Get first 8 products (prioritize in-stock products)
-          const inStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity > 0);
-          const outOfStockProducts = result.data.products.filter((p: PublicProduct) => p.quantity === 0);
-          // Show in-stock products first, then out-of-stock if needed
-          const productsToShow = [...inStockProducts, ...outOfStockProducts].slice(0, 8);
-          setProducts(productsToShow);
+        return;
+      }
+
+      setIsLoadingProducts(true);
+      setIsLoadingMachines(true);
+      setIsLoadingServices(true);
+      setProductsError(null);
+
+      try {
+        const [productsRes, machinesRes, servicesRes] = await Promise.all([
+          getAllProducts(filters),
+          getPublicMachines(filters),
+          getPublicServices(filters),
+        ]);
+
+        if (productsRes.success && productsRes.data?.products) {
+          const inStock = productsRes.data.products.filter((p) => p.quantity > 0);
+          const outOfStock = productsRes.data.products.filter((p) => p.quantity === 0);
+          setProducts([...inStock, ...outOfStock].slice(0, 8));
         } else {
-          setProductsError(result.message || "Aucun produit trouvé");
+          setProductsError(productsRes.message || "Aucun produit trouvé");
           setProducts([]);
         }
-      } catch (err) {
-        setProductsError("Erreur lors du chargement des produits");
-        setProducts([]);
-      } finally {
-        setIsLoadingProducts(false);
-      }
-    };
 
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    const loadMachines = async () => {
-      try {
-        setIsLoadingMachines(true);
-        const result = await getPublicMachines();
-        if (result.success && result.data?.machines) {
-          setMachines(result.data.machines.slice(0, 8));
+        if (machinesRes.success && machinesRes.data?.machines) {
+          setMachines(machinesRes.data.machines.slice(0, 8));
         } else {
           setMachines([]);
         }
-      } catch {
-        setMachines([]);
-      } finally {
-        setIsLoadingMachines(false);
-      }
-    };
-    void loadMachines();
-  }, []);
 
-  useEffect(() => {
-    const loadServices = async () => {
-      try {
-        setIsLoadingServices(true);
-        const result = await getPublicServices();
-        if (result.success && result.data?.services) {
-          setServices(result.data.services.slice(0, 8));
+        if (servicesRes.success && servicesRes.data?.services) {
+          setServices(servicesRes.data.services.slice(0, 8));
         } else {
           setServices([]);
         }
       } catch {
+        setProductsError("Erreur lors du chargement des produits");
+        setProducts([]);
+        setMachines([]);
         setServices([]);
       } finally {
+        setIsLoadingProducts(false);
+        setIsLoadingMachines(false);
         setIsLoadingServices(false);
       }
     };
-    void loadServices();
-  }, []);
+
+    void loadCatalog();
+  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
 
   // Fetch categories from API
   useEffect(() => {
@@ -346,7 +370,7 @@ export default function HomePage() {
       
       // Show browser notification if permission granted
       if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Mise à jour de commande", {
+        new Notification("Mise à jour de réserve", {
           body: data.message,
           icon: "/favicon.ico",
         });
@@ -471,19 +495,19 @@ export default function HomePage() {
   const faqs = [
     {
       question: "Qu'est-ce que MarketLab ?",
-      answer: "MarketLab est une marketplace professionnelle qui connecte les laboratoires d'analyses avec leurs clients, facilitant la recherche, la commande et le suivi des services d'analyse.",
+      answer: "MarketLab est une marketplace professionnelle qui connecte les laboratoires d'analyses avec leurs clients, facilitant la recherche, la réserve et le suivi des services d'analyse.",
     },
     {
       question: "Comment fonctionne MarketLab ?",
-      answer: "Notre plateforme permet de rechercher des services précis, consulter les offres, commander en ligne, payer en toute sécurité et suivre votre commande en temps réel.",
+      answer: "Notre plateforme permet de rechercher des services précis, consulter les offres, réserver en ligne, payer en toute sécurité et suivre votre réserve en temps réel.",
     },
     {
-      question: "Puis-je annuler ma commande ?",
-      answer: "Oui, vous pouvez annuler votre commande dans un délai de 24 heures après la passation, sous réserve des conditions générales de vente.",
+      question: "Puis-je annuler ma réserve ?",
+      answer: "Oui, vous pouvez annuler votre réserve dans un délai de 24 heures après la passation, sous réserve des conditions générales de vente.",
     },
     {
       question: "Quel est le délai de livraison ?",
-      answer: "Les délais de livraison varient selon le type d'analyse demandé. Ils sont indiqués clairement sur chaque fiche produit avant la commande.",
+      answer: "Les délais de livraison varient selon le type d'analyse demandé. Ils sont indiqués clairement sur chaque fiche produit avant la réserve.",
     },
     {
       question: "Comment puis-je contacter le support ?",
@@ -501,15 +525,15 @@ export default function HomePage() {
       description: "Comparez les prix et les services des différents laboratoires",
     },
     {
-      title: "Commandez en ligne",
-      description: "Passez votre commande en quelques clics",
+      title: "Réservez en ligne",
+      description: "Passez votre réserve en quelques clics",
     },
     {
       title: "Payez en toute sécurité",
       description: "Paiement sécurisé par carte bancaire ou virement",
     },
     {
-      title: "Suivez votre commande",
+      title: "Suivez votre réserve",
       description: "Recevez des notifications en temps réel sur l'avancement",
     },
   ];
@@ -523,7 +547,7 @@ export default function HomePage() {
     {
       icon: Laptop,
       title: "Accès en ligne",
-      description: "Gérez vos commandes depuis n'importe où",
+      description: "Gérez vos réserves depuis n'importe où",
     },
     {
       icon: Smartphone,
@@ -606,7 +630,7 @@ export default function HomePage() {
               {isAuthenticated && isClientUser && (
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Mes Commandes</span>
+                  <span>Mes Réserves</span>
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               )}
@@ -695,9 +719,9 @@ export default function HomePage() {
                                     <div className="flex-1 min-w-0">
                                       <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
                                             {notification.type === "order_status" 
-                                              ? "Mise à jour de commande" 
+                                              ? "Mise à jour de réserve" 
                                               : notification.type === "new_order"
-                                              ? "Nouvelle commande"
+                                              ? "Nouvelle réserve"
                                               : "Notification système"}
                                       </p>
                                           {notification.idSender && typeof notification.idSender === 'object' && (
@@ -725,7 +749,7 @@ export default function HomePage() {
                                       </p>
                                         {notification.type === "order_status" && (
                                           <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-                                            Commande
+                                            Réserve
                                           </span>
                                         )}
                                       </div>
@@ -812,7 +836,7 @@ export default function HomePage() {
                 {isAuthenticated && isClientUser && (
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
-                    <span>Mes Commandes</span>
+                    <span>Mes Réserves</span>
                   </Link>
                 )}
                 {isAuthenticated && isClientUser ? (
@@ -1109,7 +1133,7 @@ export default function HomePage() {
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Suivi en temps réel de vos commandes et résultats</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Suivi en temps réel de vos réserves et résultats</span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
@@ -1121,7 +1145,7 @@ export default function HomePage() {
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Paiements sécurisés et facturation simplifiée</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Paiements sécurisés et réservation simplifiée</span>
                 </li>
               </ul>
               <button className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-sm sm:text-base md:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl mt-4 sm:mt-6 md:mt-8 inline-flex items-center gap-2">
@@ -1241,35 +1265,92 @@ export default function HomePage() {
       </section>
 
       {/* Supplier Section */}
-      <section className="py-12 sm:py-16 md:py-24 bg-gray-50">
+      <section className="py-12 sm:py-16 md:py-24 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 md:mb-6 px-2 sm:px-4">
-              Vous êtes fournisseur ?
-            </h2>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-2 sm:px-4">
-              Rejoignez notre réseau de laboratoires partenaires et développez votre activité en ligne. 
-              Gérez vos commandes, suivez vos performances et accédez à de nouveaux clients.
-            </p>
-            <button className="px-5 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all transform hover:scale-105 shadow-lg mb-6 sm:mb-8 md:mb-12 text-xs sm:text-sm md:text-base">
-              Devenir fournisseur
-            </button>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mt-6 sm:mt-8 md:mt-12">
-              <div className={`bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:scale-110 hover-lift scroll-animate-scale`} id="supplier-1">
-                <Laptop className="w-12 h-12 text-blue-600 mb-4 mx-auto transform transition-transform hover:scale-125 hover:rotate-6" />
-                <h3 className="font-semibold text-gray-900 mb-2 transition-colors hover:text-blue-600">Gestion en ligne</h3>
-                <p className="text-gray-600 text-sm">Tableau de bord complet pour gérer vos commandes</p>
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
+            <div
+              className={`scroll-animate-left ${visibleElements.has("supplier-left") ? "animate" : ""}`}
+              id="supplier-left"
+            >
+              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 hover-lift space-y-4 sm:space-y-5 h-full">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-blue-100 uppercase tracking-wide">Espace fournisseur</p>
+                    <h3 className="text-lg sm:text-xl font-bold">Votre vitrine professionnelle</h3>
+                  </div>
+                </div>
+
+                <p className="text-sm sm:text-base text-blue-50 leading-relaxed">
+                  Un fournisseur MarketLab publie son catalogue, reçoit des commandes des laboratoires,
+                  gère la livraison par wilaya et suit ses ventes depuis un tableau de bord dédié.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
+                    <Package className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
+                    <p className="font-semibold text-sm sm:text-base">Produits</p>
+                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Réactifs & consommables</p>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
+                    <Laptop className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
+                    <p className="font-semibold text-sm sm:text-base">Machines</p>
+                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Équipements de labo</p>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
+                    <Truck className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
+                    <p className="font-semibold text-sm sm:text-base">Livraison</p>
+                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Couverture par wilaya</p>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
+                    <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
+                    <p className="font-semibold text-sm sm:text-base">Visibilité</p>
+                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Sponsoring & promos</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1 sm:pt-2 border-t border-white/15">
+                  <ShoppingBag className="w-5 h-5 text-white shrink-0" />
+                  <p className="text-xs sm:text-sm text-blue-50">
+                    Vendez aux laboratoires partenaires partout en Algérie
+                  </p>
+                </div>
               </div>
-              <div className={`bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:scale-110 hover-lift scroll-animate-scale`} id="supplier-2" style={{ transitionDelay: "100ms" }}>
-                <Truck className="w-12 h-12 text-blue-600 mb-4 mx-auto transform transition-transform hover:scale-125 hover:rotate-6" />
-                <h3 className="font-semibold text-gray-900 mb-2 transition-colors hover:text-blue-600">Logistique intégrée</h3>
-                <p className="text-gray-600 text-sm">Solutions de livraison et suivi des envois</p>
-              </div>
-              <div className={`bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:scale-110 hover-lift scroll-animate-scale`} id="supplier-3" style={{ transitionDelay: "200ms" }}>
-                <Phone className="w-12 h-12 text-blue-600 mb-4 mx-auto transform transition-transform hover:scale-125 hover:rotate-6" />
-                <h3 className="font-semibold text-gray-900 mb-2 transition-colors hover:text-blue-600">Support dédié</h3>
-                <p className="text-gray-600 text-sm">Équipe d'assistance pour vous accompagner</p>
-              </div>
+            </div>
+
+            <div className="space-y-3 sm:space-y-4 md:space-y-6 animate-fade-in-right">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">
+                Vous êtes fournisseur ?
+              </h2>
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
+                Vendez vos produits, machines et services aux laboratoires partenaires et développez votre activité sur MarketLab.
+              </p>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200">Visibilité auprès d&apos;un réseau de laboratoires actifs</span>
+                </li>
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200">Catalogue produits, machines et services en ligne</span>
+                </li>
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200">Gestion des commandes et suivi des performances</span>
+                </li>
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200">Support dédié et outils de sponsoring / promotions</span>
+                </li>
+              </ul>
+              <Link
+                href="/register?type=supplier"
+                className="inline-block px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base"
+              >
+                Créez votre compte en tant que fournisseur
+              </Link>
             </div>
           </div>
         </div>
@@ -1309,15 +1390,20 @@ export default function HomePage() {
                   <span className="transition-all group-hover:text-blue-200">Formation et support technique inclus</span>
                 </li>
               </ul>
-              <button className="px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base">
+              <Link
+                href="/register"
+                className="inline-block px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-600 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base"
+              >
                 Créez votre compte en tant que laboratoire
-              </button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       <PromotionsShowcase />
+
+      <GroupSelleShowcase />
 
       {/* FAQ Section */}
       <section className="py-12 sm:py-16 md:py-24 bg-white">
@@ -1359,6 +1445,16 @@ export default function HomePage() {
       {/* Popular Products Section */}
       <section id="marketplace" className="py-12 sm:py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          {requiresWilayaForCatalog && (
+            <CatalogLocationBanner
+              isGuest={!isAuthenticated}
+              locationStatus={locationStatus}
+              wilayaLabel={userLocation?.wilaya}
+              source={locationSource}
+              onRequestLocation={requestBrowserLocation}
+              catalogLabel="produits, machines et services"
+            />
+          )}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
               Produits les plus populaires
@@ -1392,7 +1488,11 @@ export default function HomePage() {
           ) : products.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Aucun produit disponible pour le moment</p>
+              <p className="text-gray-600">
+                {requiresWilayaForCatalog && !visitorWilayaCode
+                  ? "Autorisez la localisation pour voir les produits de votre wilaya"
+                  : "Aucun produit disponible dans votre wilaya pour le moment"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -1537,7 +1637,11 @@ export default function HomePage() {
           ) : machines.length === 0 ? (
             <div className="text-center py-12">
               <Microscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Aucune machine disponible pour le moment</p>
+              <p className="text-gray-600">
+                {requiresWilayaForCatalog && !visitorWilayaCode
+                  ? "Autorisez la localisation pour voir les machines de votre wilaya"
+                  : "Aucune machine disponible dans votre wilaya pour le moment"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -1549,10 +1653,9 @@ export default function HomePage() {
                     ? getMediaUrl(machine.images[0])
                     : null;
                 return (
-                  <Link
+                  <div
                     key={machine.id}
-                    href={`/machines/${machine.id}`}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group flex flex-col"
                   >
                     <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                       {mainImage ? (
@@ -1570,13 +1673,47 @@ export default function HomePage() {
                         Machine
                       </span>
                     </div>
-                    <div className="p-5 space-y-3">
+                    <div className="p-5 space-y-3 flex-1 flex flex-col">
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
                         {displayName}
                       </h3>
                       <UniqueDataFields data={uniqueData} max={8} />
+                      <div className="mt-auto flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isClientUser) {
+                              addToCart({
+                                id: machine.id,
+                                name: displayName,
+                                price: machine.price,
+                                supplierId: machine.supplier?.id || "",
+                                itemType: "machine",
+                              });
+                              setCartOpen(true);
+                            } else {
+                              setLoginAlertOpen(true);
+                            }
+                          }}
+                          disabled={machine.quantity === 0}
+                          className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          {machine.quantity === 0 ? "Rupture" : "Réserver"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCatalogDetails({ item: machine, kind: "machine" })
+                          }
+                          className="px-4 py-2.5 border-2 border-blue-600 text-blue-700 rounded-xl font-semibold hover:bg-blue-50 flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Détails
+                        </button>
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -1613,7 +1750,11 @@ export default function HomePage() {
           ) : services.length === 0 ? (
             <div className="text-center py-12">
               <Laptop className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Aucun service disponible pour le moment</p>
+              <p className="text-gray-600">
+                {requiresWilayaForCatalog && !visitorWilayaCode
+                  ? "Autorisez la localisation pour voir les services de votre wilaya"
+                  : "Aucun service disponible dans votre wilaya pour le moment"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -1625,10 +1766,9 @@ export default function HomePage() {
                     ? getMediaUrl(service.images[0])
                     : null;
                 return (
-                  <Link
+                  <div
                     key={service.id}
-                    href={`/services/${service.id}`}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group flex flex-col"
                   >
                     <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                       {mainImage ? (
@@ -1646,13 +1786,23 @@ export default function HomePage() {
                         Service
                       </span>
                     </div>
-                    <div className="p-5 space-y-3">
+                    <div className="p-5 space-y-3 flex-1 flex flex-col">
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
                         {displayName}
                       </h3>
                       <UniqueDataFields data={uniqueData} max={8} />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCatalogDetails({ item: service, kind: "service" })
+                        }
+                        className="mt-auto w-full py-2.5 border-2 border-amber-600 text-amber-800 rounded-xl font-semibold hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Voir détails
+                      </button>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -1738,6 +1888,15 @@ export default function HomePage() {
       >
         <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
+
+      {catalogDetails && (
+        <CatalogItemDetailsModal
+          item={catalogDetails.item}
+          kind={catalogDetails.kind}
+          onClose={() => setCatalogDetails(null)}
+          onReserved={() => setCartOpen(true)}
+        />
+      )}
 
       {/* Support Modal */}
       {showSupportModal && (

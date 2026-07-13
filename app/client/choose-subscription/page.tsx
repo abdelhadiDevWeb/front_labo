@@ -11,7 +11,7 @@ function ClientChooseSubscriptionInner() {
       backHref="/client/upload-documents"
       dashboardHref="/home"
       pageTitle="Choisissez votre abonnement"
-      pageSubtitle="Sélectionnez l'offre adaptée à votre laboratoire"
+      pageSubtitle="Sélectionnez l'offre adaptée à votre laboratoire — paiement en ligne ou en main propre (demande envoyée à l'admin)"
       documentLabel="documents"
     />
   );

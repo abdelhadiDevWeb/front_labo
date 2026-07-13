@@ -1018,6 +1018,7 @@ export interface PublicProduct {
     phone: string;
     address: string;
     certife?: boolean;
+    wilaya?: string | null;
     wilayas?: string[];
     coversAllWilayas?: boolean;
   } | null;
@@ -1105,6 +1106,161 @@ export const getPublicPromotions = async (): Promise<
   }
 };
 
+export interface GroupSelleProductInfo {
+  id: string;
+  name: string;
+  brand: string;
+  images: string[];
+  category: string;
+  stockQuantity: number;
+  sellingPrice?: number;
+  purchasePrice?: number;
+  deliveryTime?: string;
+  productType?: string;
+  conditionnement?: string | null;
+  wilaya?: string | null;
+  daira?: string | null;
+  commune?: string | null;
+  unique_data?: Record<string, unknown>;
+}
+
+export interface GroupSelleItem {
+  id: string;
+  id_item: string;
+  supplierId: string;
+  qu: number;
+  price_by_one: number;
+  total: number;
+  users: Array<{
+    userId: string;
+    quantity: number;
+    joinedAt?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  }>;
+  committedQuantity: number;
+  remainingQuantity: number;
+  progressPercent: number;
+  status: "open" | "close";
+  stockReserved?: boolean;
+  start_time: string;
+  end_time: string;
+  product: GroupSelleProductInfo | null;
+  createdAt?: string;
+  updatedAt?: string;
+  yourQuantity?: number;
+  yourCost?: number;
+}
+
+export const getPublicGroupSelles = async (): Promise<
+  ApiResponse<{ groupSelles: GroupSelleItem[]; total: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/group-selles/public`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch group sells",
+      };
+    }
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getSupplierGroupSelles = async (): Promise<
+  ApiResponse<{ groupSelles: GroupSelleItem[]; total: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/group-selles`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch group sells",
+      };
+    }
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createGroupSelle = async (data: {
+  id_item: string;
+  qu: number;
+  price_by_one: number;
+  end_time: string;
+  start_time: string;
+}): Promise<ApiResponse<GroupSelleItem>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/group-selles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || "Failed to create group sell",
+      };
+    }
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const joinGroupSelle = async (
+  groupSelleId: string,
+  quantity: number
+): Promise<ApiResponse<GroupSelleItem>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/group-selles/${groupSelleId}/join`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity }),
+      }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || "Failed to join group sell",
+      };
+    }
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
 export interface PublicCatalogItem {
   id: string;
   name: string;
@@ -1120,6 +1276,11 @@ export interface PublicCatalogItem {
   brand: string;
   images: string[];
   unique_data?: Record<string, unknown>;
+  wilaya?: string | null;
+  daira?: string | null;
+  commune?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   supplier: {
     id: string;
     name: string;
@@ -1127,6 +1288,7 @@ export interface PublicCatalogItem {
     phone: string;
     address: string;
     certife?: boolean;
+    wilaya?: string | null;
     wilayas?: string[];
     coversAllWilayas?: boolean;
   } | null;

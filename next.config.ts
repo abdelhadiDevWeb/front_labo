@@ -88,6 +88,12 @@ const buildContentSecurityPolicy = (): string => {
 };
 
 const nextConfig: NextConfig = {
+  // One-by-one / Excel uploads (images + PDF) go through the Next rewrite proxy.
+  // Default buffer is 10MB and truncates the body → backend hang / create fails.
+  experimental: {
+    proxyClientMaxBodySize: "50mb",
+    middlewareClientMaxBodySize: "50mb",
+  },
   async rewrites() {
     const backendBase =
       process.env.API_INTERNAL_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||

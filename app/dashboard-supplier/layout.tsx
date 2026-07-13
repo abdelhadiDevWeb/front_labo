@@ -24,6 +24,7 @@ import {
   Send,
   CheckCircle,
   Percent,
+  Users,
 } from "lucide-react";
 import { getSessionRole, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, apiFetch } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
@@ -35,8 +36,9 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
   { icon: Package, label: "MarketPlace", href: "/dashboard-supplier/products" },
   { icon: Percent, label: "Promotions", href: "/dashboard-supplier/promotions" },
+  { icon: Users, label: "Vente groupée", href: "/dashboard-supplier/sell-by-group" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },
-  { icon: ShoppingCart, label: "Commandes", href: "/dashboard-supplier/orders" },
+  { icon: ShoppingCart, label: "Réserves", href: "/dashboard-supplier/orders" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard-supplier/statistics" },
   { icon: User, label: "Profil", href: "/dashboard-supplier/profile" },
 ];
@@ -171,8 +173,8 @@ export default function SupplierDashboardLayout({
       
       // Show browser notification if permission granted
       if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification("Nouvelle commande", {
-          body: `Nouvelle commande de ${data.buyerName} - ${data.total.toFixed(2)} DA`,
+        new window.Notification("Nouvelle réserve", {
+          body: `Nouvelle réserve de ${data.buyerName} - ${data.total.toFixed(2)} DA`,
           icon: "/favicon.ico",
         });
       }
@@ -551,7 +553,7 @@ export default function SupplierDashboardLayout({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
-                                    {notification.type === "new_order" ? "Nouvelle commande" : "Mise à jour de commande"}
+                                    {notification.type === "new_order" ? "Nouvelle réserve" : "Mise à jour de réserve"}
                                   </p>
                                   <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
                                     {notification.message}

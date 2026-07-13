@@ -14,6 +14,8 @@ import {
   ArrowLeft,
   SlidersHorizontal,
   DollarSign,
+  Eye,
+  ShoppingCart,
 } from "lucide-react";
 import {
   Category,
@@ -25,7 +27,12 @@ import {
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
-import { resolveWilayaCode, supplierCoversWilaya } from "@/lib/algeria-wilayas";
+import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
+import CatalogItemDetailsModal from "@/components/CatalogItemDetailsModal";
+import CatalogLocationBanner from "@/components/CatalogLocationBanner";
+import CartPanel from "@/components/CartPanel";
+import LoginAlert from "@/components/LoginAlert";
+import { useCart } from "@/contexts/CartContext";
 
 type CatalogKind = "machine" | "service";
 
@@ -74,7 +81,15 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   const [showFilters, setShowFilters] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(true);
-  const { location: userLocation, status: locationStatus } = useUserLocation();
+  const [detailsItem, setDetailsItem] = useState<PublicCatalogItem | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const { addToCart } = useCart();
+  const {
+    location: userLocation,
+    status: locationStatus,
+    requestBrowserLocation,
+  } = useUserLocation();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
 
@@ -112,10 +127,12 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
         setIsLoading(true);
         setError(null);
         const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+
         if (requiresWilayaForCatalog && !wilayaCode) {
           setItems([]);
           return;
         }
+
         const filters = wilayaCode
           ? { wilayaCode }
           : userLocation?.wilaya
@@ -133,9 +150,11 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           );
         } else {
           setError(result.message || `Erreur lors du chargement des ${meta.title.toLowerCase()}`);
+          setItems([]);
         }
       } catch {
         setError("Une erreur est survenue");
+        setItems([]);
       } finally {
         setIsLoading(false);
       }
@@ -195,7 +214,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       const matchesPrice = item.price >= minPrice && item.price <= maxPrice;
       const matchesWilaya =
         !appliesWilayaFilter ||
-        (!!clientWilayaCode && supplierCoversWilaya(item.supplier, clientWilayaCode));
+        catalogItemAvailableInWilaya(item, clientWilayaCode, userLocation?.wilaya);
 
       return (
         matchesSearch &&
@@ -219,6 +238,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     dbCategories,
     appliesWilayaFilter,
     clientWilayaCode,
+    userLocation?.wilaya,
   ]);
 
   return (
@@ -373,6 +393,16 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           </aside>
 
           <main>
+            {requiresWilayaForCatalog && (
+              <CatalogLocationBanner
+                isGuest={isGuest}
+                locationStatus={locationStatus}
+                wilayaLabel={userLocation?.wilaya}
+                onRequestLocation={requestBrowserLocation}
+                catalogLabel={meta.title.toLowerCase()}
+              />
+            )}
+
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
@@ -385,6 +415,12 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
               <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
                 <Package className="w-14 h-14 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-600">Aucune {meta.singular} trouvée</p>
+                {items.length > 0 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Des résultats existent mais ne correspondent pas aux filtres
+                    sélectionnés.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -392,10 +428,9 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                   const image =
                     item.images?.[0] != null ? getMediaUrl(item.images[0]) : null;
                   return (
-                    <Link
+                    <div
                       key={item.id}
-                      href={`${meta.detailBase}/${item.id}`}
-                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group"
+                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col"
                     >
                       <div className="relative h-44 bg-gray-100">
                         {image ? (
@@ -415,7 +450,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                           {meta.singular}
                         </span>
                       </div>
-                      <div className="p-4 space-y-2">
+                      <div className="p-4 space-y-2 flex-1 flex flex-col">
                         <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
                           {item.name}
                         </h3>
@@ -431,7 +466,9 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                           </span>
                         </div>
                         {item.supplier && (
-                          <p className="text-xs text-gray-500 truncate">{item.supplier.name}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {item.supplier.name}
+                          </p>
                         )}
                         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                           <div className="flex items-center gap-1 text-blue-600 font-bold">
@@ -443,8 +480,46 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                             {item.deliveryTime}
                           </div>
                         </div>
+                        <div className="flex gap-2 mt-auto pt-1">
+                          {kind === "machine" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (userRole === "client") {
+                                  addToCart({
+                                    id: item.id,
+                                    name: item.name,
+                                    price: item.price,
+                                    supplierId: item.supplier?.id || "",
+                                    itemType: "machine",
+                                  });
+                                  setCartOpen(true);
+                                } else {
+                                  setLoginAlertOpen(true);
+                                }
+                              }}
+                              disabled={item.quantity === 0}
+                              className="flex-1 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              {item.quantity === 0 ? "Rupture" : "Réserver"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setDetailsItem(item)}
+                            className={`py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 border-2 ${
+                              kind === "machine"
+                                ? "flex-1 border-blue-600 text-blue-700 hover:bg-blue-50"
+                                : "w-full border-amber-600 text-amber-800 hover:bg-amber-50"
+                            }`}
+                          >
+                            <Eye className="w-4 h-4" />
+                            Détails
+                          </button>
+                        </div>
                       </div>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
@@ -452,6 +527,21 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           </main>
         </div>
       </div>
+
+      {detailsItem && (
+        <CatalogItemDetailsModal
+          item={detailsItem}
+          kind={kind}
+          onClose={() => setDetailsItem(null)}
+          onReserved={() => setCartOpen(true)}
+        />
+      )}
+
+      <CartPanel isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <LoginAlert
+        isOpen={loginAlertOpen}
+        onClose={() => setLoginAlertOpen(false)}
+      />
     </div>
   );
 }

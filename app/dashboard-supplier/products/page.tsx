@@ -26,6 +26,8 @@ import {
   ChevronUp,
   Sparkles,
   Crown,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import {
   getSupplierProducts,
@@ -46,6 +48,7 @@ import {
 import { validateCheckoutUrl } from "@/lib/security";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
+import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 
 type MarketplaceKind = "product" | "machine" | "service";
 
@@ -105,6 +108,18 @@ const getUniqueDataEntries = (data: Record<string, unknown>) =>
 const formatUniqueValue = (value: unknown): string => {
   if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
   return String(value);
+};
+
+/** True when unique_data value looks like an uploaded PDF path/URL */
+const isFicheTechniquePdfValue = (value: unknown): boolean => {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return (
+    /\.pdf($|\?)/i.test(trimmed) ||
+    /uploads\/.*docs?\//i.test(trimmed) ||
+    /uploads\/pdf\//i.test(trimmed)
+  );
 };
 
 const getItemImages = (data: Record<string, unknown>): string[] =>
@@ -190,6 +205,10 @@ function ProductsPageContent() {
   const [sponsorError, setSponsorError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const [fichePdfViewer, setFichePdfViewer] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   const loadSponsorData = async () => {
     setIsLoadingSponsor(true);
@@ -592,17 +611,41 @@ function ProductsPageContent() {
             {entries.length === 0 ? (
               <p className="text-xs text-gray-500">Aucune donnée dans unique_data</p>
             ) : (
-              entries.map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex justify-between gap-3 text-sm border-b border-gray-100 last:border-0 pb-1.5 last:pb-0"
-                >
-                  <span className="text-gray-500 font-medium shrink-0">{key}</span>
-                  <span className="text-gray-900 text-right break-all font-semibold">
-                    {formatUniqueValue(value)}
-                  </span>
-                </div>
-              ))
+              entries.map(([key, value]) => {
+                const isFiche =
+                  isFicheTechniqueField(key) && isFicheTechniquePdfValue(value);
+                const pdfUrl = isFiche ? getMediaUrl(String(value)) : "";
+
+                return (
+                  <div
+                    key={key}
+                    className="flex justify-between gap-3 text-sm border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 items-center"
+                  >
+                    <span className="text-gray-500 font-medium shrink-0">{key}</span>
+                    {isFiche && pdfUrl ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFichePdfViewer({
+                            url: pdfUrl,
+                            title: `${title} — Fiche technique`,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shrink-0"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Voir le PDF
+                      </button>
+                    ) : isFicheTechniqueField(key) && !pdfUrl ? (
+                      <span className="text-gray-400 text-xs italic">Non disponible</span>
+                    ) : (
+                      <span className="text-gray-900 text-right break-all font-semibold">
+                        {formatUniqueValue(value)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -1353,6 +1396,56 @@ function ProductsPageContent() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        fichePdfViewer &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+            onClick={() => setFichePdfViewer(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="w-5 h-5 text-white shrink-0" />
+                  <h3 className="text-lg font-bold text-white truncate">
+                    {fichePdfViewer.title}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={fichePdfViewer.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-white text-sm font-medium hover:bg-white/30 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Nouvel onglet
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setFichePdfViewer(null)}
+                    className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-gray-100 min-h-0">
+                <iframe
+                  src={fichePdfViewer.url}
+                  title={fichePdfViewer.title}
+                  className="w-full h-full border-0"
+                />
+              </div>
             </div>
           </div>,
           document.body

@@ -11,13 +11,18 @@ import {
   Loader2,
   Image as ImageIcon,
   Package,
+  ShoppingCart,
 } from "lucide-react";
 import {
   PublicCatalogItem,
   getPublicMachineById,
   getPublicServiceById,
+  getSessionRole,
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { useCart } from "@/contexts/CartContext";
+import CartPanel from "@/components/CartPanel";
+import LoginAlert from "@/components/LoginAlert";
 
 export default function CatalogDetailPage({ kind }: { kind: "machine" | "service" }) {
   const params = useParams();
@@ -25,6 +30,9 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   const [item, setItem] = useState<PublicCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const { addToCart } = useCart();
   const listHref = kind === "machine" ? "/machines" : "/services";
   const label = kind === "machine" ? "Machine" : "Service";
 
@@ -73,6 +81,22 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
       value !== "" &&
       !Array.isArray(value)
   );
+
+  const handleReserve = async () => {
+    const session = await getSessionRole();
+    if (!session || session.role !== "client") {
+      setLoginAlertOpen(true);
+      return;
+    }
+    addToCart({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      supplierId: item.supplier?.id || "",
+      itemType: "machine",
+    });
+    setCartOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -126,6 +150,18 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             {item.supplier && <p className="text-gray-500">Fournisseur : {item.supplier.name}</p>}
           </div>
 
+          {kind === "machine" && (
+            <button
+              type="button"
+              onClick={() => void handleReserve()}
+              disabled={item.quantity === 0}
+              className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {item.quantity === 0 ? "Rupture de stock" : "Réserver"}
+            </button>
+          )}
+
           {extraEntries.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <h2 className="font-semibold text-gray-900 mb-3">Détails</h2>
@@ -141,6 +177,9 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
           )}
         </div>
       </div>
+
+      <CartPanel isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
     </div>
   );
 }

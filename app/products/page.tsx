@@ -29,7 +29,7 @@ import LoginAlert from "@/components/LoginAlert";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
-import { resolveWilayaCode, supplierCoversWilaya } from "@/lib/algeria-wilayas";
+import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
 
 
 export default function ProductsPage() {
@@ -192,7 +192,7 @@ export default function ProductsPage() {
 
       const matchesWilaya =
         !appliesWilayaFilter ||
-        (!!clientWilayaCode && supplierCoversWilaya(product.supplier, clientWilayaCode));
+        catalogItemAvailableInWilaya(product, clientWilayaCode, userLocation?.wilaya);
 
       return (
         matchesSearch &&
@@ -218,6 +218,7 @@ export default function ProductsPage() {
     dbCategories,
     appliesWilayaFilter,
     clientWilayaCode,
+    userLocation?.wilaya,
   ]);
 
   const filteredProductsRef = useRef(filteredProducts);

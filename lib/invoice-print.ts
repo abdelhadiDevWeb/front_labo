@@ -58,7 +58,7 @@ export const printInvoiceSafely = (order: InvoiceOrder): void => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Facture - Commande ${orderRef}</title>
+        <title>Réserve ${orderRef}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
@@ -82,7 +82,7 @@ export const printInvoiceSafely = (order: InvoiceOrder): void => {
       <body>
         <div class="invoice-header">
           <h1>FACTURE</h1>
-          <p>Commande #${orderRef}</p>
+          <p>Réserve #${orderRef}</p>
           <p>Date: ${orderDate}</p>
         </div>
         <div class="invoice-info">

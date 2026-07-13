@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
 import { registerClient, loginClient } from "@/lib/api";
@@ -12,9 +12,11 @@ import { type LocationData, isLocationComplete } from "@/lib/location";
 
 type UserType = "supplier" | "client";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const router = useRouter();
-  const [userType, setUserType] = useState<UserType>("client");
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get("type") === "supplier" ? "supplier" : "client";
+  const [userType, setUserType] = useState<UserType>(initialType);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +28,13 @@ export default function RegisterPage() {
     if (!error && !success) return;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [error, success]);
+
+  useEffect(() => {
+    const type = searchParams.get("type");
+    if (type === "supplier" || type === "client") {
+      setUserType(type);
+    }
+  }, [searchParams]);
   
   // Supplier form data
   const [supplierFormData, setSupplierFormData] = useState({
@@ -743,6 +752,20 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      }
+    >
+      <RegisterPageContent />
+    </Suspense>
   );
 }
 
