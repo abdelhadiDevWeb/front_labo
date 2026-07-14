@@ -1,5 +1,10 @@
 /**
- * API configuration — browser uses same-origin `/api` proxy for HttpOnly cookies.
+ * API configuration.
+ *
+ * Local dev: browser uses same-origin `/api` (Next rewrite → backend) so cookies stay easy.
+ * Production (Hostinger etc.): browser calls the absolute NEXT_PUBLIC_API_URL so requests
+ * do not depend on Next rewrites to a backend the static/proxy layer may not reach
+ * (empty body → "Unexpected end of JSON input").
  */
 
 const isDev = process.env.NODE_ENV === "development";
@@ -12,6 +17,15 @@ const resolveEnvApiUrl = (): string | null => {
     return envUrl.replace(/\/$/, "");
   }
   return `${envUrl.replace(/\/$/, "")}/api`;
+};
+
+const isLocalApiUrl = (url: string): boolean => {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
 };
 
 const getServerApiUrl = (): string => {
@@ -31,10 +45,28 @@ const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, ""
 
 /**
  * Full API URL with `/api` path.
- * Browser: same-origin proxy. Server: explicit env URL.
+ * Browser (prod): absolute backend URL from env.
+ * Browser (dev): `/api` via Next rewrite.
+ * Server: explicit env URL.
  */
 export const getApiUrl = (): string => {
   if (typeof window !== "undefined") {
+    const fromEnv = resolveEnvApiUrl();
+
+    // Production: hit the backend directly so Hostinger does not rely on /api rewrites
+    // (rewrites to localhost or a dead proxy return empty bodies → JSON parse errors).
+    if (!isDev) {
+      if (fromEnv && !isLocalApiUrl(fromEnv)) {
+        return fromEnv;
+      }
+      if (fromEnv && isLocalApiUrl(fromEnv)) {
+        console.error(
+          "[api-config] NEXT_PUBLIC_API_URL points to localhost in production. Set it to your public backend URL (e.g. https://your-api.example.com/api)."
+        );
+      }
+      return "/api";
+    }
+
     return "/api";
   }
   return getServerApiUrl();
@@ -46,7 +78,7 @@ export const getApiUrl = (): string => {
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     const fromEnv = resolveEnvApiUrl();
-    if (fromEnv) {
+    if (fromEnv && !isLocalApiUrl(fromEnv)) {
       return fromEnv.replace(/\/api\/?$/, "");
     }
     if (!isDev) {
@@ -57,5 +89,24 @@ export const getBaseUrl = (): string => {
   return getServerBaseUrl();
 };
 
+/** Safely parse a Response body as JSON; empty/non-JSON bodies become a clear error. */
+export const parseResponseJson = async <T = unknown>(
+  response: Response
+): Promise<T> => {
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    throw new Error(
+      `Réponse vide du serveur (HTTP ${response.status}). Vérifiez l'URL de l'API et que le backend est en ligne.`
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      `Réponse invalide du serveur (HTTP ${response.status}). Vérifiez l'URL de l'API et que le backend est en ligne.`
+    );
+  }
+};
+
 /** @deprecated Use getApiUrl() */
-export const API_BASE_URL = getApiUrl();
+export const API_BASE_URL = typeof window === "undefined" ? getServerApiUrl() : "/api";

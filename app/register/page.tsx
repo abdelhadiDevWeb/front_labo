@@ -4,9 +4,9 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { registerClient, loginClient } from "@/lib/api";
+import { registerClient, loginClient, apiFetch } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
-import { getApiUrl } from "@/lib/api-config";
+import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import LocationPicker from "@/components/LocationPicker";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 import { type LocationData, isLocationComplete } from "@/lib/location";
@@ -98,12 +98,11 @@ function RegisterPageContent() {
 
     try {
       const API_BASE_URL = getApiUrl();
-      const response = await fetch(`${API_BASE_URL}/supplier/register`, {
+      const response = await apiFetch(`${API_BASE_URL}/supplier/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
           firstName: supplierFormData.firstName,
           lastName: supplierFormData.lastName,
@@ -123,14 +122,16 @@ function RegisterPageContent() {
         }),
       });
 
+      const result = await parseResponseJson<{
+        success: boolean;
+        message?: string;
+      }>(response);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.message || "Une erreur est survenue lors de l'inscription");
+        setError(result.message || "Une erreur est survenue lors de l'inscription");
         setIsLoading(false);
         return;
       }
-
-      const result = await response.json();
 
       if (result.success) {
         const loginResult = await loginClient({
@@ -151,7 +152,11 @@ function RegisterPageContent() {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }
     } catch (err) {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Une erreur est survenue. Veuillez réessayer.";
+      setError(message);
       console.error("Registration error:", err);
     } finally {
       setIsLoading(false);
@@ -225,7 +230,11 @@ function RegisterPageContent() {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }
     } catch (err) {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Une erreur est survenue. Veuillez réessayer.";
+      setError(message);
       console.error("Registration error:", err);
     } finally {
       setIsLoading(false);

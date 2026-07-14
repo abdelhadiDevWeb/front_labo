@@ -1,4 +1,4 @@
-import { getApiUrl, getBaseUrl } from "./api-config";
+import { getApiUrl, getBaseUrl, parseResponseJson } from "./api-config";
 import { markSessionActive, markSessionInactive } from "./auth-session";
 import { devLog, devError, devWarn } from "./dev-logger";
 import { toUserFacingError } from "./sanitize-error";
@@ -518,8 +518,9 @@ export const registerClient = async (
   data: ClientRegisterData
 ): Promise<ApiResponse<ClientData>> => {
   try {
-    devLog("Sending request to:", `${getApiBaseUrl()}/client/register`);
-    const response = await apiFetch(`${getApiBaseUrl()}/client/register`, {
+    const registerUrl = `${getApiBaseUrl()}/client/register`;
+    devLog("Sending request to:", registerUrl);
+    const response = await apiFetch(registerUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -527,24 +528,17 @@ export const registerClient = async (
       body: JSON.stringify(data),
     });
 
-    // Check if response is ok before trying to parse JSON
+    const result = await parseResponseJson<ApiResponse<ClientData> & { errors?: string[] }>(
+      response
+    );
+
     if (!response.ok) {
-      // Try to parse error response
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
-      }
-      
       return {
         success: false,
-        message: errorData.message || `Registration failed (${response.status})`,
-        errors: errorData.errors || [errorData.message || "Unknown error"],
+        message: result.message || `Registration failed (${response.status})`,
+        errors: result.errors || [result.message || "Unknown error"],
       };
     }
-
-    const result: ApiResponse<ClientData> = await response.json();
 
     return result;
   } catch (error) {
@@ -580,24 +574,16 @@ export const loginClient = async (
       body: JSON.stringify(data),
     });
 
-    // Check if response is ok before trying to parse JSON
+    const result = await parseResponseJson<any>(response);
+
     if (!response.ok) {
-      // Try to parse error response
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = { message: `Server error: ${response.status} ${response.statusText}` };
-      }
-      
+      markSessionInactive();
       return {
         success: false,
-        message: errorData.message || `Login failed (${response.status})`,
-        errors: errorData.errors || [errorData.message || "Unknown error"],
+        message: result.message || `Login failed (${response.status})`,
+        errors: result.errors || [result.message || "Unknown error"],
       };
     }
-
-    const result: any = await response.json();
 
     if (result.success) {
       markSessionActive();

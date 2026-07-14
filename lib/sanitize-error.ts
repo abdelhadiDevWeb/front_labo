@@ -10,6 +10,9 @@ const TECHNICAL_PATTERNS = [
   /NEXT_PUBLIC_/i,
   /stack/i,
   /TypeError/i,
+  /Unexpected end of JSON/i,
+  /Failed to execute ['"]json['"]/i,
+  /is not valid JSON/i,
 ];
 
 const isTechnicalMessage = (message: string): boolean =>
