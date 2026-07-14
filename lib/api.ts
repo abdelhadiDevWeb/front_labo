@@ -540,6 +540,11 @@ export const registerClient = async (
       };
     }
 
+    // Register now issues HttpOnly session cookies for onboarding
+    if (result.success) {
+      markSessionActive();
+    }
+
     return result;
   } catch (error) {
     devError("Registration error:", error);

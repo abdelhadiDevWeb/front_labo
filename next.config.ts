@@ -95,6 +95,8 @@ const nextConfig: NextConfig = {
     middlewareClientMaxBodySize: "50mb",
   },
   async rewrites() {
+    // Browser calls same-origin /api so auth cookies stay on the frontend domain.
+    // This destination must be the real public (or internal) backend — never localhost in prod.
     const backendBase =
       process.env.API_INTERNAL_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
       process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
@@ -102,6 +104,12 @@ const nextConfig: NextConfig = {
 
     if (!backendBase) {
       throw new Error("API_INTERNAL_URL or NEXT_PUBLIC_API_URL must be set for API rewrites");
+    }
+
+    if (!isDev && /localhost|127\.0\.0\.1/i.test(backendBase)) {
+      throw new Error(
+        "Production API rewrite points to localhost. Set NEXT_PUBLIC_API_URL (or API_INTERNAL_URL) to your public backend URL."
+      );
     }
 
     return [

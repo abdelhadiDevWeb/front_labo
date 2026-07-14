@@ -1,10 +1,12 @@
 /**
  * API configuration.
  *
- * Local dev: browser uses same-origin `/api` (Next rewrite → backend) so cookies stay easy.
- * Production (Hostinger etc.): browser calls the absolute NEXT_PUBLIC_API_URL so requests
- * do not depend on Next rewrites to a backend the static/proxy layer may not reach
- * (empty body → "Unexpected end of JSON input").
+ * Browser always uses same-origin `/api` (Next rewrite → backend) so HttpOnly
+ * auth cookies are set on the frontend domain. That is required for middleware
+ * and for production hosts (Hostinger) where frontend and backend differ.
+ *
+ * NEXT_PUBLIC_API_URL must be the public backend URL at build time so
+ * next.config rewrites can proxy `/api` correctly (never leave localhost in prod).
  */
 
 const isDev = process.env.NODE_ENV === "development";
@@ -45,46 +47,33 @@ const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, ""
 
 /**
  * Full API URL with `/api` path.
- * Browser (prod): absolute backend URL from env.
- * Browser (dev): `/api` via Next rewrite.
+ * Browser: same-origin `/api` (Next rewrite).
  * Server: explicit env URL.
  */
 export const getApiUrl = (): string => {
   if (typeof window !== "undefined") {
-    const fromEnv = resolveEnvApiUrl();
-
-    // Production: hit the backend directly so Hostinger does not rely on /api rewrites
-    // (rewrites to localhost or a dead proxy return empty bodies → JSON parse errors).
     if (!isDev) {
-      if (fromEnv && !isLocalApiUrl(fromEnv)) {
-        return fromEnv;
-      }
+      const fromEnv = resolveEnvApiUrl();
       if (fromEnv && isLocalApiUrl(fromEnv)) {
         console.error(
-          "[api-config] NEXT_PUBLIC_API_URL points to localhost in production. Set it to your public backend URL (e.g. https://your-api.example.com/api)."
+          "[api-config] NEXT_PUBLIC_API_URL points to localhost in production. Set it to your public backend URL before building (e.g. https://your-api.example.com/api)."
         );
       }
-      return "/api";
     }
-
     return "/api";
   }
   return getServerApiUrl();
 };
 
 /**
- * Base URL without `/api` — used for Socket.io and media paths.
+ * Base URL without `/api` — Socket.io / absolute media via same-origin rewrite.
  */
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
-    const fromEnv = resolveEnvApiUrl();
-    if (fromEnv && !isLocalApiUrl(fromEnv)) {
-      return fromEnv.replace(/\/api\/?$/, "");
+    if (isDev) {
+      return "http://localhost:8000";
     }
-    if (!isDev) {
-      return window.location.origin;
-    }
-    return "http://localhost:8000";
+    return window.location.origin;
   }
   return getServerBaseUrl();
 };

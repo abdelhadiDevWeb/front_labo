@@ -4,9 +4,11 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { registerClient, loginClient, apiFetch } from "@/lib/api";
+import { registerClient, loginClient, apiFetch, checkAuthSession } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
+import { validateOnboardingRedirect } from "@/lib/security";
+import { markSessionActive } from "@/lib/auth-session";
 import LocationPicker from "@/components/LocationPicker";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 import { type LocationData, isLocationComplete } from "@/lib/location";
@@ -125,6 +127,7 @@ function RegisterPageContent() {
       const result = await parseResponseJson<{
         success: boolean;
         message?: string;
+        data?: { redirectTo?: string };
       }>(response);
 
       if (!response.ok) {
@@ -134,20 +137,36 @@ function RegisterPageContent() {
       }
 
       if (result.success) {
-        const loginResult = await loginClient({
-          email: supplierFormData.email,
-          password: supplierFormData.password,
-        });
+        markSessionActive();
+        let redirectTo =
+          validateOnboardingRedirect(result.data?.redirectTo) ||
+          "/supplier/upload-documents";
 
-        if (loginResult.success) {
-          setSuccess("Compte créé avec succès ! Redirection...");
-          setTimeout(() => {
-            router.push(loginResult.data?.redirectTo || "/supplier/upload-documents");
-          }, 1500);
-        } else {
-          setSuccess("Compte créé. Connectez-vous pour continuer.");
-          setTimeout(() => router.push("/login"), 1500);
+        // Ensure API session cookies are usable before navigating to onboarding
+        let sessionOk = await checkAuthSession();
+        if (!sessionOk) {
+          const loginResult = await loginClient({
+            email: supplierFormData.email,
+            password: supplierFormData.password,
+          });
+          sessionOk = Boolean(loginResult.success);
+          if (loginResult.success) {
+            redirectTo =
+              validateOnboardingRedirect(loginResult.data?.redirectTo) ||
+              redirectTo;
+          }
         }
+
+        if (!sessionOk) {
+          setSuccess("Compte créé. Connectez-vous pour continuer l'inscription.");
+          setTimeout(() => router.push("/login"), 800);
+          return;
+        }
+
+        setSuccess("Compte créé avec succès ! Redirection...");
+        setTimeout(() => {
+          router.push(redirectTo);
+        }, 800);
       } else {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }
@@ -212,20 +231,35 @@ function RegisterPageContent() {
       });
 
       if (result.success) {
-        const loginResult = await loginClient({
-          email: clientFormData.email,
-          password: clientFormData.password,
-        });
+        markSessionActive();
+        let redirectTo =
+          validateOnboardingRedirect(result.data?.redirectTo) ||
+          "/client/upload-documents";
 
-        if (loginResult.success) {
-          setSuccess("Compte créé avec succès ! Redirection...");
-          setTimeout(() => {
-            router.push(loginResult.data?.redirectTo || "/client/upload-documents");
-          }, 1500);
-        } else {
-          setSuccess("Compte créé. Connectez-vous pour continuer.");
-          setTimeout(() => router.push("/login"), 1500);
+        let sessionOk = await checkAuthSession();
+        if (!sessionOk) {
+          const loginResult = await loginClient({
+            email: clientFormData.email,
+            password: clientFormData.password,
+          });
+          sessionOk = Boolean(loginResult.success);
+          if (loginResult.success) {
+            redirectTo =
+              validateOnboardingRedirect(loginResult.data?.redirectTo) ||
+              redirectTo;
+          }
         }
+
+        if (!sessionOk) {
+          setSuccess("Compte créé. Connectez-vous pour continuer l'inscription.");
+          setTimeout(() => router.push("/login"), 800);
+          return;
+        }
+
+        setSuccess("Compte créé avec succès ! Redirection...");
+        setTimeout(() => {
+          router.push(redirectTo);
+        }, 800);
       } else {
         setError(result.message || "Une erreur est survenue lors de l'inscription");
       }

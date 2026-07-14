@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X } from "lucide-react";
 import { apiFetch, checkAuthSession } from "@/lib/api";
-import { getApiUrl } from "@/lib/api-config";
+import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { validatePdfFile } from "@/lib/file-validation";
 import { validateOnboardingRedirect } from "@/lib/security";
@@ -81,14 +81,17 @@ export default function UploadDocumentsPage() {
         body: formData,
       });
 
+      const result = await parseResponseJson<{
+        success: boolean;
+        message?: string;
+        data?: { redirectTo?: string };
+      }>(response);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.message || "Une erreur est survenue lors de l'upload");
+        setError(result.message || "Une erreur est survenue lors de l'upload");
         setIsLoading(false);
         return;
       }
-
-      const result = await response.json();
 
       if (result.success) {
         const next =

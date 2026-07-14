@@ -3,15 +3,17 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "ml_auth";
 
+/**
+ * Full dashboards / orders require a first-party ml_auth cookie.
+ * Onboarding routes are NOT gated here — when the API is cross-origin,
+ * HttpOnly cookies live on the API host and this middleware cannot see them.
+ * Upload/plan pages use client-side useAuthGuard (credentials to the API).
+ */
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/dashboard-supplier",
   "/orders",
   "/profile",
-  "/client/upload-documents",
-  "/client/choose-subscription",
-  "/supplier/upload-documents",
-  "/supplier/choose-subscription",
 ];
 
 const isProtectedPath = (pathname: string) =>
@@ -38,9 +40,5 @@ export const config = {
     "/dashboard-supplier/:path*",
     "/orders/:path*",
     "/profile/:path*",
-    "/client/upload-documents",
-    "/client/choose-subscription",
-    "/supplier/upload-documents",
-    "/supplier/choose-subscription",
   ],
 };
