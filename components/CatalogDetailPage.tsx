@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -12,6 +12,9 @@ import {
   Image as ImageIcon,
   Package,
   ShoppingCart,
+  FileText,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import {
   PublicCatalogItem,
@@ -23,6 +26,23 @@ import { getMediaUrl } from "@/lib/media-url";
 import { useCart } from "@/contexts/CartContext";
 import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
+import UniqueDataFields from "@/components/UniqueDataFields";
+
+function getFicheTechniquePdfUrl(
+  data: Record<string, unknown> | null | undefined
+): string | null {
+  if (!data) return null;
+  for (const key of Object.keys(data)) {
+    if (!/fiche\s*technique/i.test(key) && key.toLowerCase() !== "fichetechnique") {
+      continue;
+    }
+    const value = data[key];
+    if (typeof value === "string" && value.trim()) {
+      return getMediaUrl(value.trim());
+    }
+  }
+  return null;
+}
 
 export default function CatalogDetailPage({ kind }: { kind: "machine" | "service" }) {
   const params = useParams();
@@ -32,6 +52,7 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   const [error, setError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
   const { addToCart } = useCart();
   const listHref = kind === "machine" ? "/machines" : "/services";
   const label = kind === "machine" ? "Machine" : "Service";
@@ -51,6 +72,11 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
     };
     void load();
   }, [id, kind, label]);
+
+  const fichePdfUrl = useMemo(
+    () => getFicheTechniquePdfUrl(item?.unique_data),
+    [item?.unique_data]
+  );
 
   if (isLoading) {
     return (
@@ -73,14 +99,6 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   }
 
   const image = item.images?.[0] ? getMediaUrl(item.images[0]) : null;
-  const extraEntries = Object.entries(item.unique_data || {}).filter(
-    ([key, value]) =>
-      !["images", "video"].includes(key) &&
-      value !== undefined &&
-      value !== null &&
-      value !== "" &&
-      !Array.isArray(value)
-  );
 
   const handleReserve = async () => {
     const session = await getSessionRole();
@@ -162,21 +180,73 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             </button>
           )}
 
-          {extraEntries.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900 mb-3">Détails</h2>
-              <dl className="space-y-2">
-                {extraEntries.map(([key, value]) => (
-                  <div key={key} className="flex justify-between gap-4 text-sm border-b border-gray-50 pb-2">
-                    <dt className="text-gray-500">{key}</dt>
-                    <dd className="text-gray-900 text-right font-medium">{String(value)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+          {fichePdfUrl && (
+            <button
+              type="button"
+              onClick={() => setShowPdf(true)}
+              className="w-full py-3 rounded-xl font-semibold border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-2"
+            >
+              <FileText className="w-5 h-5" />
+              Voir la fiche technique
+            </button>
           )}
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-4">
+            <h2 className="font-semibold text-gray-900 mb-3">Détails</h2>
+            <UniqueDataFields
+              data={item.unique_data}
+              max={40}
+              excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
+              className="max-h-none"
+            />
+          </div>
         </div>
       </div>
+
+      {showPdf && fichePdfUrl && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-[60]"
+            onClick={() => setShowPdf(false)}
+            aria-hidden
+          />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="w-5 h-5 text-white shrink-0" />
+                  <h3 className="text-lg font-bold text-white truncate">
+                    {item.name} — Fiche technique
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={fichePdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-white text-sm font-medium hover:bg-white/30 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Nouvel onglet
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShowPdf(false)}
+                    className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <iframe src={fichePdfUrl} title="Fiche technique" className="flex-1 w-full border-0" />
+            </div>
+          </div>
+        </>
+      )}
 
       <CartPanel isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />

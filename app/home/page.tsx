@@ -147,6 +147,28 @@ export default function HomePage() {
     loadUserData();
   }, []);
 
+  // Clear client auth UI immediately when logout happens on this same page
+  useEffect(() => {
+    const onLogout = () => {
+      setIsAuthenticated(false);
+      setUserRole(null);
+      setUserEmail("");
+      setUserData(null);
+      setNotifications([]);
+      setUnreadCount(0);
+      setShowNotifications(false);
+      setMobileMenuOpen(false);
+    };
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, []);
+
+  useEffect(() => {
+    if (isClientUser) {
+      router.prefetch("/orders");
+    }
+  }, [isClientUser, router]);
+
   useEffect(() => {
     const scrollToHash = () => {
       const hash = window.location.hash;
@@ -175,12 +197,14 @@ export default function HomePage() {
       }
 
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
-      const filters =
-        wilayaCode
+      const filters = {
+        ...(wilayaCode
           ? { wilayaCode }
           : userLocation?.wilaya
             ? { wilayaCode: userLocation.wilaya }
-            : undefined;
+            : {}),
+        limit: 8,
+      };
 
       if (requiresWilayaForCatalog && !wilayaCode) {
         setProducts([]);
@@ -208,20 +232,20 @@ export default function HomePage() {
         if (productsRes.success && productsRes.data?.products) {
           const inStock = productsRes.data.products.filter((p) => p.quantity > 0);
           const outOfStock = productsRes.data.products.filter((p) => p.quantity === 0);
-          setProducts([...inStock, ...outOfStock].slice(0, 8));
+          setProducts([...inStock, ...outOfStock]);
         } else {
           setProductsError(productsRes.message || "Aucun produit trouvé");
           setProducts([]);
         }
 
         if (machinesRes.success && machinesRes.data?.machines) {
-          setMachines(machinesRes.data.machines.slice(0, 8));
+          setMachines(machinesRes.data.machines);
         } else {
           setMachines([]);
         }
 
         if (servicesRes.success && servicesRes.data?.services) {
-          setServices(servicesRes.data.services.slice(0, 8));
+          setServices(servicesRes.data.services);
         } else {
           setServices([]);
         }
@@ -270,11 +294,16 @@ export default function HomePage() {
 
   // Load notifications for clients
   useEffect(() => {
-    if (isAuthenticated && isClientUser) {
-      loadNotifications();
-      setupSocketConnection();
-      setupFcmTokenListener();
-    }
+    if (!(isAuthenticated && isClientUser)) return;
+
+    loadNotifications();
+    const cleanupSocket = setupSocketConnection();
+    const cleanupFcm = setupFcmTokenListener();
+
+    return () => {
+      cleanupSocket?.();
+      cleanupFcm?.();
+    };
   }, [isAuthenticated, isClientUser]);
 
   // Listen for FCM token from React Native WebView (mobile app)
@@ -382,13 +411,15 @@ export default function HomePage() {
     };
   };
 
-  const handleNotificationClick = async (notification: NotificationData) => {
-    // Mark as read
-    await markNotificationAsRead(notification._id);
-    // Reload notifications
-    await loadNotifications();
-    // Navigate to orders page
-    window.location.href = "/orders";
+  const handleNotificationClick = (notification: NotificationData) => {
+    // Close dropdown and navigate immediately (don't wait for API)
+    setShowNotifications(false);
+    setNotifications((prev) => prev.filter((n) => n._id !== notification._id));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+    router.push("/orders");
+
+    // Mark as read in background
+    void markNotificationAsRead(notification._id).catch(() => {});
   };
 
   const handleMarkAllNotificationsAsRead = async () => {

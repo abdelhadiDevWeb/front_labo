@@ -1,8 +1,8 @@
+/** Paths sou-admin may open in the admin dashboard (URL + menu). */
 export const SOU_ADMIN_MENU_HREFS = [
   "/dashboard",
-  "/dashboard/orders",
-  "/dashboard/users",
-  "/dashboard/problems",
+  "/dashboard/statistics",
+  "/dashboard/profile",
 ] as const;
 
 export function isSouAdminRole(role: string | null | undefined): boolean {
@@ -10,9 +10,8 @@ export function isSouAdminRole(role: string | null | undefined): boolean {
 }
 
 export function isPathAllowedForSouAdmin(pathname: string): boolean {
-  if (pathname === "/dashboard") return true;
+  if (!pathname) return false;
   return SOU_ADMIN_MENU_HREFS.some(
-    (href) =>
-      href !== "/dashboard" && (pathname === href || pathname.startsWith(`${href}/`))
+    (href) => pathname === href || pathname.startsWith(`${href}/`)
   );
 }

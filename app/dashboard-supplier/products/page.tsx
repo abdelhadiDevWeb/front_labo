@@ -5,14 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Package,
-  Search,
   Filter,
   Eye,
   Edit,
   Trash2,
   Image as ImageIcon,
   DollarSign,
-  Tag,
   Clock,
   Plus,
   Loader2,
@@ -28,13 +26,17 @@ import {
   Crown,
   FileText,
   ExternalLink,
+  FlaskConical,
+  Layers,
 } from "lucide-react";
 import {
   getSupplierProducts,
   getSupplierMachines,
   getSupplierServices,
+  getPublicCategories,
   Product,
   UniqueDataItem,
+  Category,
   getSponsorPlans,
   getSupplierSponsorProducts,
   createSponsorProduct,
@@ -49,6 +51,7 @@ import { validateCheckoutUrl } from "@/lib/security";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
+import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 
 type MarketplaceKind = "product" | "machine" | "service";
 
@@ -58,7 +61,12 @@ interface MarketplaceItem {
   unique_data: Record<string, unknown>;
   images: string[];
   video?: string;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
 }
+
+const kindToCategoryType = (kind: MarketplaceKind): Category["type_catgory"] =>
+  kind === "service" ? "services" : kind;
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
 const HIDDEN_UNIQUE_KEYS = new Set([
@@ -125,15 +133,19 @@ const isFicheTechniquePdfValue = (value: unknown): boolean => {
 const getItemImages = (data: Record<string, unknown>): string[] =>
   Array.isArray(data.images) ? (data.images as string[]).filter(Boolean) : [];
 
-const getSearchHaystack = (item: MarketplaceItem): string =>
-  Object.entries(item.unique_data)
-    .filter(([, v]) => v !== undefined && v !== null && typeof v !== "object")
-    .map(([k, v]) => `${k} ${String(v)}`)
-    .join(" ")
-    .toLowerCase();
-
 const getItemCategory = (item: MarketplaceItem): string =>
   pickStr(item.unique_data, ["Catégorie", "category", "categorie"]);
+
+const getItemSousCategory = (item: MarketplaceItem): string =>
+  pickStr(item.unique_data, [
+    "Sous catégorie",
+    "sous categorie",
+    "sousCategory",
+    "Sous-catégorie",
+  ]);
+
+const getItemLaboType = (item: MarketplaceItem): string =>
+  pickStr(item.unique_data, ["type_labo", "productType", "type", "Type"]);
 
 const uniqueDataToItem = (item: UniqueDataItem, kind: "machine" | "service"): MarketplaceItem => {
   const d = item.unique_data || {};
@@ -143,6 +155,8 @@ const uniqueDataToItem = (item: UniqueDataItem, kind: "machine" | "service"): Ma
     unique_data: d,
     images: getItemImages(d),
     video: pickStr(d, ["video"]) || undefined,
+    id_catgory: item.id_catgory || null,
+    id_sous_catgory: item.id_sous_catgory || null,
   };
 };
 
@@ -163,6 +177,7 @@ const productToItem = (product: Product): MarketplaceItem => {
   if (d.quantity === undefined && product.quantity != null) d.quantity = product.quantity;
   if (!d.deliveryTime && product.deliveryTime) d.deliveryTime = product.deliveryTime;
   if (!d.productType && product.productType) d.productType = product.productType;
+  if (!d.type_labo && product.productType) d.type_labo = product.productType;
   if (!Array.isArray(d.images) && product.images?.length) d.images = product.images;
   if (!d.video && product.video) d.video = product.video;
 
@@ -172,6 +187,8 @@ const productToItem = (product: Product): MarketplaceItem => {
     unique_data: d,
     images: getItemImages(d),
     video: pickStr(d, ["video"]) || product.video,
+    id_catgory: product.id_catgory || null,
+    id_sous_catgory: product.id_sous_catgory || null,
   };
 };
 
@@ -183,10 +200,11 @@ function ProductsPageContent() {
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterSousCategory, setFilterSousCategory] = useState<string>("all");
   const [filterKind, setFilterKind] = useState<"all" | MarketplaceKind>("all");
-  const [filterType, setFilterType] = useState<string>("all");
+  const [filterType, setFilterType] = useState<"all" | LaboTypeValue>("all");
+  const [catalogCategories, setCatalogCategories] = useState<Category[]>([]);
   const [sponsorPlans, setSponsorPlans] = useState<SponsorPlan[]>([]);
   const [sponsorProducts, setSponsorProducts] = useState<SponsorProductRecord[]>([]);
   const [subscriptionQuota, setSubscriptionQuota] = useState<SubscriptionSponsorQuota | null>(null);
@@ -255,11 +273,13 @@ function ProductsPageContent() {
     const init = async () => {
       try {
         setIsLoading(true);
-        const [productsResult, machinesResult, servicesResult] = await Promise.all([
-          getSupplierProducts(),
-          getSupplierMachines(),
-          getSupplierServices(),
-        ]);
+        const [productsResult, machinesResult, servicesResult, categoriesResult] =
+          await Promise.all([
+            getSupplierProducts(),
+            getSupplierMachines(),
+            getSupplierServices(),
+            getPublicCategories(),
+          ]);
 
         const loadedProducts =
           productsResult.success && productsResult.data ? productsResult.data.products || [] : [];
@@ -274,6 +294,10 @@ function ProductsPageContent() {
           ...loadedMachines.map((m) => uniqueDataToItem(m, "machine")),
           ...loadedServices.map((s) => uniqueDataToItem(s, "service")),
         ]);
+
+        if (categoriesResult.success && categoriesResult.data?.categories) {
+          setCatalogCategories(categoriesResult.data.categories);
+        }
 
         if (!productsResult.success && !machinesResult.success && !servicesResult.success) {
           setError(
@@ -506,32 +530,57 @@ function ProductsPageContent() {
     setShowSubscriptionSponsorModal(true);
   };
 
-  // Get unique categories for filters (from unique_data keys as stored)
-  const categories = Array.from(
-    new Set(marketplaceItems.map((item) => getItemCategory(item)).filter(Boolean))
-  ).sort();
+  // Categories available for the selected kind
+  const filterableCategories = useMemo(() => {
+    if (filterKind === "all") return [] as Category[];
+    const type = kindToCategoryType(filterKind);
+    return catalogCategories
+      .filter((c) => (c.type_catgory || "product") === type)
+      .sort((a, b) => a.name_catgory.localeCompare(b.name_catgory, "fr"));
+  }, [catalogCategories, filterKind]);
+
+  const selectedFilterCategory = filterableCategories.find((c) => c.id === filterCategory);
+  const filterableSousCategories = selectedFilterCategory?.sousCategories ?? [];
+
+  const handleFilterKindChange = (value: "all" | MarketplaceKind) => {
+    setFilterKind(value);
+    setFilterCategory("all");
+    setFilterSousCategory("all");
+    setFilterType("all");
+  };
+
+  const handleFilterCategoryChange = (value: string) => {
+    setFilterCategory(value);
+    setFilterSousCategory("all");
+  };
 
   const filteredItems = marketplaceItems.filter((item) => {
-    const matchesSearch = getSearchHaystack(item).includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      filterCategory === "all" || getItemCategory(item) === filterCategory;
     const matchesKind = filterKind === "all" || item.kind === filterKind;
-    const productType = pickStr(item.unique_data, ["productType", "type", "Type"]);
+
+    let matchesCategory = true;
+    if (filterKind !== "all" && filterCategory !== "all") {
+      const cat = selectedFilterCategory;
+      matchesCategory = cat
+        ? item.id_catgory === cat.id || getItemCategory(item) === cat.name_catgory
+        : getItemCategory(item) === filterCategory;
+    }
+
+    let matchesSousCategory = true;
+    if (filterKind !== "all" && filterSousCategory !== "all") {
+      const sous = filterableSousCategories.find((s) => s.id === filterSousCategory);
+      matchesSousCategory = sous
+        ? item.id_sous_catgory === sous.id ||
+          getItemSousCategory(item) === sous.name_sou_catgory
+        : getItemSousCategory(item) === filterSousCategory;
+    }
+
     const matchesType =
       filterType === "all" ||
       item.kind !== "product" ||
-      productType === filterType;
-    return matchesSearch && matchesCategory && matchesKind && matchesType;
-  });
+      getItemLaboType(item) === filterType;
 
-  const types = Array.from(
-    new Set(
-      marketplaceItems
-        .filter((item) => item.kind === "product")
-        .map((item) => pickStr(item.unique_data, ["productType", "type", "Type"]))
-        .filter(Boolean)
-    )
-  ).sort();
+    return matchesKind && matchesCategory && matchesSousCategory && matchesType;
+  });
 
   const kindCounts = {
     all: marketplaceItems.length,
@@ -738,77 +787,95 @@ function ProductsPageContent() {
         </div>
       )}
 
-      {/* Kind tabs */}
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["all", "Tous", kindCounts.all],
-            ["product", "Produits", kindCounts.product],
-            ["machine", "Machines", kindCounts.machine],
-            ["service", "Services", kindCounts.service],
-          ] as const
-        ).map(([value, label, count]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilterKind(value)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-              filterKind === value
-                ? "bg-green-600 text-white border-green-600"
-                : "bg-white text-gray-700 border-gray-200 hover:border-green-300"
-            }`}
-          >
-            {label} ({count})
-          </button>
-        ))}
-      </div>
-
-      {/* Filters and Search */}
+      {/* Filters */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher dans unique_data..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-            />
+            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <select
+              value={filterKind}
+              onChange={(e) =>
+                handleFilterKindChange(e.target.value as "all" | MarketplaceKind)
+              }
+              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer"
+            >
+              <option value="all">Tous ({kindCounts.all})</option>
+              <option value="product">Produits ({kindCounts.product})</option>
+              <option value="machine">Machines ({kindCounts.machine})</option>
+              <option value="service">Services ({kindCounts.service})</option>
+            </select>
           </div>
 
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <select
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer"
+              onChange={(e) => handleFilterCategoryChange(e.target.value)}
+              disabled={filterKind === "all"}
+              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
             >
-              <option value="all">Toutes les catégories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              <option value="all">
+                {filterKind === "all"
+                  ? "Choisir un type d'abord"
+                  : "Toutes les catégories"}
+              </option>
+              {filterableCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name_catgory}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="relative">
-            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer"
+              value={filterSousCategory}
+              onChange={(e) => setFilterSousCategory(e.target.value)}
+              disabled={filterKind === "all" || filterCategory === "all"}
+              className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
             >
-              <option value="all">Tous les types labo</option>
-              {types.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+              <option value="all">
+                {filterCategory === "all"
+                  ? "Choisir une catégorie d'abord"
+                  : filterableSousCategories.length === 0
+                    ? "Aucune sous-catégorie"
+                    : "Toutes les sous-catégories"}
+              </option>
+              {filterableSousCategories.map((sc) => (
+                <option key={sc.id} value={sc.id}>
+                  {sc.name_sou_catgory}
                 </option>
               ))}
             </select>
           </div>
+
+          {filterKind === "product" && (
+            <div className="relative">
+              <FlaskConical className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={filterType}
+                onChange={(e) =>
+                  setFilterType(e.target.value as "all" | LaboTypeValue)
+                }
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all appearance-none bg-white cursor-pointer"
+              >
+                <option value="all">Tous les types de laboratoire</option>
+                {LABO_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
+        {filterKind === "all" && (
+          <p className="text-xs text-gray-500 mt-3">
+            Sélectionnez Produits, Machines ou Services pour filtrer par catégorie et
+            sous-catégorie.
+          </p>
+        )}
       </div>
 
       {/* Separate sections: Product / Machine / Service */}

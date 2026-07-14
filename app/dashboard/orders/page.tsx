@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { ShoppingCart, Search, Filter, Eye, Package, CheckCircle, Clock, XCircle, Loader2, ChevronLeft, ChevronRight, X, User, Store, Calendar, DollarSign } from "lucide-react";
-import { getAdminOrders, AdminOrder } from "@/lib/api";
+import { getAdminOrders, AdminOrder, getSessionRole } from "@/lib/api";
+import { isSouAdminRole } from "@/lib/admin-access";
 
 const statusLabels: { [key: string]: string } = {
   "en cours": "En cours",
@@ -12,6 +14,7 @@ const statusLabels: { [key: string]: string } = {
 };
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +27,20 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const check = async () => {
+      const session = await getSessionRole();
+      if (isSouAdminRole(session?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
+      setAllowed(true);
+    };
+    void check();
+  }, [router]);
 
   useEffect(() => {
     // Reset to page 1 when filters change
@@ -35,6 +48,7 @@ export default function OrdersPage() {
   }, [statusFilter, searchQuery]);
 
   useEffect(() => {
+    if (!allowed) return;
     const loadOrders = async () => {
       setIsLoading(true);
       setError(null);
@@ -70,7 +84,7 @@ export default function OrdersPage() {
     }, searchQuery ? 500 : 0);
 
     return () => clearTimeout(timeoutId);
-  }, [statusFilter, searchQuery, currentPage]);
+  }, [allowed, statusFilter, searchQuery, currentPage]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("fr-FR", {
@@ -253,11 +267,15 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{order.customer}</div>
-                        <div className="text-xs text-gray-500">{order.customerEmail}</div>
+                        {order.customerEmail ? (
+                          <div className="text-xs text-gray-500">{order.customerEmail}</div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{order.supplier}</div>
-                        <div className="text-xs text-gray-500">{order.supplierEmail}</div>
+                        {order.supplierEmail ? (
+                          <div className="text-xs text-gray-500">{order.supplierEmail}</div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">
@@ -401,7 +419,9 @@ export default function OrdersPage() {
                       <h4 className="font-semibold text-sm sm:text-base text-gray-900">Client</h4>
                     </div>
                     <p className="text-base sm:text-lg font-medium text-gray-900 break-words">{selectedOrder.customer}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{selectedOrder.customerEmail}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
+                      {selectedOrder.customerEmail || "—"}
+                    </p>
                   </div>
 
                   {/* Supplier Card */}
@@ -413,7 +433,9 @@ export default function OrdersPage() {
                       <h4 className="font-semibold text-sm sm:text-base text-gray-900">Fournisseur</h4>
                     </div>
                     <p className="text-base sm:text-lg font-medium text-gray-900 break-words">{selectedOrder.supplier}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{selectedOrder.supplierEmail}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
+                      {selectedOrder.supplierEmail || "—"}
+                    </p>
                   </div>
                 </div>
 

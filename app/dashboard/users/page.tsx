@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Edit, Trash2, Mail, Phone, Filter, Loader2, Ban, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Tag } from "lucide-react";
-import { getAdminUsers, updateUserStatus, updateUserCertife, AdminUser } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { Users, Search, Phone, Filter, Loader2, Ban, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Tag, Plus } from "lucide-react";
+import { getAdminUsers, updateUserStatus, updateUserCertife, AdminUser, getSessionRole } from "@/lib/api";
+import { isSouAdminRole } from "@/lib/admin-access";
 
 const roleLabels: { [key: string]: string } = {
   client: "Client",
@@ -10,6 +12,7 @@ const roleLabels: { [key: string]: string } = {
 };
 
 export default function UsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +23,19 @@ export default function UsersPage() {
   const [roleCounts, setRoleCounts] = useState<{ [key: string]: number }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [updatingCertife, setUpdatingCertife] = useState<string | null>(null);
+  const [canMutateUsers, setCanMutateUsers] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    void getSessionRole().then((session) => {
+      if (isSouAdminRole(session?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
+      setAllowed(true);
+      setCanMutateUsers(Boolean(session));
+    });
+  }, [router]);
 
   useEffect(() => {
     // Reset to page 1 when search changes
@@ -27,6 +43,7 @@ export default function UsersPage() {
   }, [searchQuery]);
 
   useEffect(() => {
+    if (!allowed) return;
     const loadUsers = async () => {
       setIsLoading(true);
       setError(null);
@@ -62,7 +79,7 @@ export default function UsersPage() {
     }, searchQuery ? 500 : 0);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, currentPage]);
+  }, [allowed, searchQuery, currentPage]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -327,14 +344,16 @@ export default function UsersPage() {
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
+                                {user.email ? (
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                ) : null}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900 flex items-center gap-2">
                               <Phone className="w-4 h-4 text-gray-400" />
-                              {user.phone}
+                              {user.phone || "—"}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -349,6 +368,7 @@ export default function UsersPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
+                            {canMutateUsers ? (
                             <button
                               onClick={() => handleToggleCertife(user.id, !!user.certife)}
                               disabled={updatingCertife === user.id}
@@ -366,6 +386,11 @@ export default function UsersPage() {
                               )}
                               <span>{user.certife ? "Certifie" : "Non certifie"}</span>
                             </button>
+                            ) : (
+                              <span className="text-sm text-gray-600">
+                                {user.certife ? "Certifie" : "Non certifie"}
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.ordersCount}
@@ -374,6 +399,7 @@ export default function UsersPage() {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {canMutateUsers ? (
                             <button
                               onClick={() => handleToggleStatus(user.id, user.status)}
                               disabled={updatingStatus === user.id}
@@ -393,6 +419,9 @@ export default function UsersPage() {
                               )}
                               <span>{user.status ? "Bloquer" : "Débloquer"}</span>
                             </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">Lecture seule</span>
+                            )}
                           </td>
                         </tr>
                       ))}

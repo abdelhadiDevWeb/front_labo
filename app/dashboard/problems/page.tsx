@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { MessageCircle, Search, Mail, Phone, Clock, CheckCircle, XCircle, Loader2, AlertCircle, Eye, X } from "lucide-react";
-import { getAllProblems, markProblemAsRead, Problem } from "@/lib/api";
+import { getAllProblems, markProblemAsRead, Problem, getSessionRole } from "@/lib/api";
+import { isSouAdminRole } from "@/lib/admin-access";
 
 export default function ProblemsPage() {
+  const router = useRouter();
   const [problems, setProblems] = useState<Problem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,12 +17,21 @@ export default function ProblemsPage() {
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [markingAsRead, setMarkingAsRead] = useState<string | null>(null);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    void getSessionRole().then((session) => {
+      if (isSouAdminRole(session?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
+      setAllowed(true);
+    });
+  }, [router]);
 
   useEffect(() => {
+    if (!allowed) return;
     const loadProblems = async () => {
       setIsLoading(true);
       setError(null);
@@ -58,7 +70,7 @@ export default function ProblemsPage() {
     }, searchQuery ? 500 : 0);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [allowed, searchQuery]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

@@ -13,9 +13,22 @@ export const performLogout = async (
   await logoutClient();
   notifyNativeLogout();
 
-  if (options?.clearCart && typeof window !== "undefined") {
-    localStorage.removeItem("cart");
+  const redirectTo = options?.redirectTo || "/login";
+
+  if (typeof window !== "undefined") {
+    if (options?.clearCart) {
+      localStorage.removeItem("cart");
+      window.dispatchEvent(new Event("cartUpdated"));
+    }
+
+    // Notify pages that keep local auth UI state (e.g. home already on /home)
+    window.dispatchEvent(new Event("auth:logout"));
+
+    // Hard navigation remounts the page so auth/cart UI cannot stay "logged in"
+    // after logout when redirecting to the same route (especially /home).
+    window.location.assign(redirectTo);
+    return;
   }
 
-  router.push(options?.redirectTo || "/login");
+  router.push(redirectTo);
 };

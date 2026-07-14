@@ -20,10 +20,9 @@ import {
   AlertCircle,
   CreditCard,
 } from "lucide-react";
-import { apiFetch, checkAuthSession, getPaymentByCommande, Payment } from "@/lib/api";
+import { apiFetch, checkAuthSession, getPaymentsByCommandes, Payment } from "@/lib/api";
 import { printInvoiceSafely } from "@/lib/invoice-print";
-import { io as socketIO } from "socket.io-client";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 
 interface OrderProduct {
@@ -31,6 +30,7 @@ interface OrderProduct {
   name: string;
   price: number;
   quantity: number;
+  itemType?: "product" | "machine";
 }
 
 interface Order {
@@ -55,6 +55,9 @@ interface Order {
 export default function SupplierOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersCursor, setOrdersCursor] = useState<string | null>(null);
+  const [ordersHasMore, setOrdersHasMore] = useState(false);
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function SupplierOrdersPage() {
   const [showPaymentAlert, setShowPaymentAlert] = useState(false);
   const [alertPayment, setAlertPayment] = useState<Payment | null>(null);
   const [showConfirmStatusModal, setShowConfirmStatusModal] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{ orderId: string; newStatus: "on route" | "arrived" } | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ orderId: string; newStatus: "on route" } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [recentPaymentOrderIds, setRecentPaymentOrderIds] = useState<Set<string>>(new Set());
 
@@ -86,52 +89,34 @@ export default function SupplierOrdersPage() {
   }, []);
 
   useEffect(() => {
-    let socket: ReturnType<typeof socketIO> | null = null;
-    let cancelled = false;
-
     const refreshOrders = () => {
-      loadOrders();
+      void loadOrders();
     };
 
-    const connectSocket = async () => {
-      const authed = await checkAuthSession();
-      if (!authed || cancelled) return;
-
-      socket = socketIO(getBaseUrl(), {
-        withCredentials: true,
-        transports: ["websocket", "polling"],
-      });
-
-      socket.on("newOrder", refreshOrders);
-      socket.on("paymentUploaded", (data: { orderId?: string }) => {
-        if (data?.orderId) {
+    const onPayment = (event: Event) => {
+      const data = (event as CustomEvent<{ orderId?: string }>).detail;
+      if (data?.orderId) {
+        setRecentPaymentOrderIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.orderId as string);
+          return next;
+        });
+        setTimeout(() => {
           setRecentPaymentOrderIds((prev) => {
             const next = new Set(prev);
-            next.add(data.orderId as string);
+            next.delete(data.orderId as string);
             return next;
           });
-
-          setTimeout(() => {
-            setRecentPaymentOrderIds((prev) => {
-              const next = new Set(prev);
-              next.delete(data.orderId as string);
-              return next;
-            });
-          }, 5000);
-        }
-        refreshOrders();
-      });
+        }, 5000);
+      }
+      refreshOrders();
     };
 
-    connectSocket();
-
+    window.addEventListener("ml:supplier-order", refreshOrders);
+    window.addEventListener("ml:supplier-payment", onPayment);
     return () => {
-      cancelled = true;
-      if (socket) {
-        socket.off("newOrder", refreshOrders);
-        socket.off("paymentUploaded");
-        socket.disconnect();
-      }
+      window.removeEventListener("ml:supplier-order", refreshOrders);
+      window.removeEventListener("ml:supplier-payment", onPayment);
     };
   }, []);
 
@@ -152,9 +137,9 @@ export default function SupplierOrdersPage() {
     filterOrders();
   }, [orders, statusFilter]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (opts?: { append?: boolean; cursor?: string | null }) => {
     try {
-      setIsLoading(true);
+      if (!opts?.append) setIsLoading(true);
       const authed = await checkAuthSession();
       if (!authed) {
         router.push("/login");
@@ -162,36 +147,44 @@ export default function SupplierOrdersPage() {
       }
 
       const API_BASE_URL = getApiUrl();
-      const response = await apiFetch(`${API_BASE_URL}/commandes/supplier`);
+      const append = Boolean(opts?.append);
+      const url = new URL(`${API_BASE_URL}/commandes/supplier`);
+      url.searchParams.set("limit", "50");
+      if (opts?.cursor) url.searchParams.set("cursor", opts.cursor);
 
+      const response = await apiFetch(url.toString());
       if (!response.ok) {
         throw new Error("Failed to load orders");
       }
 
       const result = await response.json();
-      if (result.success && result.data) {
-        const ordersList = result.data.orders || [];
-        setOrders(ordersList);
-        
-        // Load payments for all orders
-        const paymentsMap: { [commandeId: string]: Payment } = {};
-        for (const order of ordersList) {
-          try {
-            const paymentResult = await getPaymentByCommande(order._id);
-            if (paymentResult.success && paymentResult.data) {
-              paymentsMap[order._id] = paymentResult.data;
-            }
-          } catch (err) {
-            // Payment doesn't exist for this order, that's okay
-            // No payment found for this order
-          }
-        }
-        setPayments(paymentsMap);
-      }
+      if (!(result.success && result.data)) return;
+
+      const pageOrders: Order[] = result.data.orders || [];
+      setOrders((prev) => (append ? [...prev, ...pageOrders] : pageOrders));
+      setOrdersHasMore(Boolean(result.data.hasMore));
+      setOrdersCursor(result.data.nextCursor || null);
+
+      const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
+      const pagePayments =
+        (paymentResult.success && paymentResult.data?.paymentsByCommande
+          ? paymentResult.data.paymentsByCommande
+          : {}) as { [commandeId: string]: Payment };
+      setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
     } catch (err) {
       setError("Erreur lors du chargement des réserves");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMoreOrders = async () => {
+    if (!ordersHasMore || !ordersCursor || loadingMoreOrders) return;
+    setLoadingMoreOrders(true);
+    try {
+      await loadOrders({ append: true, cursor: ordersCursor });
+    } finally {
+      setLoadingMoreOrders(false);
     }
   };
 
@@ -203,7 +196,7 @@ export default function SupplierOrdersPage() {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: "on route" | "arrived") => {
+  const updateOrderStatus = async (orderId: string, newStatus: "on route") => {
     // Store the pending status change and show confirmation modal
     setPendingStatusChange({ orderId, newStatus });
     setShowConfirmStatusModal(true);
@@ -512,9 +505,8 @@ export default function SupplierOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Products List */}
                   <div className="mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">Produits:</h4>
+                    <h4 className="font-semibold text-gray-900 mb-2">Articles:</h4>
                     <div className="space-y-2">
                       {order.products.map((product, index) => (
                         <div
@@ -522,7 +514,14 @@ export default function SupplierOrdersPage() {
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                         >
                           <div>
-                            <p className="font-medium text-gray-900">{product.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">{product.name}</p>
+                              {product.itemType === "machine" && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                                  Machine
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600">
                               {product.price.toFixed(2)} DA × {product.quantity}
                             </p>
@@ -616,28 +615,15 @@ export default function SupplierOrdersPage() {
                         </button>
                       )}
                       {order.status === "on route" && (
-                        <button
-                          onClick={() => updateOrderStatus(order._id, "arrived")}
-                          disabled={updatingStatus === order._id}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {updatingStatus === order._id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Mise à jour...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4" />
-                              Marquer comme "Arrivée"
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2 text-orange-600">
+                          <Truck className="w-5 h-5" />
+                          <span className="font-semibold">En route — en attente de confirmation du labo</span>
+                        </div>
                       )}
                       {order.status === "arrived" && (
                         <div className="flex items-center gap-2 text-green-600">
                           <CheckCircle className="w-5 h-5" />
-                          <span className="font-semibold">Réserve livrée</span>
+                          <span className="font-semibold">Réserve reçue par le labo</span>
                         </div>
                       )}
                       {order.status === "refusée" && (
@@ -660,6 +646,25 @@ export default function SupplierOrdersPage() {
                 </div>
               </div>
             ))}
+            {ordersHasMore && (
+              <div className="flex justify-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreOrders()}
+                  disabled={loadingMoreOrders}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-800 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {loadingMoreOrders ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Chargement...
+                    </>
+                  ) : (
+                    "Charger plus de réserves"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -809,7 +814,7 @@ export default function SupplierOrdersPage() {
                     Confirmer le changement de statut
                   </h3>
                   <p className="text-xs sm:text-sm text-white/90 mt-1">
-                    {pendingStatusChange.newStatus === "on route" ? "Mettre la réserve en route" : "Marquer la réserve comme arrivée"}
+                    Mettre la réserve en route
                   </p>
                 </div>
               </div>
@@ -862,7 +867,7 @@ export default function SupplierOrdersPage() {
                     </button>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-600 text-center">
-                    La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir {pendingStatusChange.newStatus === "on route" ? "mettre cette réserve en route" : "marquer cette réserve comme arrivée"} ?
+                    La preuve de paiement a été vérifiée. Êtes-vous sûr de vouloir mettre cette réserve en route ?
                   </p>
                 </>
               ) : (
@@ -873,7 +878,7 @@ export default function SupplierOrdersPage() {
                       <p className="font-semibold text-sm sm:text-base text-yellow-900">Aucune preuve de paiement</p>
                     </div>
                     <p className="text-xs sm:text-sm text-yellow-800">
-                      Aucune preuve de paiement n'a été uploadée pour cette réserve. Voulez-vous quand même {pendingStatusChange.newStatus === "on route" ? "mettre la réserve en route" : "marquer la réserve comme arrivée"} ?
+                      Aucune preuve de paiement n&apos;a été uploadée pour cette réserve. Voulez-vous quand même mettre la réserve en route ?
                     </p>
                   </div>
                 </>

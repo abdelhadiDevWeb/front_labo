@@ -32,6 +32,7 @@ import {
   catalogTypeToCategoryKind,
   createEndpointForType,
 } from "@/lib/catalog-form-fields";
+import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 
 type ExcelImportType = SingleCatalogType | null;
 
@@ -45,6 +46,7 @@ const excelTypeToCategoryType = (type: ExcelImportType): CategoryKind | null => 
 export default function AddProductPage() {
   const [activeTab, setActiveTab] = useState<"single" | "excel">("single");
   const [excelImportType, setExcelImportType] = useState<ExcelImportType>(null);
+  const [excelTypeLabo, setExcelTypeLabo] = useState<LaboTypeValue | "">("");
   const [excelCategoryId, setExcelCategoryId] = useState("");
   const [excelSousCategoryId, setExcelSousCategoryId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -60,6 +62,7 @@ export default function AddProductPage() {
 
   // One-by-one form state
   const [singleType, setSingleType] = useState<SingleCatalogType | null>(null);
+  const [singleTypeLabo, setSingleTypeLabo] = useState<LaboTypeValue | "">("");
   const [singleCategoryId, setSingleCategoryId] = useState("");
   const [singleSousCategoryId, setSingleSousCategoryId] = useState("");
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
@@ -74,6 +77,7 @@ export default function AddProductPage() {
     setUploadErrors([]);
     setError(null);
     setSuccess(null);
+    setExcelTypeLabo("");
     setExcelCategoryId("");
     setExcelSousCategoryId("");
   };
@@ -82,6 +86,7 @@ export default function AddProductPage() {
     setFieldValues({});
     setSingleImages([]);
     setFichePdf(null);
+    setSingleTypeLabo("");
     setSingleCategoryId("");
     setSingleSousCategoryId("");
   };
@@ -115,8 +120,13 @@ export default function AddProductPage() {
   const excelSousCategories = selectedExcelCategory?.sousCategories ?? [];
   const hasExcelSousCategories = excelSousCategories.length > 0;
   const selectedExcelSousCategory = excelSousCategories.find((sc) => sc.id === excelSousCategoryId);
+  const excelNeedsTypeLabo = excelImportType === "product";
+  const excelHasTypeLabo = !excelNeedsTypeLabo || !!excelTypeLabo;
+  const showExcelCategoryStep = !!excelImportType && excelHasTypeLabo;
   const showExcelUploadSection =
-    !!selectedExcelCategory && (!hasExcelSousCategories || !!excelSousCategoryId);
+    showExcelCategoryStep &&
+    !!selectedExcelCategory &&
+    (!hasExcelSousCategories || !!excelSousCategoryId);
 
   const excelColumnsForType =
     excelImportType === "machine"
@@ -126,6 +136,9 @@ export default function AddProductPage() {
         : PRODUCT_COLUMNS;
 
   const singleCategoryKind = singleType ? catalogTypeToCategoryKind(singleType) : null;
+  const singleNeedsTypeLabo = singleType === "product";
+  const singleHasTypeLabo = !singleNeedsTypeLabo || !!singleTypeLabo;
+  const showSingleCategoryStep = !!singleType && singleHasTypeLabo;
   const singleFilteredCategories = singleCategoryKind
     ? categories.filter((c) => (c.type_catgory || "product") === singleCategoryKind)
     : [];
@@ -136,7 +149,9 @@ export default function AddProductPage() {
     (sc) => sc.id === singleSousCategoryId
   );
   const showSingleFields =
-    !!selectedSingleCategory && (!hasSingleSousCategories || !!singleSousCategoryId);
+    showSingleCategoryStep &&
+    !!selectedSingleCategory &&
+    (!hasSingleSousCategories || !!singleSousCategoryId);
   const singleEditableFields = singleType ? editableFieldsForType(singleType) : [];
   const showFicheUpload = singleType ? typeHasFicheTechnique(singleType) : false;
 
@@ -173,6 +188,15 @@ export default function AddProductPage() {
       setPdfFiles([]);
       return;
     }
+    if (excelNeedsTypeLabo && excelTypeLabo) {
+      setExcelTypeLabo("");
+      setExcelCategoryId("");
+      setExcelSousCategoryId("");
+      setExcelFile(null);
+      setImageFiles([]);
+      setPdfFiles([]);
+      return;
+    }
     setExcelImportType(null);
     resetExcelImportState();
   };
@@ -201,6 +225,15 @@ export default function AddProductPage() {
       return;
     }
     if (singleCategoryId) {
+      setSingleCategoryId("");
+      setSingleSousCategoryId("");
+      setFieldValues({});
+      setSingleImages([]);
+      setFichePdf(null);
+      return;
+    }
+    if (singleNeedsTypeLabo && singleTypeLabo) {
+      setSingleTypeLabo("");
       setSingleCategoryId("");
       setSingleSousCategoryId("");
       setFieldValues({});
@@ -313,6 +346,11 @@ export default function AddProductPage() {
       return;
     }
 
+    if (singleNeedsTypeLabo && !singleTypeLabo) {
+      setError("Veuillez choisir le type de laboratoire destinataire");
+      return;
+    }
+
     if (hasSingleSousCategories && !singleSousCategoryId) {
       setError("Veuillez sélectionner une sous-catégorie");
       return;
@@ -350,6 +388,11 @@ export default function AddProductPage() {
         } else {
           unique_data[key] = trimmed;
         }
+      }
+
+      if (singleType === "product" && singleTypeLabo) {
+        unique_data.type_labo = singleTypeLabo;
+        unique_data.productType = singleTypeLabo;
       }
 
       const formDataToSend = new FormData();
@@ -500,6 +543,11 @@ export default function AddProductPage() {
       return;
     }
 
+    if (excelNeedsTypeLabo && !excelTypeLabo) {
+      setError("Veuillez choisir le type de laboratoire destinataire");
+      return;
+    }
+
     setIsLoading(true);
     setUploadProgress(30);
 
@@ -523,6 +571,9 @@ export default function AddProductPage() {
       formDataUpload.append("id_catgory", excelCategoryId);
       if (excelSousCategoryId) {
         formDataUpload.append("id_sous_catgory", excelSousCategoryId);
+      }
+      if (excelImportType === "product" && excelTypeLabo) {
+        formDataUpload.append("type_labo", excelTypeLabo);
       }
 
       imageFiles.forEach((imageFile) => {
@@ -816,11 +867,48 @@ export default function AddProductPage() {
                     ? "Retour aux sous-catégories"
                     : singleCategoryId
                       ? "Retour aux catégories"
-                      : "Retour aux options"}
+                      : singleNeedsTypeLabo && singleTypeLabo
+                        ? "Retour au type de laboratoire"
+                        : "Retour aux options"}
                 </button>
 
-                {!singleCategoryId && (
+                {singleNeedsTypeLabo && !singleTypeLabo && (
                   <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Type de laboratoire
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Ce produit est conçu pour quel type de laboratoire ?
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {LABO_TYPE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setSingleTypeLabo(opt.value);
+                            setError(null);
+                          }}
+                          className="text-left p-5 rounded-2xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:border-teal-500 hover:shadow-md transition-all"
+                        >
+                          <p className="font-bold text-gray-900">{opt.label}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {showSingleCategoryStep && !singleCategoryId && (
+                  <div>
+                    {singleTypeLabo && (
+                      <div className="mb-4 p-3 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-900">
+                        Destiné à :{" "}
+                        <strong>
+                          {LABO_TYPE_OPTIONS.find((o) => o.value === singleTypeLabo)?.label ||
+                            singleTypeLabo}
+                        </strong>
+                      </div>
+                    )}
                     <h3 className="text-lg font-bold text-gray-900 mb-1">
                       Catégories{" "}
                       {singleType === "machine"
@@ -886,7 +974,10 @@ export default function AddProductPage() {
                   </div>
                 )}
 
-                {selectedSingleCategory && hasSingleSousCategories && !singleSousCategoryId && (
+                {showSingleCategoryStep &&
+                  selectedSingleCategory &&
+                  hasSingleSousCategories &&
+                  !singleSousCategoryId && (
                   <div>
                     <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
                       Catégorie : <strong>{selectedSingleCategory.name_catgory}</strong>
@@ -943,6 +1034,15 @@ export default function AddProductPage() {
                               : "Produit"}
                         </strong>
                       </p>
+                      {singleType === "product" && singleTypeLabo && (
+                        <p>
+                          Destiné à :{" "}
+                          <strong>
+                            {LABO_TYPE_OPTIONS.find((o) => o.value === singleTypeLabo)?.label ||
+                              singleTypeLabo}
+                          </strong>
+                        </p>
+                      )}
                       <p>
                         Catégorie : <strong>{selectedSingleCategory.name_catgory}</strong>
                       </p>
@@ -958,6 +1058,36 @@ export default function AddProductPage() {
                         </p>
                       )}
                     </div>
+
+                    {singleType === "product" && (
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <span>Type de laboratoire</span>
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Laboratoire pour lequel ce produit est conçu
+                        </p>
+                        <select
+                          required
+                          value={singleTypeLabo}
+                          onChange={(e) =>
+                            setSingleTypeLabo(e.target.value as LaboTypeValue | "")
+                          }
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white"
+                        >
+                          <option value="" disabled>
+                            Sélectionnez un type de laboratoire
+                          </option>
+                          {LABO_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div className="grid md:grid-cols-2 gap-5">
                       {singleEditableFields.map((field) => (
@@ -1195,12 +1325,49 @@ export default function AddProductPage() {
                     ? "Retour aux sous-catégories"
                     : excelCategoryId
                       ? "Retour aux catégories"
-                      : "Retour aux options"}
+                      : excelNeedsTypeLabo && excelTypeLabo
+                        ? "Retour au type de laboratoire"
+                        : "Retour aux options"}
                 </button>
 
-                {/* Step 1: pick category */}
-                {!excelCategoryId && (
+                {excelNeedsTypeLabo && !excelTypeLabo && (
                   <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Type de laboratoire
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Ces produits sont conçus pour quel type de laboratoire ?
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {LABO_TYPE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setExcelTypeLabo(opt.value);
+                            setError(null);
+                          }}
+                          className="text-left p-5 rounded-2xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 hover:border-teal-500 hover:shadow-md transition-all"
+                        >
+                          <p className="font-bold text-gray-900">{opt.label}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step: pick category */}
+                {showExcelCategoryStep && !excelCategoryId && (
+                  <div>
+                    {excelTypeLabo && (
+                      <div className="mb-4 p-3 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-900">
+                        Destiné à :{" "}
+                        <strong>
+                          {LABO_TYPE_OPTIONS.find((o) => o.value === excelTypeLabo)?.label ||
+                            excelTypeLabo}
+                        </strong>
+                      </div>
+                    )}
                     <h3 className="text-lg font-bold text-gray-900 mb-1">
                       {excelImportType === "machine"
                         ? "Catégories Machine"
@@ -1263,7 +1430,10 @@ export default function AddProductPage() {
                 )}
 
                 {/* Step 2: pick sous-category if any */}
-                {selectedExcelCategory && hasExcelSousCategories && !excelSousCategoryId && (
+                {showExcelCategoryStep &&
+                  selectedExcelCategory &&
+                  hasExcelSousCategories &&
+                  !excelSousCategoryId && (
                   <div>
                     <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
                       Catégorie : <strong>{selectedExcelCategory.name_catgory}</strong>
@@ -1305,6 +1475,15 @@ export default function AddProductPage() {
                 {showExcelUploadSection && selectedExcelCategory && (
                   <>
                     <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800 space-y-1">
+                      {excelTypeLabo && (
+                        <p>
+                          Destiné à :{" "}
+                          <strong>
+                            {LABO_TYPE_OPTIONS.find((o) => o.value === excelTypeLabo)?.label ||
+                              excelTypeLabo}
+                          </strong>
+                        </p>
+                      )}
                       <p>
                         Catégorie : <strong>{selectedExcelCategory.name_catgory}</strong>
                       </p>

@@ -84,7 +84,7 @@ export default function DashboardLayout({
     if (!userRole) return;
 
     if (isSouAdminRole(userRole) && !isPathAllowedForSouAdmin(pathname)) {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }, [userRole, pathname, router]);
 
@@ -141,9 +141,9 @@ export default function DashboardLayout({
     }
   }, []);
 
-  // Load problems on mount and when authenticated
+  // Load problems on mount (full admin only — sou-admin has no problems access)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isSouAdminRole(userRole)) return;
 
     const loadProblems = async () => {
       try {
@@ -159,7 +159,7 @@ export default function DashboardLayout({
     };
 
     loadProblems();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userRole]);
 
   // Load pending users count (full admin only)
   useEffect(() => {
@@ -190,9 +190,9 @@ export default function DashboardLayout({
     };
   }, [isAuthenticated, userRole, loadPendingUsersCount]);
 
-  // Socket.io connection for real-time problem notifications
+  // Socket.io connection for real-time problem notifications (full admin only)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isSouAdminRole(userRole)) return;
 
     const socket = socketIO(getBaseUrl(), {
       withCredentials: true,
@@ -232,9 +232,7 @@ export default function DashboardLayout({
     });
 
     socket.on("pendingUserActivity", async () => {
-      if (!isSouAdminRole(userRole)) {
-        await loadPendingUsersCount();
-      }
+      await loadPendingUsersCount();
     });
 
     socket.on("disconnect", () => {
@@ -357,7 +355,8 @@ export default function DashboardLayout({
                 {visibleMenuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
               </h1>
               <div className="flex items-center gap-4">
-                {/* Problems Notifications */}
+                {/* Problems Notifications — full admin only */}
+                {!isSouAdminRole(userRole) && (
                 <div className="relative">
                   <button
                     onClick={() => {
@@ -465,6 +464,7 @@ export default function DashboardLayout({
                     </>
                   )}
                 </div>
+                )}
                 {profile && (
                   <div className="relative group">
                   <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -492,18 +492,14 @@ export default function DashboardLayout({
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="py-2">
-                      {!isSouAdminRole(userRole) && (
-                        <Link
-                          href="/dashboard/profile"
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <User className="w-4 h-4" />
-                          <span>Mon Profil</span>
-                        </Link>
-                      )}
-                      {!isSouAdminRole(userRole) && (
-                        <div className="border-t border-gray-200 my-1"></div>
-                      )}
+                      <Link
+                        href="/dashboard/profile"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Mon Profil</span>
+                      </Link>
+                      <div className="border-t border-gray-200 my-1"></div>
                       <button
                         onClick={() => performLogout(router)}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

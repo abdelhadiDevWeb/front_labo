@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   FolderTree,
   Plus,
@@ -26,7 +27,9 @@ import {
   deleteSousCategory,
   Category,
   SousCategory,
+  getSessionRole,
 } from "@/lib/api";
+import { isSouAdminRole } from "@/lib/admin-access";
 import { getMediaUrl } from "@/lib/media-url";
 
 type ModalType =
@@ -55,6 +58,7 @@ const formatApiError = (result: {
 };
 
 export default function CategoriesPage() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +71,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [allowed, setAllowed] = useState(false);
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryDes, setCategoryDes] = useState("");
@@ -81,8 +86,15 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     setMounted(true);
-    loadCategories();
-  }, []);
+    void getSessionRole().then((session) => {
+      if (isSouAdminRole(session?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
+      setAllowed(true);
+      void loadCategories();
+    });
+  }, [router]);
 
   const loadCategories = async () => {
     setIsLoading(true);

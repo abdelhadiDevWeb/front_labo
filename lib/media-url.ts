@@ -1,4 +1,4 @@
-import { getBaseUrl } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
@@ -37,18 +37,10 @@ const isTrustedAbsoluteUrl = (value: string): boolean => {
   }
 };
 
-const SENSITIVE_UPLOAD_PREFIXES = [
-  "uploads/documents/",
-  "uploads/payments/",
-  "uploads/profile/",
-  "uploads/profile-images/",
-  "uploads/excel/",
-];
-
 /**
- * Build a full media URL from a backend relative path.
- * Sensitive uploads are routed through the authenticated /api/files proxy.
- * Public uploads use same-origin /uploads/* (Next.js rewrite → backend).
+ * Build a media URL from a backend relative path.
+ * All uploads are served exclusively via /api/files/*
+ * (public catalog media allowed without auth; sensitive files require ACL).
  */
 export const getMediaUrl = (path: string | null | undefined): string => {
   if (!path) return "";
@@ -61,22 +53,7 @@ export const getMediaUrl = (path: string | null | undefined): string => {
   }
 
   const normalizedPath = value.startsWith("/") ? value.slice(1) : value;
+  const filePath = normalizedPath.replace(/^uploads\//i, "");
 
-  if (typeof window !== "undefined") {
-    const isSensitive = SENSITIVE_UPLOAD_PREFIXES.some((prefix) =>
-      normalizedPath.startsWith(prefix)
-    );
-    if (isSensitive) {
-      const filePath = normalizedPath.replace(/^uploads\//, "");
-      return `/api/files/${filePath}`;
-    }
-
-    // Same-origin path — proxied by next.config rewrite to the backend
-    if (normalizedPath.startsWith("uploads/")) {
-      return `/${normalizedPath}`;
-    }
-  }
-
-  const built = `${getBaseUrl()}/${normalizedPath}`.replace(/([^:]\/)\/+/g, "$1");
-  return isTrustedAbsoluteUrl(built) ? built : "";
+  return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
 };

@@ -8,6 +8,9 @@ const HIDDEN_UNIQUE_KEYS = new Set([
   "wilaya",
   "daira",
   "commune",
+  "purchasePrice",
+  "Prix HT",
+  "prixHT",
 ]);
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];

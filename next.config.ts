@@ -91,7 +91,7 @@ const nextConfig: NextConfig = {
   // One-by-one / Excel uploads (images + PDF) go through the Next rewrite proxy.
   // Default buffer is 10MB and truncates the body → backend hang / create fails.
   experimental: {
-    proxyClientMaxBodySize: "50mb",
+    // Allow large multipart bodies through Next middleware (Excel / image uploads).
     middlewareClientMaxBodySize: "50mb",
   },
   async rewrites() {
@@ -112,10 +112,6 @@ const nextConfig: NextConfig = {
       {
         source: "/socket.io/:path*",
         destination: `${backendBase}/socket.io/:path*`,
-      },
-      {
-        source: "/uploads/:path*",
-        destination: `${backendBase}/uploads/:path*`,
       },
     ];
   },

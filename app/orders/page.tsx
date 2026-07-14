@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail } from "lucide-react";
-import { createPayment, getPaymentByCommande, Payment, apiFetch, getSessionRole } from "@/lib/api";
+import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail, Star } from "lucide-react";
+import { createPayment, getPaymentsByCommandes, Payment, apiFetch, getSessionRole, confirmOrderArrival } from "@/lib/api";
 import { consumePendingPaymentOrderIds } from "@/lib/flow-session";
 import { printInvoiceSafely } from "@/lib/invoice-print";
 import Link from "next/link";
@@ -20,6 +20,7 @@ interface Order {
     name: string;
     price: number;
     quantity: number;
+    itemType?: "product" | "machine";
   }>;
   idBuyer: string;
   idSupplier: {
@@ -38,7 +39,11 @@ export default function OrdersPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersCursor, setOrdersCursor] = useState<string | null>(null);
+  const [ordersHasMore, setOrdersHasMore] = useState(false);
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [payments, setPayments] = useState<{ [commandeId: string]: Payment }>({});
@@ -56,6 +61,13 @@ export default function OrdersPage() {
   const [uploadErrors, setUploadErrors] = useState<{ [orderId: string]: string | null }>({});
   const printRef = useRef<HTMLDivElement>(null);
 
+  const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
+  const [reviewStars, setReviewStars] = useState(5);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
   useEffect(() => {
     const checkAuth = async () => {
       const session = await getSessionRole();
@@ -70,8 +82,10 @@ export default function OrdersPage() {
       }
 
       setIsAuthenticated(true);
-      await loadOrders();
+      // Show page as soon as auth is done; orders load next
       setIsLoading(false);
+      setOrdersLoading(true);
+      void loadOrders().finally(() => setOrdersLoading(false));
     };
 
     checkAuth();
@@ -87,7 +101,7 @@ export default function OrdersPage() {
     });
 
     const refreshOrders = () => {
-      loadOrders();
+      void loadOrders();
     };
 
     socket.on("orderStatusUpdate", refreshOrders);
@@ -128,7 +142,7 @@ export default function OrdersPage() {
 
   // Prevent body scroll when modals are open
   useEffect(() => {
-    if (showUploadModal || showPaymentModal) {
+    if (showUploadModal || showPaymentModal || reviewOrder) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -136,39 +150,47 @@ export default function OrdersPage() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [showUploadModal, showPaymentModal]);
+  }, [showUploadModal, showPaymentModal, reviewOrder]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (opts?: { append?: boolean; cursor?: string | null }) => {
     try {
       const API_BASE_URL = getApiUrl();
-      const response = await apiFetch(`${API_BASE_URL}/commandes/client`);
+      const append = Boolean(opts?.append);
+      const url = new URL(`${API_BASE_URL}/commandes/client`);
+      url.searchParams.set("limit", "50");
+      if (opts?.cursor) url.searchParams.set("cursor", opts.cursor);
 
+      const response = await apiFetch(url.toString());
       if (!response.ok) {
         throw new Error("Failed to load orders");
       }
 
       const result = await response.json();
-      if (result.success && result.data) {
-        const ordersList = result.data.orders || [];
-        setOrders(ordersList);
-        
-        // Load payments for all orders
-        const paymentsMap: { [commandeId: string]: Payment } = {};
-        for (const order of ordersList) {
-          try {
-            const paymentResult = await getPaymentByCommande(order._id);
-            if (paymentResult.success && paymentResult.data) {
-              paymentsMap[order._id] = paymentResult.data;
-            }
-          } catch (err) {
-            // Payment doesn't exist for this order, that's okay
-            // No payment found for this order
-          }
-        }
-        setPayments(paymentsMap);
-      }
+      if (!(result.success && result.data)) return;
+
+      const pageOrders: Order[] = result.data.orders || [];
+      setOrders((prev) => (append ? [...prev, ...pageOrders] : pageOrders));
+      setOrdersHasMore(Boolean(result.data.hasMore));
+      setOrdersCursor(result.data.nextCursor || null);
+
+      const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
+      const pagePayments =
+        (paymentResult.success && paymentResult.data?.paymentsByCommande
+          ? paymentResult.data.paymentsByCommande
+          : {}) as { [commandeId: string]: Payment };
+      setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
     } catch (err) {
       // Silent error handling
+    }
+  };
+
+  const loadMoreOrders = async () => {
+    if (!ordersHasMore || !ordersCursor || loadingMoreOrders) return;
+    setLoadingMoreOrders(true);
+    try {
+      await loadOrders({ append: true, cursor: ordersCursor });
+    } finally {
+      setLoadingMoreOrders(false);
     }
   };
 
@@ -186,6 +208,42 @@ export default function OrdersPage() {
 
   const handlePrintInvoice = (order: Order) => {
     printInvoiceSafely(order);
+  };
+
+  const openReviewModal = (order: Order) => {
+    setReviewOrder(order);
+    setReviewStars(5);
+    setReviewHover(0);
+    setReviewMessage("");
+    setReviewError(null);
+  };
+
+  const submitArrivalReview = async () => {
+    if (!reviewOrder) return;
+    if (reviewStars < 1 || reviewStars > 5) {
+      setReviewError("Choisissez une note de 1 à 5 étoiles");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    setReviewError(null);
+    try {
+      const result = await confirmOrderArrival(
+        reviewOrder._id,
+        reviewStars,
+        reviewMessage
+      );
+      if (!result.success) {
+        setReviewError(result.message || "Impossible de confirmer la réception");
+        return;
+      }
+      setReviewOrder(null);
+      await loadOrders();
+    } catch {
+      setReviewError("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -349,7 +407,12 @@ export default function OrdersPage() {
         {/* Hidden print area */}
         <div ref={printRef} className="hidden" />
 
-        {filteredOrders.length === 0 ? (
+        {ordersLoading && orders.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Chargement des réserves...</p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Package className="w-12 h-12 text-gray-400" />
@@ -406,7 +469,7 @@ export default function OrdersPage() {
 
                   {/* Products List */}
                   <div className="mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">Produits:</h4>
+                    <h4 className="font-semibold text-gray-900 mb-2">Articles:</h4>
                     <div className="space-y-2">
                       {order.products.map((product, index) => (
                         <div
@@ -414,7 +477,14 @@ export default function OrdersPage() {
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                         >
                           <div>
-                            <p className="font-medium text-gray-900">{product.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">{product.name}</p>
+                              {product.itemType === "machine" && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                                  Machine
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600">
                               {product.price.toFixed(2)} DA × {product.quantity}
                             </p>
@@ -480,8 +550,23 @@ export default function OrdersPage() {
                     )}
                   </div>
 
-                  {/* Print Invoice Button */}
-                  <div className="flex justify-end pt-4 border-t border-gray-200">
+                  {/* Print / confirm arrival */}
+                  <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                    {order.status === "on route" && (
+                      <button
+                        onClick={() => openReviewModal(order)}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-all"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Confirmer la réception
+                      </button>
+                    )}
+                    {order.status === "arrived" && (
+                      <span className="inline-flex items-center gap-2 text-emerald-700 text-sm font-semibold mr-auto">
+                        <CheckCircle className="w-4 h-4" />
+                        Réception confirmée
+                      </span>
+                    )}
                     <button
                       onClick={() => handlePrintInvoice(order)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
@@ -493,9 +578,132 @@ export default function OrdersPage() {
                 </div>
               </div>
             ))}
+            {ordersHasMore && (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreOrders()}
+                  disabled={loadingMoreOrders}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-800 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {loadingMoreOrders ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Chargement...
+                    </>
+                  ) : (
+                    "Charger plus de réserves"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
+
+      {/* Review + confirm arrival modal */}
+      {reviewOrder && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-teal-50 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Confirmer la réception</h3>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  Donnez votre avis sur le fournisseur
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSubmittingReview && setReviewOrder(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3 text-center">
+                  Notez votre expérience
+                </p>
+                <div className="flex items-center justify-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const active = (reviewHover || reviewStars) >= star;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onMouseEnter={() => setReviewHover(star)}
+                        onMouseLeave={() => setReviewHover(0)}
+                        onClick={() => setReviewStars(star)}
+                        className="p-1 transition-transform hover:scale-110"
+                        aria-label={`${star} étoile${star > 1 ? "s" : ""}`}
+                      >
+                        <Star
+                          className={`w-8 h-8 ${
+                            active
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-center text-sm text-gray-500 mt-2">
+                  {reviewStars}/5
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Commentaire (optionnel)
+                </label>
+                <textarea
+                  value={reviewMessage}
+                  onChange={(e) => setReviewMessage(e.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="Partagez votre avis sur la livraison..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm resize-none"
+                />
+              </div>
+
+              {reviewError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {reviewError}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={isSubmittingReview}
+                  onClick={() => setReviewOrder(null)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingReview}
+                  onClick={() => void submitArrivalReview()}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingReview ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Envoi...
+                    </>
+                  ) : (
+                    "Confirmer & noter"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Payment Modal - Show all orders at once */}
       {showUploadModal && pendingOrderIds.length > 0 && (

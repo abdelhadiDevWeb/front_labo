@@ -106,13 +106,14 @@ export default function ProductsPage() {
           return;
         }
 
-        const result = await getAllProducts(
-          wilayaCode
+        const result = await getAllProducts({
+          ...(wilayaCode
             ? { wilayaCode }
             : userLocation?.wilaya
               ? { wilayaCode: userLocation.wilaya }
-              : undefined
-        );
+              : {}),
+          limit: 48,
+        });
         if (result.success && result.data) {
           setProducts(result.data.products || []);
         } else {

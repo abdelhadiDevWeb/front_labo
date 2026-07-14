@@ -29,6 +29,26 @@ const AUTH_SKIP_REFRESH_PATHS = [
 const shouldAttemptRefresh = (url: string): boolean =>
   !AUTH_SKIP_REFRESH_PATHS.some((path) => url.includes(path));
 
+const CSRF_COOKIE_NAME = "ml_csrf";
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+
+const getCsrfTokenFromDocument = (): string | null => {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${CSRF_COOKIE_NAME}=([^;]*)`)
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+const withCsrfHeaders = (headers?: HeadersInit): Headers => {
+  const next = new Headers(headers || {});
+  const csrf = getCsrfTokenFromDocument();
+  if (csrf && !next.has(CSRF_HEADER_NAME)) {
+    next.set(CSRF_HEADER_NAME, csrf);
+  }
+  return next;
+};
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 const refreshSession = async (): Promise<boolean> => {
@@ -38,7 +58,7 @@ const refreshSession = async (): Promise<boolean> => {
     try {
       const response = await fetch(`${getApiBaseUrl()}/client/refresh-token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withCsrfHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
         body: JSON.stringify({}),
       });
@@ -61,15 +81,19 @@ const refreshSession = async (): Promise<boolean> => {
   return refreshInFlight;
 };
 
-/** Authenticated fetch — sends HttpOnly session cookies, auto-refreshes on 401 */
+/** Authenticated fetch — sends HttpOnly session cookies + CSRF header on mutations */
 export const apiFetch = async (
   input: RequestInfo | URL,
   init?: RequestInit,
   isRetry = false
 ): Promise<Response> => {
+  const method = (init?.method || "GET").toUpperCase();
+  const needsCsrf = !["GET", "HEAD", "OPTIONS"].includes(method);
+
   const response = await fetch(input, {
     ...init,
     credentials: "include",
+    headers: needsCsrf ? withCsrfHeaders(init?.headers) : init?.headers,
   });
 
   if (response.status !== 401 || typeof window === "undefined") {
@@ -633,6 +657,8 @@ export interface Product {
   images: string[];
   video?: string;
   unique_data?: Record<string, unknown>;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
   wilaya?: string | null;
   daira?: string | null;
   commune?: string | null;
@@ -1300,14 +1326,25 @@ export const getPublicMachines = async (filters?: {
   categoryId?: string;
   sousCategoryId?: string;
   wilayaCode?: string;
+  limit?: number;
+  cursor?: string;
 }): Promise<
-  ApiResponse<{ machines: PublicCatalogItem[]; total: number; clientWilayaCode?: string | null }>
+  ApiResponse<{
+    machines: PublicCatalogItem[];
+    total: number;
+    clientWilayaCode?: string | null;
+    nextCursor?: string | null;
+    hasMore?: boolean;
+    limit?: number;
+  }>
 > => {
   try {
     const params = new URLSearchParams();
     if (filters?.categoryId) params.append("categoryId", filters.categoryId);
     if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    if (filters?.limit != null) params.append("limit", String(filters.limit));
+    if (filters?.cursor) params.append("cursor", filters.cursor);
     const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiFetch(`${getApiBaseUrl()}/machines/public${query}`, {
       method: "GET",
@@ -1334,14 +1371,25 @@ export const getPublicServices = async (filters?: {
   categoryId?: string;
   sousCategoryId?: string;
   wilayaCode?: string;
+  limit?: number;
+  cursor?: string;
 }): Promise<
-  ApiResponse<{ services: PublicCatalogItem[]; total: number; clientWilayaCode?: string | null }>
+  ApiResponse<{
+    services: PublicCatalogItem[];
+    total: number;
+    clientWilayaCode?: string | null;
+    nextCursor?: string | null;
+    hasMore?: boolean;
+    limit?: number;
+  }>
 > => {
   try {
     const params = new URLSearchParams();
     if (filters?.categoryId) params.append("categoryId", filters.categoryId);
     if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    if (filters?.limit != null) params.append("limit", String(filters.limit));
+    if (filters?.cursor) params.append("cursor", filters.cursor);
     const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiFetch(`${getApiBaseUrl()}/services/public${query}`, {
       method: "GET",
@@ -1419,12 +1467,25 @@ export const getAllProducts = async (filters?: {
   categoryId?: string;
   sousCategoryId?: string;
   wilayaCode?: string;
-}): Promise<ApiResponse<{ products: PublicProduct[]; total: number; clientWilayaCode?: string | null }>> => {
+  limit?: number;
+  cursor?: string;
+}): Promise<
+  ApiResponse<{
+    products: PublicProduct[];
+    total: number;
+    clientWilayaCode?: string | null;
+    nextCursor?: string | null;
+    hasMore?: boolean;
+    limit?: number;
+  }>
+> => {
   try {
 const params = new URLSearchParams();
     if (filters?.categoryId) params.append("categoryId", filters.categoryId);
     if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
     if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+    if (filters?.limit != null) params.append("limit", String(filters.limit));
+    if (filters?.cursor) params.append("cursor", filters.cursor);
     const query = params.toString() ? `?${params.toString()}` : "";
     
     const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
@@ -1694,6 +1755,7 @@ export interface DetailedAdminStatistics {
     totalQuantity: number;
     totalRevenue: number;
   }>;
+  isLimited?: boolean;
 }
 
 // Get admin statistics
@@ -1767,9 +1829,9 @@ export interface AdminUser {
   firstName: string;
   lastName: string;
   name: string;
-  email: string;
-  phone: string;
-  address: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   role: "client" | "supplier";
   status: boolean;
   certife?: boolean;
@@ -1909,9 +1971,9 @@ export interface AdminOrder {
   id: string;
   orderNumber: string;
   customer: string;
-  customerEmail: string;
+  customerEmail?: string;
   supplier: string;
-  supplierEmail: string;
+  supplierEmail?: string;
   products: Array<{
     name: string;
     quantity: number;
@@ -3353,6 +3415,44 @@ const response = await apiFetch(`${getApiBaseUrl()}/payments/commande/${commande
   }
 };
 
+/** Batch-fetch payments for many commande IDs (one request). */
+export const getPaymentsByCommandes = async (
+  commandeIds: string[]
+): Promise<ApiResponse<{ paymentsByCommande: Record<string, Payment> }>> => {
+  try {
+    const unique = [...new Set(commandeIds.filter(Boolean))].slice(0, 100);
+    if (unique.length === 0) {
+      return {
+        success: true,
+        message: "OK",
+        data: { paymentsByCommande: {} },
+      };
+    }
+    const params = new URLSearchParams({ ids: unique.join(",") });
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/payments/by-commandes?${params.toString()}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch payments",
+      };
+    }
+    return await response.json();
+  } catch (error: any) {
+    devError("Get payments by commandes error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Get all payments for current user
 export const getUserPayments = async (): Promise<ApiResponse<Payment[]>> => {
   try {
@@ -3733,6 +3833,40 @@ const response = await apiFetch(`${getApiBaseUrl()}/client/rates`, {
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Labo confirms delivery + saves star review */
+export const confirmOrderArrival = async (
+  orderId: string,
+  number: number,
+  message?: string
+): Promise<ApiResponse<unknown>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/commandes/${orderId}/confirm-arrival`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          number,
+          message: message?.trim() || undefined,
+        }),
+      }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: result.message || "Impossible de confirmer la réception",
+      };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error",
     };
   }
 };

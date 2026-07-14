@@ -13,7 +13,7 @@ interface CartPanelProps {
 }
 
 export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
-  const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearProductItems } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearReservableItems } = useCart();
   const [showInvoice, setShowInvoice] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const router = useRouter();
@@ -45,68 +45,83 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
     try {
       const API_BASE_URL = getApiUrl();
 
-      const productCartItems = cartItems.filter(
-        (item) => (item.itemType || "product") === "product"
-      );
-      const machineCartItems = cartItems.filter((item) => item.itemType === "machine");
+      const reservableCartItems = cartItems.filter((item) => {
+        const type = item.itemType || "product";
+        return type === "product" || type === "machine";
+      });
 
-      if (productCartItems.length === 0 && machineCartItems.length > 0) {
-        alert(
-          "Vos machines sont réservées dans le panier. La confirmation fournisseur pour les machines sera bientôt disponible."
-        );
+      if (reservableCartItems.length === 0) {
+        alert("Votre panier ne contient aucun article à réserver.");
         setIsCreatingOrder(false);
         return;
       }
 
-      const productsWithSupplierId = await Promise.all(
-        productCartItems.map(async (item) => {
+      const itemsWithSupplierId = await Promise.all(
+        reservableCartItems.map(async (item) => {
+          const itemType = item.itemType || "product";
           if (item.supplierId) {
-            return { ...item, supplierId: item.supplierId };
+            return { ...item, supplierId: item.supplierId, itemType };
           }
 
           try {
-            const productResponse = await apiFetch(`${API_BASE_URL}/products/public/${item.id}`);
-            if (productResponse.ok) {
-              const productData = await productResponse.json();
-              if (productData.success && productData.data && productData.data.supplier?.id) {
-                return { ...item, supplierId: productData.data.supplier.id };
+            const endpoint =
+              itemType === "machine"
+                ? `${API_BASE_URL}/machines/public/${item.id}`
+                : `${API_BASE_URL}/products/public/${item.id}`;
+            const catalogResponse = await apiFetch(endpoint);
+            if (catalogResponse.ok) {
+              const catalogData = await catalogResponse.json();
+              const supplierId =
+                catalogData?.data?.supplier?.id ||
+                catalogData?.data?.supplierId ||
+                null;
+              if (catalogData.success && supplierId) {
+                return { ...item, supplierId: String(supplierId), itemType };
               }
             }
           } catch (err) {
-            console.error("Error fetching product:", err);
+            console.error("Error fetching catalog item:", err);
           }
           return null;
         })
       );
 
-      // Filter out any null values (products that couldn't be fetched)
-      const validProducts = productsWithSupplierId.filter((p): p is typeof cartItems[0] & { supplierId: string } => p !== null && !!p.supplierId);
+      const validItems = itemsWithSupplierId.filter(
+        (p): p is typeof cartItems[0] & { supplierId: string; itemType: "product" | "machine" } =>
+          p !== null && !!p.supplierId
+      );
 
-      if (validProducts.length === 0) {
-        alert("Impossible de récupérer les informations des produits. Veuillez réessayer.");
+      if (validItems.length === 0) {
+        alert("Impossible de récupérer les informations des articles. Veuillez réessayer.");
         setIsCreatingOrder(false);
         return;
       }
 
-      // Group products by supplier
-      const productsBySupplier: { [supplierId: string]: Array<{ id: string | number; quantity: number }> } = {};
-      
-      validProducts.forEach((item) => {
+      // Group by supplier (products + machines can share an order per supplier)
+      const itemsBySupplier: {
+        [supplierId: string]: Array<{
+          id: string | number;
+          quantity: number;
+          itemType: "product" | "machine";
+        }>;
+      } = {};
+
+      validItems.forEach((item) => {
         const supplierId = item.supplierId;
-        if (!productsBySupplier[supplierId]) {
-          productsBySupplier[supplierId] = [];
+        if (!itemsBySupplier[supplierId]) {
+          itemsBySupplier[supplierId] = [];
         }
-        productsBySupplier[supplierId].push({
+        itemsBySupplier[supplierId].push({
           id: item.id,
           quantity: item.quantity,
+          itemType: item.itemType === "machine" ? "machine" : "product",
         });
       });
 
-      // Create an order for each supplier
       const orderIds: string[] = [];
       const errors: string[] = [];
-      
-      for (const [supplierId, products] of Object.entries(productsBySupplier)) {
+
+      for (const [supplierId, products] of Object.entries(itemsBySupplier)) {
         try {
           const response = await apiFetch(`${API_BASE_URL}/commandes`, {
             method: "POST",
@@ -133,31 +148,19 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
       }
 
       if (orderIds.length > 0) {
-        let message = orderIds.length === 1
-          ? "Réserve envoyée ! En attente de confirmation du fournisseur."
-          : `${orderIds.length} réserves envoyées ! En attente de confirmation des fournisseurs.`;
-
-        if (machineCartItems.length > 0) {
-          message += `\n\n${machineCartItems.length} machine(s) restent dans votre panier.`;
-        }
-        
-        if (errors.length > 0) {
-          alert(`${message}\n\nNote: ${errors.length} erreur(s) lors de la création de certaines réserves.`);
-        } else {
-          alert(message);
-        }
-        
         setShowInvoice(false);
-        clearProductItems();
-        if (machineCartItems.length === 0) {
-          onClose();
-          router.push("/orders");
-        }
-      } else {
-        alert(errors.length > 0 
-          ? `Aucune réserve n'a pu être créée:\n${errors.join("\n")}`
-          : "Aucune réserve n'a pu être créée. Veuillez réessayer.");
+        clearReservableItems();
+        onClose();
+        // Navigate first — don't block behind alert()
+        router.push("/orders");
+        return;
       }
+
+      alert(
+        errors.length > 0
+          ? `Aucune réserve n'a pu être créée:\n${errors.join("\n")}`
+          : "Aucune réserve n'a pu être créée. Veuillez réessayer."
+      );
     } catch (err) {
       console.error("Create order error:", err);
       alert("Une erreur est survenue. Veuillez réessayer.");

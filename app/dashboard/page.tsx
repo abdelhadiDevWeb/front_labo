@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package, Loader2, MessageCircle } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package, Loader2 } from "lucide-react";
 import { getAdminStatistics, AdminStatistics } from "@/lib/api";
 import Link from "next/link";
 
@@ -104,26 +104,26 @@ export default function DashboardPage() {
           subtitle: `${statistics.totalClients} clients, ${statistics.totalSuppliers} fournisseurs`,
           icon: Users,
           color: "bg-blue-500",
-          href: "/dashboard/users",
+          href: "/dashboard/statistics",
         },
         {
           name: "Commandes",
           value: formatNumber(statistics.totalOrders),
-          subtitle: "Total des commandes",
+          subtitle:
+            statistics.growth?.orders != null
+              ? `${statistics.growth.orders.percentage >= 0 ? "+" : ""}${statistics.growth.orders.percentage.toFixed(1)}% ce mois`
+              : "Total des commandes",
           icon: ShoppingCart,
           color: "bg-purple-500",
-          href: "/dashboard/orders",
+          href: "/dashboard/statistics",
         },
         {
-          name: "Problèmes",
-          value: formatNumber(statistics.totalProblems ?? 0),
-          subtitle:
-            (statistics.unreadProblems ?? 0) > 0
-              ? `${statistics.unreadProblems} non lu${(statistics.unreadProblems ?? 0) > 1 ? "s" : ""}`
-              : "Aucun nouveau problème",
-          icon: MessageCircle,
+          name: "Produits",
+          value: formatNumber(statistics.totalProducts ?? 0),
+          subtitle: "Catalogue actif",
+          icon: Package,
           color: "bg-orange-500",
-          href: "/dashboard/problems",
+          href: "/dashboard/statistics",
         },
       ]
     : [
@@ -169,7 +169,7 @@ export default function DashboardPage() {
         </h2>
         <p className="text-blue-100">
           {isLimited
-            ? "Aperçu de vos sections : commandes, utilisateurs et problèmes"
+            ? "Aperçu statistique uniquement — les détails utilisateurs et revenus sont réservés aux administrateurs"
             : "Voici un aperçu de votre activité aujourd'hui"}
         </p>
       </div>
@@ -224,6 +224,24 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {isLimited ? (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Statistiques détaillées</h3>
+              <p className="text-gray-600 text-sm">
+                Consultez les graphiques d&apos;activité (sans données financières ni contacts).
+              </p>
+            </div>
+            <Link
+              href="/dashboard/statistics"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+            >
+              Ouvrir les statistiques →
+            </Link>
+          </div>
+        </div>
+      ) : (
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-xl font-bold text-gray-900">Commandes Récentes</h3>
@@ -302,6 +320,7 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

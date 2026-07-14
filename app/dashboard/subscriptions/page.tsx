@@ -44,10 +44,14 @@ import {
   SubscriptionType,
   CreateSubscriptionTypeData,
   UpdateSubscriptionTypeData,
+  getSessionRole,
 } from "@/lib/api";
 import { getBaseUrl } from "@/lib/api-config";
+import { useRouter } from "next/navigation";
+import { isSouAdminRole } from "@/lib/admin-access";
 
 export default function SubscriptionsPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<SubscriptionUser[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [subscriptionTypes, setSubscriptionTypes] = useState<SubscriptionType[]>([]);
@@ -122,8 +126,14 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     setMounted(true);
-    loadData();
-  }, []);
+    void getSessionRole().then((session) => {
+      if (isSouAdminRole(session?.role)) {
+        router.replace("/dashboard");
+        return;
+      }
+      loadData();
+    });
+  }, [router]);
 
   useEffect(() => {
     const handlePendingUsersUpdated = async () => {

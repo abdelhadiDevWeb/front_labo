@@ -8,7 +8,10 @@ import { registerClient, loginClient } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl } from "@/lib/api-config";
 import LocationPicker from "@/components/LocationPicker";
+import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 import { type LocationData, isLocationComplete } from "@/lib/location";
+import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
+import { ALGERIA_WILAYA_CODES } from "@/lib/algeria-wilayas";
 
 type UserType = "supplier" | "client";
 
@@ -46,6 +49,11 @@ function RegisterPageContent() {
     confirmPassword: "",
   });
   const [supplierLocation, setSupplierLocation] = useState<LocationData | null>(null);
+  /** Default: cover all Algeria wilayas (same as profile "Toutes les wilayas") */
+  const [coversAllWilayas, setCoversAllWilayas] = useState(true);
+  const [coverageWilayas, setCoverageWilayas] = useState<string[]>([
+    ...ALGERIA_WILAYA_CODES,
+  ]);
 
   // Client form data
   const [clientFormData, setClientFormData] = useState({
@@ -55,7 +63,7 @@ function RegisterPageContent() {
     phone: "",
     password: "",
     confirmPassword: "",
-    laboType: "" as "Labo médical" | "labo d'ana pathologies" | "",
+    laboType: "" as LaboTypeValue | "",
   });
   const [clientLocation, setClientLocation] = useState<LocationData | null>(null);
 
@@ -78,6 +86,11 @@ function RegisterPageContent() {
 
     if (!isLocationComplete(supplierLocation)) {
       setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
+      return;
+    }
+
+    if (!coversAllWilayas && coverageWilayas.length === 0) {
+      setError("Sélectionnez au moins une wilaya de couverture ou activez « Toutes les wilayas ».");
       return;
     }
 
@@ -105,6 +118,8 @@ function RegisterPageContent() {
           commune: supplierLocation!.commune,
           placeId: supplierLocation!.placeId,
           role: "supplier",
+          coversAllWilayas,
+          wilayas: coversAllWilayas ? [...ALGERIA_WILAYA_CODES] : coverageWilayas,
         }),
       });
 
@@ -188,7 +203,7 @@ function RegisterPageContent() {
         commune: clientLocation!.commune,
         placeId: clientLocation!.placeId,
         role: "client",
-        laboType: clientFormData.laboType as "Labo médical" | "labo d'ana pathologies",
+        laboType: clientFormData.laboType as LaboTypeValue,
       });
 
       if (result.success) {
@@ -387,6 +402,25 @@ function RegisterPageContent() {
               value={supplierLocation}
               onChange={setSupplierLocation}
             />
+
+            {/* Coverage wilayas */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Zones de couverture (wilayas) <span className="text-red-500">*</span>
+              </label>
+              <p className="text-sm text-gray-500">
+                Par défaut toutes les wilayas sont sélectionnées. Vous pouvez modifier la zone de couverture.
+              </p>
+              <SupplierWilayaSelector
+                coversAllWilayas={coversAllWilayas}
+                selectedCodes={coverageWilayas}
+                onCoversAllChange={(value) => {
+                  setCoversAllWilayas(value);
+                  setCoverageWilayas(value ? [...ALGERIA_WILAYA_CODES] : coverageWilayas);
+                }}
+                onSelectedCodesChange={setCoverageWilayas}
+              />
+            </div>
 
             {/* Password Field */}
             <div className="space-y-2">
@@ -593,25 +627,41 @@ function RegisterPageContent() {
 
               {/* Labo Type Field */}
               <div className="space-y-2">
-                <label htmlFor="laboType" className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700">
                   Type de laboratoire <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FlaskConical className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <select
-                    id="laboType"
-                    name="laboType"
-                    required
-                    value={clientFormData.laboType}
-                    onChange={(e) => setClientFormData({ ...clientFormData, laboType: e.target.value as "Labo médical" | "labo d'ana pathologies" })}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none appearance-none bg-white"
-                  >
-                    <option value="">Sélectionnez un type de laboratoire</option>
-                    <option value="Labo médical">Labo médical</option>
-                    <option value="labo d'ana pathologies">labo d'ana pathologies</option>
-                  </select>
+                <p className="text-sm text-gray-500">
+                  Votre laboratoire est de quel type ?
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {LABO_TYPE_OPTIONS.map((opt) => {
+                    const selected = clientFormData.laboType === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setClientFormData({ ...clientFormData, laboType: opt.value })
+                        }
+                        className={`text-left p-4 rounded-xl border-2 transition-all ${
+                          selected
+                            ? "border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-sm"
+                            : "border-teal-200 bg-gradient-to-br from-teal-50/60 to-cyan-50/60 hover:border-teal-400"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <FlaskConical
+                            className={`h-5 w-5 mt-0.5 shrink-0 ${
+                              selected ? "text-teal-600" : "text-gray-400"
+                            }`}
+                          />
+                          <p className="font-semibold text-gray-900 text-sm leading-snug">
+                            {opt.label}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

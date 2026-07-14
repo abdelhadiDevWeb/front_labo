@@ -158,6 +158,9 @@ export default function SupplierDashboardLayout({
       createdAt: string;
       notificationId?: string;
     }) => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: data }));
+      }
       // Reload notifications from database to get the full notification object (only unread)
       try {
         const result = await getNotifications(true); // Get only unread notifications
@@ -180,6 +183,33 @@ export default function SupplierDashboardLayout({
       }
     });
 
+    socket.on("orderStatusUpdate", async (data: {
+      orderId: string;
+      status: string;
+      message: string;
+      notificationId?: string;
+    }) => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: data }));
+      }
+      try {
+        const result = await getNotifications(true);
+        if (result.success && result.data) {
+          const unreadNotifications = result.data.notifications.filter((n) => !n.isRead);
+          setNotifications(unreadNotifications);
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch {
+        // Silent
+      }
+      if ("Notification" in window && Notification.permission === "granted") {
+        new window.Notification("Mise à jour de réserve", {
+          body: data.message,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
     socket.on("paymentUploaded", async (data: {
       orderId: string;
       total: number;
@@ -188,6 +218,9 @@ export default function SupplierDashboardLayout({
       notificationId?: string;
       createdAt: string;
     }) => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ml:supplier-payment", { detail: data }));
+      }
       try {
         const result = await getNotifications(true);
         if (result.success && result.data) {
@@ -516,25 +549,17 @@ export default function SupplierDashboardLayout({
                               className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                                 !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
                               }`}
-                              onClick={async () => {
-                                // Mark notification as read if it's unread
-                                if (!notification.isRead) {
-                                  try {
-                                    const result = await markNotificationAsRead(notification._id);
-                                    if (result.success) {
-                                      // Remove notification from list (only show unread notifications)
-                                      setNotifications((prev) =>
-                                        prev.filter((n) => n._id !== notification._id)
-                                      );
-                                      setUnreadCount((prev) => Math.max(0, prev - 1));
-                                    }
-                                  } catch (error) {
-                                    // Silent error handling
-                                  }
-                                }
-                                // Navigate to orders page
-                                router.push(`/dashboard-supplier/orders`);
+                              onClick={() => {
                                 setShowNotifications(false);
+                                // Optimistic UI + navigate immediately
+                                if (!notification.isRead) {
+                                  setNotifications((prev) =>
+                                    prev.filter((n) => n._id !== notification._id)
+                                  );
+                                  setUnreadCount((prev) => Math.max(0, prev - 1));
+                                  void markNotificationAsRead(notification._id).catch(() => {});
+                                }
+                                router.push("/dashboard-supplier/orders");
                               }}
                             >
                               <div className="flex items-start gap-2 sm:gap-3">

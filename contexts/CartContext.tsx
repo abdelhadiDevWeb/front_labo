@@ -23,6 +23,8 @@ interface CartContextType {
   ) => void;
   clearCart: () => void;
   clearProductItems: () => void;
+  /** Clear products and machines (checkoutable cart lines). */
+  clearReservableItems: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
 }
@@ -121,6 +123,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const clearReservableItems = () => {
+    setCartItems((prev) =>
+      prev.filter((item) => {
+        const type = item.itemType || "product";
+        return type !== "product" && type !== "machine";
+      })
+    );
+  };
+
   const getTotalItems = () => {
     return cartItems.reduce((sum, item) => sum + item.quantity, 0);
   };
@@ -157,6 +168,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updateQuantity,
         clearCart,
         clearProductItems,
+        clearReservableItems,
         getTotalItems,
         getTotalPrice,
       }}
