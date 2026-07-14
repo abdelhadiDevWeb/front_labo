@@ -4,10 +4,9 @@ import type { NextRequest } from "next/server";
 const AUTH_COOKIE = "ml_auth";
 
 /**
- * Full dashboards / orders require a first-party ml_auth cookie.
- * Onboarding routes are NOT gated here — when the API is cross-origin,
- * HttpOnly cookies live on the API host and this middleware cannot see them.
- * Upload/plan pages use client-side useAuthGuard (credentials to the API).
+ * Soft gate for dashboards: requires first-party ml_auth (set via /api BFF proxy).
+ * Onboarding pages are client-guarded only so a missing cookie never traps users
+ * on "Vérification de la session".
  */
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -23,8 +22,6 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(AUTH_COOKIE)?.value);
 
-  // Only gate protected pages. Never block /login — a stale ml_auth cookie
-  // used to redirect login → /home and trap users who need to sign in again.
   if (isProtectedPath(pathname) && !hasSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);

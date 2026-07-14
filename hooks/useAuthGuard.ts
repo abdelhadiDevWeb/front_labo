@@ -13,17 +13,28 @@ export function useAuthGuard(redirectTo = "/login") {
     let cancelled = false;
 
     const verify = async () => {
-      const ok = await checkAuthSession();
-      if (cancelled) return;
-      if (!ok) {
+      try {
+        const ok = await checkAuthSession();
+        if (cancelled) return;
+
+        if (!ok) {
+          setIsAuthenticated(false);
+          setIsChecking(false);
+          router.replace(redirectTo);
+          return;
+        }
+
+        setIsAuthenticated(true);
+        setIsChecking(false);
+      } catch {
+        if (cancelled) return;
+        setIsAuthenticated(false);
+        setIsChecking(false);
         router.replace(redirectTo);
-        return;
       }
-      setIsAuthenticated(true);
-      setIsChecking(false);
     };
 
-    verify();
+    void verify();
 
     return () => {
       cancelled = true;

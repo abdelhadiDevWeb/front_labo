@@ -112,11 +112,9 @@ const nextConfig: NextConfig = {
       );
     }
 
+    // /api/* is handled by app/api/[...path]/route.ts (BFF) so Set-Cookie
+    // becomes first-party on Hostinger. Only socket.io still uses a rewrite.
     return [
-      {
-        source: "/api/:path*",
-        destination: `${backendBase}/api/:path*`,
-      },
       {
         source: "/socket.io/:path*",
         destination: `${backendBase}/socket.io/:path*`,

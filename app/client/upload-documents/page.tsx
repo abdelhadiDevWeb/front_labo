@@ -102,8 +102,11 @@ export default function ClientUploadDocumentsPage() {
 
   if (isChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Vérification de la session...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 px-4">
+        <div className="text-center space-y-2">
+          <p className="text-gray-800 font-medium">Chargement de votre dossier…</p>
+          <p className="text-sm text-gray-500">Un instant, préparation de l&apos;upload.</p>
+        </div>
       </div>
     );
   }

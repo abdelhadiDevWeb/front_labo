@@ -1,12 +1,11 @@
 /**
  * API configuration.
  *
- * Browser always uses same-origin `/api` (Next rewrite → backend) so HttpOnly
- * auth cookies are set on the frontend domain. That is required for middleware
- * and for production hosts (Hostinger) where frontend and backend differ.
+ * Browser always uses same-origin `/api`, handled by `app/api/[...path]/route.ts`
+ * (BFF proxy). That forwards Set-Cookie onto the frontend domain so Hostinger
+ * sessions work the same as local Next rewrites.
  *
- * NEXT_PUBLIC_API_URL must be the public backend URL at build time so
- * next.config rewrites can proxy `/api` correctly (never leave localhost in prod).
+ * Set NEXT_PUBLIC_API_URL (or API_INTERNAL_URL) to the real backend at build/runtime.
  */
 
 const isDev = process.env.NODE_ENV === "development";
@@ -45,18 +44,14 @@ const getServerApiUrl = (): string => {
 
 const getServerBaseUrl = (): string => getServerApiUrl().replace(/\/api\/?$/, "");
 
-/**
- * Full API URL with `/api` path.
- * Browser: same-origin `/api` (Next rewrite).
- * Server: explicit env URL.
- */
+/** Browser: `/api` BFF. Server: absolute backend URL. */
 export const getApiUrl = (): string => {
   if (typeof window !== "undefined") {
     if (!isDev) {
       const fromEnv = resolveEnvApiUrl();
       if (fromEnv && isLocalApiUrl(fromEnv)) {
         console.error(
-          "[api-config] NEXT_PUBLIC_API_URL points to localhost in production. Set it to your public backend URL before building (e.g. https://your-api.example.com/api)."
+          "[api-config] NEXT_PUBLIC_API_URL points to localhost in production. Set it to your public backend URL before building."
         );
       }
     }
@@ -65,9 +60,7 @@ export const getApiUrl = (): string => {
   return getServerApiUrl();
 };
 
-/**
- * Base URL without `/api` — Socket.io / absolute media via same-origin rewrite.
- */
+/** Socket.io / media base — same-origin in production (socket rewrite). */
 export const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     if (isDev) {
