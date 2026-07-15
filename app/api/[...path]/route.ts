@@ -16,7 +16,7 @@ const HOP_BY_HOP = new Set([
   "content-length",
 ]);
 
-const resolveBackendApiBase = (): string => {
+const resolveBackendApiBase = (frontendOrigin?: string): string => {
   const raw =
     process.env.API_INTERNAL_URL?.trim() ||
     process.env.NEXT_PUBLIC_API_URL?.trim() ||
@@ -29,8 +29,33 @@ const resolveBackendApiBase = (): string => {
     throw new Error("API_INTERNAL_URL or NEXT_PUBLIC_API_URL must be set");
   }
 
-  const normalized = raw.replace(/\/$/, "");
-  return normalized.includes("/api") ? normalized : `${normalized}/api`;
+  let absolute = raw.replace(/\/$/, "");
+  if (!/^https?:\/\//i.test(absolute)) {
+    absolute = `https://${absolute}`;
+  }
+  const withApi = absolute.includes("/api") ? absolute : `${absolute}/api`;
+
+  // Same Hostinger host for front + env API → calling ourselves loops forever.
+  // Prefer API_INTERNAL_URL, else local Express on PORT.
+  try {
+    if (frontendOrigin) {
+      const apiOrigin = new URL(withApi).origin;
+      if (apiOrigin === frontendOrigin) {
+        const internal = process.env.API_INTERNAL_URL?.trim();
+        if (internal) {
+          let i = internal.replace(/\/$/, "");
+          if (!/^https?:\/\//i.test(i)) i = `http://${i}`;
+          return i.includes("/api") ? i : `${i}/api`;
+        }
+        const port = process.env.BACKEND_PORT || process.env.PORT || "8000";
+        return `http://127.0.0.1:${port}/api`;
+      }
+    }
+  } catch {
+    // keep withApi
+  }
+
+  return withApi;
 };
 
 /**
@@ -60,7 +85,7 @@ const rewriteSetCookieForFrontend = (
 };
 
 const buildTargetUrl = (req: NextRequest, pathParts: string[]): string => {
-  const base = resolveBackendApiBase();
+  const base = resolveBackendApiBase(req.nextUrl.origin);
   const suffix = pathParts.map(encodeURIComponent).join("/");
   const url = new URL(`${base}/${suffix}`);
   url.search = req.nextUrl.search;

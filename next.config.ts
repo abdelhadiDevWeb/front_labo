@@ -95,11 +95,19 @@ const nextConfig: NextConfig = {
     middlewareClientMaxBodySize: "50mb",
   },
   async rewrites() {
-    // Browser calls same-origin /api so auth cookies stay on the frontend domain.
-    // This destination must be the real public (or internal) backend — never localhost in prod.
+    // Normalize missing https:// (common Hostinger env paste mistake).
+    const rawBackend =
+      process.env.API_INTERNAL_URL?.trim() ||
+      process.env.NEXT_PUBLIC_API_URL?.trim() ||
+      "";
+    const withProtocol = rawBackend
+      ? /^https?:\/\//i.test(rawBackend)
+        ? rawBackend
+        : `https://${rawBackend}`
+      : "";
+
     const backendBase =
-      process.env.API_INTERNAL_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
-      process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
+      withProtocol.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
       (isDev ? "http://localhost:8000" : "");
 
     if (!backendBase) {

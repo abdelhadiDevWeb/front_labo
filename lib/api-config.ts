@@ -1,33 +1,21 @@
 /**
  * API configuration.
  *
- * Browser always uses same-origin `/api`, handled by `app/api/[...path]/route.ts`
- * (BFF proxy). That forwards Set-Cookie onto the frontend domain so Hostinger
- * sessions work the same as local Next rewrites.
+ * Browser always uses same-origin `/api` → `app/api/[...path]/route.ts` (BFF).
+ * That rewrites Set-Cookie onto the frontend domain so Hostinger sessions work.
  *
- * Set NEXT_PUBLIC_API_URL (or API_INTERNAL_URL) to the real backend at build/runtime.
+ * Set NEXT_PUBLIC_API_URL to the public Express API (with https://).
+ * On the same Hostinger machine, also set API_INTERNAL_URL=http://127.0.0.1:PORT/api
+ * so the BFF talks to Express directly (avoids proxy looping to Next itself).
  */
 
+import {
+  ensureAbsoluteHttpUrl,
+  isLocalApiUrl,
+  resolveEnvApiUrl,
+} from "./api-url";
+
 const isDev = process.env.NODE_ENV === "development";
-
-const resolveEnvApiUrl = (): string | null => {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (!envUrl) return null;
-
-  if (envUrl.includes("/api")) {
-    return envUrl.replace(/\/$/, "");
-  }
-  return `${envUrl.replace(/\/$/, "")}/api`;
-};
-
-const isLocalApiUrl = (url: string): boolean => {
-  try {
-    const { hostname } = new URL(url);
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
-};
 
 const getServerApiUrl = (): string => {
   const fromEnv = resolveEnvApiUrl();
@@ -89,6 +77,8 @@ export const parseResponseJson = async <T = unknown>(
     );
   }
 };
+
+export { ensureAbsoluteHttpUrl, resolveEnvApiUrl, isLocalApiUrl };
 
 /** @deprecated Use getApiUrl() */
 export const API_BASE_URL = typeof window === "undefined" ? getServerApiUrl() : "/api";
