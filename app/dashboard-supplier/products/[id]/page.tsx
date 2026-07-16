@@ -22,7 +22,6 @@ import {
   Play,
 } from "lucide-react";
 import { getSupplierProducts, Product, updateProduct, deleteProduct } from "@/lib/api";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
 
 export default function ProductDetailPage() {

@@ -3,20 +3,13 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "ml_auth";
 
-/**
- * Soft gate for dashboards: requires first-party ml_auth (set via /api BFF proxy).
- * Onboarding pages are client-guarded only so a missing cookie never traps users
- * on "Vérification de la session".
- */
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/dashboard-supplier",
-  "/orders",
-  "/profile",
-];
+/** Only dashboards require a valid session cookie. Onboarding pages are open. */
+const PROTECTED_PREFIXES = ["/dashboard", "/dashboard-supplier"];
 
 const isProtectedPath = (pathname: string) =>
-  PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,10 +25,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/dashboard-supplier/:path*",
-    "/orders/:path*",
-    "/profile/:path*",
-  ],
+  matcher: ["/dashboard/:path*", "/dashboard-supplier/:path*"],
 };

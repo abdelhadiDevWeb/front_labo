@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { registerClient, loginClient, apiFetch, checkAuthSession } from "@/lib/api";
+import { registerClient, loginClient, apiFetch } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validateOnboardingRedirect } from "@/lib/security";
@@ -138,31 +138,14 @@ function RegisterPageContent() {
 
       if (result.success) {
         markSessionActive();
-        let redirectTo =
+        // Best-effort login so cookies exist when the API proxy supports them
+        void loginClient({
+          email: supplierFormData.email,
+          password: supplierFormData.password,
+        });
+        const redirectTo =
           validateOnboardingRedirect(result.data?.redirectTo) ||
           "/supplier/upload-documents";
-
-        // Ensure API session cookies are usable before navigating to onboarding
-        let sessionOk = await checkAuthSession();
-        if (!sessionOk) {
-          const loginResult = await loginClient({
-            email: supplierFormData.email,
-            password: supplierFormData.password,
-          });
-          sessionOk = Boolean(loginResult.success);
-          if (loginResult.success) {
-            redirectTo =
-              validateOnboardingRedirect(loginResult.data?.redirectTo) ||
-              redirectTo;
-          }
-        }
-
-        if (!sessionOk) {
-          setSuccess("Compte créé. Connectez-vous pour continuer l'inscription.");
-          setTimeout(() => router.push("/login"), 800);
-          return;
-        }
-
         setSuccess("Compte créé avec succès ! Redirection...");
         setTimeout(() => {
           router.push(redirectTo);
@@ -232,30 +215,13 @@ function RegisterPageContent() {
 
       if (result.success) {
         markSessionActive();
-        let redirectTo =
+        void loginClient({
+          email: clientFormData.email,
+          password: clientFormData.password,
+        });
+        const redirectTo =
           validateOnboardingRedirect(result.data?.redirectTo) ||
           "/client/upload-documents";
-
-        let sessionOk = await checkAuthSession();
-        if (!sessionOk) {
-          const loginResult = await loginClient({
-            email: clientFormData.email,
-            password: clientFormData.password,
-          });
-          sessionOk = Boolean(loginResult.success);
-          if (loginResult.success) {
-            redirectTo =
-              validateOnboardingRedirect(loginResult.data?.redirectTo) ||
-              redirectTo;
-          }
-        }
-
-        if (!sessionOk) {
-          setSuccess("Compte créé. Connectez-vous pour continuer l'inscription.");
-          setTimeout(() => router.push("/login"), 800);
-          return;
-        }
-
         setSuccess("Compte créé avec succès ! Redirection...");
         setTimeout(() => {
           router.push(redirectTo);

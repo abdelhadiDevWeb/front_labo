@@ -48,7 +48,6 @@ import {
   resumeSponsorPayment,
 } from "@/lib/api";
 import { validateCheckoutUrl } from "@/lib/security";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { getMediaUrl } from "@/lib/media-url";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
@@ -195,7 +194,6 @@ const productToItem = (product: Product): MarketplaceItem => {
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isChecking } = useAuthGuard();
   const [products, setProducts] = useState<Product[]>([]);
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);

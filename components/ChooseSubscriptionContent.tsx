@@ -15,7 +15,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  checkAuthSession,
   getPublicSubscriptionPlans,
   createAbonnementCheckout,
   registerHandToHandAbonnement,
@@ -24,7 +23,6 @@ import {
 } from "@/lib/api";
 import { validateCheckoutUrl } from "@/lib/security";
 import RegistrationPendingModal from "@/components/RegistrationPendingModal";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 interface ChooseSubscriptionContentProps {
   role: "supplier" | "client";
@@ -45,7 +43,6 @@ export default function ChooseSubscriptionContent({
 }: ChooseSubscriptionContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isChecking: isAuthChecking } = useAuthGuard();
 
   const [plans, setPlans] = useState<SubscriptionType[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
@@ -194,7 +191,7 @@ export default function ChooseSubscriptionContent({
         )}
 
         {!showPaymentOptions ? (
-          isLoadingPlans || isAuthChecking ? (
+          isLoadingPlans ? (
             <div className="flex justify-center py-20">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
             </div>

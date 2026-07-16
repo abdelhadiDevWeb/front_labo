@@ -4,15 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, X } from "lucide-react";
-import { apiFetch, checkAuthSession } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { validatePdfFile } from "@/lib/file-validation";
 import { validateOnboardingRedirect } from "@/lib/security";
 
 export default function ClientUploadDocumentsPage() {
   const router = useRouter();
-  const { isChecking } = useAuthGuard();
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +54,6 @@ export default function ClientUploadDocumentsPage() {
     setIsLoading(true);
 
     try {
-      const authed = await checkAuthSession();
-      if (!authed) {
-        router.push("/login");
-        return;
-      }
-
       const API_BASE_URL = getApiUrl();
 
       const formData = new FormData();
@@ -78,6 +70,12 @@ export default function ClientUploadDocumentsPage() {
         data?: { redirectTo?: string };
       }>(response);
 
+      if (response.status === 401 || response.status === 403) {
+        setError(result.message || "Session expirée. Veuillez vous reconnecter.");
+        setIsLoading(false);
+        return;
+      }
+
       if (!response.ok) {
         setError(result.message || "Une erreur est survenue lors de l'upload");
         setIsLoading(false);
@@ -93,23 +91,14 @@ export default function ClientUploadDocumentsPage() {
         setError(result.message || "Une erreur est survenue");
       }
     } catch (err) {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      setError(
+        err instanceof Error ? err.message : "Une erreur est survenue. Veuillez réessayer."
+      );
       console.error("Upload error:", err);
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 px-4">
-        <div className="text-center space-y-2">
-          <p className="text-gray-800 font-medium">Chargement de votre dossier…</p>
-          <p className="text-sm text-gray-500">Un instant, préparation de l&apos;upload.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">
