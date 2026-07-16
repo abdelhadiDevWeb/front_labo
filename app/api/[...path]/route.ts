@@ -101,7 +101,7 @@ async function proxyRequest(
   const isHttps = req.nextUrl.protocol === "https:";
 
   const headers = new Headers();
-  req.headers.forEach((value, key) => {
+  req.headers.forEach((value: string, key: string) => {
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) return;
     if (lower === "origin") return;
@@ -143,7 +143,7 @@ async function proxyRequest(
   }
 
   const responseHeaders = new Headers();
-  upstream.headers.forEach((value, key) => {
+  upstream.headers.forEach((value: string, key: string) => {
     const lower = key.toLowerCase();
     if (HOP_BY_HOP.has(lower)) return;
     if (lower === "set-cookie") return;
