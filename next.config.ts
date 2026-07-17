@@ -26,6 +26,10 @@ const buildContentSecurityPolicy = (): string => {
   const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
   const scriptSrc = new Set<string>([
     "'self'",
+    // Next.js App Router streams page data via inline <script> tags
+    // (self.__next_f.push). Blocking them breaks hydration with
+    // "Uncaught Error: Connection closed." on every page in production.
+    "'unsafe-inline'",
     "https://maps.googleapis.com",
     "https://maps.gstatic.com",
   ]);
