@@ -110,13 +110,17 @@ const nextConfig: NextConfig = {
       withProtocol.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
       (isDev ? "http://localhost:8000" : "");
 
+    // Never throw here: a throw breaks `next build`/boot on Vercel & Hostinger.
     if (!backendBase) {
-      throw new Error("API_INTERNAL_URL or NEXT_PUBLIC_API_URL must be set for API rewrites");
+      console.error(
+        "[next.config] API_INTERNAL_URL or NEXT_PUBLIC_API_URL is not set — socket.io rewrite disabled. Realtime features won't work until it is set."
+      );
+      return [];
     }
 
     if (!isDev && /localhost|127\.0\.0\.1/i.test(backendBase)) {
-      throw new Error(
-        "Production API rewrite points to localhost. Set NEXT_PUBLIC_API_URL (or API_INTERNAL_URL) to your public backend URL."
+      console.error(
+        "[next.config] Backend URL points to localhost in production. Set NEXT_PUBLIC_API_URL (or API_INTERNAL_URL) to your public backend URL."
       );
     }
 

@@ -14,9 +14,13 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  // fetch() already decompresses the body; forwarding this header makes the
+  // browser try to gunzip plain text → ERR_CONTENT_DECODING_FAILED on every call.
+  "content-encoding",
+  "accept-encoding",
 ]);
 
-const resolveBackendApiBase = (frontendOrigin?: string): string => {
+const resolveBackendApiBase = (frontendOrigin?: string): string | null => {
   const raw =
     process.env.API_INTERNAL_URL?.trim() ||
     process.env.NEXT_PUBLIC_API_URL?.trim() ||
@@ -26,7 +30,7 @@ const resolveBackendApiBase = (frontendOrigin?: string): string => {
     if (process.env.NODE_ENV === "development") {
       return "http://localhost:8000/api";
     }
-    throw new Error("API_INTERNAL_URL or NEXT_PUBLIC_API_URL must be set");
+    return null;
   }
 
   let absolute = raw.replace(/\/$/, "");
@@ -84,8 +88,9 @@ const rewriteSetCookieForFrontend = (
   return value;
 };
 
-const buildTargetUrl = (req: NextRequest, pathParts: string[]): string => {
+const buildTargetUrl = (req: NextRequest, pathParts: string[]): string | null => {
   const base = resolveBackendApiBase(req.nextUrl.origin);
+  if (!base) return null;
   const suffix = pathParts.map(encodeURIComponent).join("/");
   const url = new URL(`${base}/${suffix}`);
   url.search = req.nextUrl.search;
@@ -98,6 +103,19 @@ async function proxyRequest(
 ): Promise<NextResponse> {
   const { path } = await context.params;
   const targetUrl = buildTargetUrl(req, path || []);
+  if (!targetUrl) {
+    console.error(
+      "[api-proxy] NEXT_PUBLIC_API_URL / API_INTERNAL_URL is not set — cannot reach the backend."
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Configuration serveur manquante (URL de l'API). Contactez l'administrateur.",
+      },
+      { status: 502 }
+    );
+  }
   const isHttps = req.nextUrl.protocol === "https:";
 
   const headers = new Headers();

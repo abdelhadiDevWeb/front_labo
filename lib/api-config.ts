@@ -22,9 +22,12 @@ const getServerApiUrl = (): string => {
   if (fromEnv) return fromEnv;
 
   if (!isDev) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL must be set in production (e.g. https://api.example.com/api)"
+    // Never throw here: this runs during SSR/prerender of every page that
+    // imports lib/api.ts. A throw = white-screen crash for the whole site.
+    console.error(
+      "[api-config] NEXT_PUBLIC_API_URL is not set in production. Set it to your backend URL (e.g. https://api.example.com/api)."
     );
+    return "/api";
   }
 
   return "http://localhost:8000/api";
@@ -80,5 +83,5 @@ export const parseResponseJson = async <T = unknown>(
 
 export { ensureAbsoluteHttpUrl, resolveEnvApiUrl, isLocalApiUrl };
 
-/** @deprecated Use getApiUrl() */
-export const API_BASE_URL = typeof window === "undefined" ? getServerApiUrl() : "/api";
+/** @deprecated Use getApiUrl() — kept lazy-safe so importing never throws */
+export const API_BASE_URL = "/api";
