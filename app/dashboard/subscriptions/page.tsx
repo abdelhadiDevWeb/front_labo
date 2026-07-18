@@ -92,6 +92,7 @@ export default function SubscriptionsPage() {
     time: 1,
     price: 0,
     sponsorsPerMonth: 0,
+    sponsorDurationHours: 48,
   });
 
   const [updateTypeFormData, setUpdateTypeFormData] = useState<UpdateSubscriptionTypeData>({
@@ -100,6 +101,16 @@ export default function SubscriptionsPage() {
     time: 1,
     price: 0,
     sponsorsPerMonth: 0,
+    sponsorDurationHours: 48,
+  });
+
+  const emptyCreateTypeForm = (): CreateSubscriptionTypeData => ({
+    name: "",
+    description: "",
+    time: 1,
+    price: 0,
+    sponsorsPerMonth: 0,
+    sponsorDurationHours: 48,
   });
 
   // Helper function to safely get time value
@@ -333,23 +344,26 @@ export default function SubscriptionsPage() {
     setSuccess(null);
 
     try {
+      const sponsors = createTypeFormData.sponsorsPerMonth ?? 0;
+      const hours = createTypeFormData.sponsorDurationHours ?? 0;
+      if (sponsors > 0 && hours < 1) {
+        setError("Indiquez la durée de chaque sponsor en heures (minimum 1).");
+        setIsCreatingType(false);
+        return;
+      }
+
       // Convert months to days if needed
       const timeInDays = durationUnit === "months" ? durationMonths * 30 : createTypeFormData.time;
       const formDataToSend = {
         ...createTypeFormData,
         time: timeInDays,
+        sponsorDurationHours: sponsors > 0 ? hours : 0,
       };
 
       const result = await createSubscriptionType(formDataToSend);
       if (result.success && result.data) {
         setSuccess("Type d'abonnement créé avec succès!");
-        setCreateTypeFormData({
-          name: "",
-          description: "",
-          time: 1,
-          price: 0,
-          sponsorsPerMonth: 0,
-        });
+        setCreateTypeFormData(emptyCreateTypeForm());
         setDurationMonths(1);
         setDurationUnit("months");
         setShowCreateTypeModal(false);
@@ -377,11 +391,20 @@ export default function SubscriptionsPage() {
     setSuccess(null);
 
     try {
+      const sponsors = updateTypeFormData.sponsorsPerMonth ?? 0;
+      const hours = updateTypeFormData.sponsorDurationHours ?? 0;
+      if (sponsors > 0 && hours < 1) {
+        setError("Indiquez la durée de chaque sponsor en heures (minimum 1).");
+        setIsUpdatingType(false);
+        return;
+      }
+
       // Convert months to days if needed
       const timeInDays = updateDurationUnit === "months" ? updateDurationMonths * 30 : getUpdateTimeValue();
       const formDataToSend = {
         ...updateTypeFormData,
         time: timeInDays,
+        sponsorDurationHours: sponsors > 0 ? hours : 0,
       };
 
       const result = await updateSubscriptionType(selectedType.id, formDataToSend);
@@ -433,26 +456,22 @@ export default function SubscriptionsPage() {
     const months = Math.round(days / 30);
     const isRoughlyMonths = Math.abs(days - months * 30) <= 2; // Allow 2 days tolerance
     
+    const typeFormBase = {
+      name: type.name,
+      description: type.description || "",
+      time: days,
+      price: type.price,
+      sponsorsPerMonth: type.sponsorsPerMonth ?? 0,
+      sponsorDurationHours: type.sponsorDurationHours ?? 48,
+    };
     if (isRoughlyMonths && months > 0) {
       setUpdateDurationUnit("months");
       setUpdateDurationMonths(months);
-      setUpdateTypeFormData({
-        name: type.name,
-        description: type.description || "",
-        time: days,
-        price: type.price,
-        sponsorsPerMonth: type.sponsorsPerMonth ?? 0,
-      });
+      setUpdateTypeFormData(typeFormBase);
     } else {
       setUpdateDurationUnit("days");
       setUpdateDurationMonths(1);
-      setUpdateTypeFormData({
-        name: type.name,
-        description: type.description || "",
-        time: days,
-        price: type.price,
-        sponsorsPerMonth: type.sponsorsPerMonth ?? 0,
-      });
+      setUpdateTypeFormData(typeFormBase);
     }
     setShowUpdateTypeModal(true);
   };
@@ -615,6 +634,13 @@ export default function SubscriptionsPage() {
       choice.time >= 30 && choice.time % 30 === 0
         ? `${choice.time / 30} mois`
         : `${choice.time} jour${choice.time > 1 ? "s" : ""}`;
+    const sponsorsCount = choice.sponsorsPerMonth ?? 0;
+    const sponsorHours =
+      choice.sponsorDurationHours && choice.sponsorDurationHours >= 1
+        ? choice.sponsorDurationHours
+        : sponsorsCount > 0
+          ? 48
+          : 0;
 
     return (
       <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
@@ -626,10 +652,22 @@ export default function SubscriptionsPage() {
         <p className="text-sm text-gray-600">
           {choice.price.toLocaleString("fr-DZ")} DZD · {durationLabel}
         </p>
-        {(choice.sponsorsPerMonth ?? 0) > 0 && user.role === "supplier" && (
-          <p className="text-xs text-gray-500 mt-1">
-            {choice.sponsorsPerMonth} sponsoring(s) / mois
-          </p>
+        {sponsorsCount > 0 ? (
+          <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/80 px-2.5 py-2 space-y-1.5">
+            <p className="text-xs font-medium text-amber-900 flex items-center gap-1.5">
+              <Megaphone className="w-3.5 h-3.5 text-amber-600" />
+              {sponsorsCount} sponsor{sponsorsCount > 1 ? "s" : ""} inclus
+            </p>
+            <p className="text-xs font-medium text-amber-900 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              Temps / sponsor&nbsp;: {sponsorHours} h
+              {sponsorHours >= 24 && sponsorHours % 24 === 0
+                ? ` (${sponsorHours / 24} jour${sponsorHours / 24 > 1 ? "s" : ""})`
+                : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500 mt-1">Aucun sponsoring inclus</p>
         )}
       </div>
     );
@@ -758,15 +796,36 @@ export default function SubscriptionsPage() {
           <Mail className="w-4 h-4" />
           {subscription.id_user?.email || "N/A"}
         </div>
-        {(subscription.sponsorsAllocated ?? subscription.sponsorsPerMonth ?? 0) > 0 &&
-          subscription.id_user?.role === "supplier" && (
-          <div className="flex items-center gap-2 text-sm text-purple-700">
+        {(subscription.sponsorsAllocated ?? subscription.sponsorsPerMonth ?? 0) > 0 ? (
+          <div className="rounded-lg border border-purple-100 bg-purple-50/80 px-2.5 py-2 space-y-1.5">
+            <div className="flex items-center gap-2 text-sm text-purple-800 font-medium">
+              <Megaphone className="w-4 h-4" />
+              {subscription.sponsorsPerMonth ?? 0} sponsor
+              {(subscription.sponsorsPerMonth ?? 0) !== 1 ? "s" : ""} restant
+              {(subscription.sponsorsPerMonth ?? 0) !== 1 ? "s" : ""}
+              {(subscription.sponsorsAllocated ?? 0) > 0 &&
+                ` / ${subscription.sponsorsAllocated} inclus`}
+            </div>
+            <div className="flex items-center gap-2 text-sm text-purple-800 font-medium">
+              <Clock className="w-4 h-4" />
+              Temps / sponsor&nbsp;:{" "}
+              {(() => {
+                const hours =
+                  subscription.sponsorDurationHours && subscription.sponsorDurationHours >= 1
+                    ? subscription.sponsorDurationHours
+                    : 48;
+                if (hours >= 24 && hours % 24 === 0) {
+                  const days = hours / 24;
+                  return `${hours} h (${days} jour${days > 1 ? "s" : ""})`;
+                }
+                return `${hours} heure${hours > 1 ? "s" : ""}`;
+              })()}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
             <Megaphone className="w-4 h-4" />
-            {subscription.sponsorsPerMonth ?? 0} sponsor
-            {(subscription.sponsorsPerMonth ?? 0) !== 1 ? "s" : ""} restant
-            {(subscription.sponsorsPerMonth ?? 0) !== 1 ? "s" : ""}
-            {(subscription.sponsorsAllocated ?? 0) > 0 &&
-              ` / ${subscription.sponsorsAllocated} inclus`}
+            Aucun sponsoring inclus
           </div>
         )}
       </div>
@@ -1137,7 +1196,7 @@ export default function SubscriptionsPage() {
           <button
             onClick={() => {
               setShowCreateTypeModal(true);
-              setCreateTypeFormData({ name: "", time: 1, price: 0 });
+              setCreateTypeFormData(emptyCreateTypeForm());
             }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -1208,8 +1267,22 @@ export default function SubscriptionsPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Megaphone className="w-4 h-4" />
-                      Sponsors/mois: {type.sponsorsPerMonth ?? 0}
+                      Sponsors inclus&nbsp;: {type.sponsorsPerMonth ?? 0}
                     </div>
+                    {(type.sponsorsPerMonth ?? 0) > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-purple-700 font-medium">
+                        <Clock className="w-4 h-4" />
+                        Temps / sponsor&nbsp;:{" "}
+                        {(() => {
+                          const hours = type.sponsorDurationHours ?? 48;
+                          if (hours >= 24 && hours % 24 === 0) {
+                            const days = hours / 24;
+                            return `${hours} h (${days} jour${days > 1 ? "s" : ""})`;
+                          }
+                          return `${hours} heure${hours > 1 ? "s" : ""}`;
+                        })()}
+                      </div>
+                    )}
                     {type.description && (
                       <p className="text-sm text-gray-500 line-clamp-2">{type.description}</p>
                     )}
@@ -1244,7 +1317,7 @@ export default function SubscriptionsPage() {
               <button
                 onClick={() => {
                   setShowCreateTypeModal(true);
-                  setCreateTypeFormData({ name: "", description: "", time: 1, price: 0, sponsorsPerMonth: 0 });
+                  setCreateTypeFormData(emptyCreateTypeForm());
                 }}
                 className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto"
               >
@@ -1326,7 +1399,7 @@ export default function SubscriptionsPage() {
                         const startDate = new Date(createFormData.start);
                         const endDate = new Date(startDate);
                         endDate.setDate(endDate.getDate() + selectedType.time);
-                        return `Durée: ${selectedType.time} ${selectedType.time === 1 ? "jour" : "jours"} | Prix: ${selectedType.price.toLocaleString("fr-FR")} DA | Sponsors/mois: ${selectedType.sponsorsPerMonth ?? 0} | Date de fin calculée: ${endDate.toLocaleDateString("fr-FR")}`;
+                        return `Durée: ${selectedType.time} ${selectedType.time === 1 ? "jour" : "jours"} | Prix: ${selectedType.price.toLocaleString("fr-FR")} DA | Sponsors/mois: ${selectedType.sponsorsPerMonth ?? 0}${(selectedType.sponsorsPerMonth ?? 0) > 0 ? ` (${selectedType.sponsorDurationHours ?? 48} h)` : ""} | Date de fin calculée: ${endDate.toLocaleDateString("fr-FR")}`;
                       }
                       return "";
                     })()}
@@ -1679,7 +1752,7 @@ export default function SubscriptionsPage() {
                   type="button"
                   onClick={() => {
                     setShowCreateTypeModal(false);
-                    setCreateTypeFormData({ name: "", description: "", time: 1, price: 0, sponsorsPerMonth: 0 });
+                    setCreateTypeFormData(emptyCreateTypeForm());
                   }}
                   className="text-white/90 hover:text-white hover:bg-white/15 p-2.5 rounded-xl transition-all"
                 >
@@ -1842,21 +1915,50 @@ export default function SubscriptionsPage() {
                         <Megaphone className="w-4 h-4 text-purple-600" />
                         Sponsors inclus
                       </h4>
-                      <input
-                        type="number"
-                        min="0"
-                        value={createTypeFormData.sponsorsPerMonth ?? 0}
-                        onChange={(e) =>
-                          setCreateTypeFormData({
-                            ...createTypeFormData,
-                            sponsorsPerMonth: parseInt(e.target.value) || 0,
-                          })
-                        }
-                        className="w-full px-4 py-3.5 text-base border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all outline-none shadow-sm"
-                      />
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Nombre de sponsors / mois
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={createTypeFormData.sponsorsPerMonth ?? 0}
+                          onChange={(e) =>
+                            setCreateTypeFormData({
+                              ...createTypeFormData,
+                              sponsorsPerMonth: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="w-full px-4 py-3.5 text-base border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all outline-none shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Durée de chaque sponsor (heures)
+                          {(createTypeFormData.sponsorsPerMonth ?? 0) > 0 && (
+                            <span className="text-red-500"> *</span>
+                          )}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          required={(createTypeFormData.sponsorsPerMonth ?? 0) > 0}
+                          disabled={(createTypeFormData.sponsorsPerMonth ?? 0) === 0}
+                          value={createTypeFormData.sponsorDurationHours ?? 48}
+                          onChange={(e) =>
+                            setCreateTypeFormData({
+                              ...createTypeFormData,
+                              sponsorDurationHours: Math.max(1, parseInt(e.target.value) || 1),
+                            })
+                          }
+                          className="w-full px-4 py-3.5 text-base border border-purple-200 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all outline-none shadow-sm disabled:bg-gray-100 disabled:text-gray-400"
+                          placeholder="Ex: 48"
+                        />
+                      </div>
                       <p className="text-xs text-purple-800/80 leading-relaxed">
                         Nombre de sponsors gratuits offerts aux fournisseurs avec cet abonnement. Chaque utilisation
-                        déduit 1 du solde restant.
+                        déduit 1 du solde restant et dure le nombre d&apos;heures indiqué (ex. 24 = 1 jour, 48 = 2 jours).
                       </p>
                     </div>
                   </div>
@@ -1881,6 +1983,8 @@ export default function SubscriptionsPage() {
                   <span className="inline-flex items-center gap-2 text-purple-800">
                     <Megaphone className="w-4 h-4" />
                     {createTypeFormData.sponsorsPerMonth ?? 0} sponsor(s)
+                    {(createTypeFormData.sponsorsPerMonth ?? 0) > 0 &&
+                      ` · ${createTypeFormData.sponsorDurationHours ?? 48} h`}
                   </span>
                 </div>
               </div>
@@ -1891,7 +1995,7 @@ export default function SubscriptionsPage() {
                   type="button"
                   onClick={() => {
                     setShowCreateTypeModal(false);
-                    setCreateTypeFormData({ name: "", description: "", time: 1, price: 0, sponsorsPerMonth: 0 });
+                    setCreateTypeFormData(emptyCreateTypeForm());
                   }}
                   className="flex-1 px-5 py-3.5 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-white transition-colors font-semibold text-base"
                 >
@@ -1987,6 +2091,33 @@ export default function SubscriptionsPage() {
                   }
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                 />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  Durée de chaque sponsor (heures)
+                  {(updateTypeFormData.sponsorsPerMonth ?? 0) > 0 && (
+                    <span className="text-red-500"> *</span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  required={(updateTypeFormData.sponsorsPerMonth ?? 0) > 0}
+                  disabled={(updateTypeFormData.sponsorsPerMonth ?? 0) === 0}
+                  value={updateTypeFormData.sponsorDurationHours ?? 48}
+                  onChange={(e) =>
+                    setUpdateTypeFormData({
+                      ...updateTypeFormData,
+                      sponsorDurationHours: Math.max(1, parseInt(e.target.value) || 1),
+                    })
+                  }
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                  placeholder="Ex: 48"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Durée d&apos;affichage de chaque sponsor inclus (en heures). Ex. 24 = 1 jour, 48 = 2 jours.
+                </p>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5 sm:mb-2">

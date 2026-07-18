@@ -11,11 +11,24 @@ import { validateOnboardingRedirect } from "@/lib/security";
 import { markSessionActive } from "@/lib/auth-session";
 import LocationPicker from "@/components/LocationPicker";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
-import { type LocationData, isLocationComplete } from "@/lib/location";
+import { type LocationData, isLocationComplete, enrichAlgeriaLocation } from "@/lib/location";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
-import { ALGERIA_WILAYA_CODES } from "@/lib/algeria-wilayas";
+import { ALGERIA_WILAYA_CODES, resolveWilayaFromCoordinates } from "@/lib/algeria-wilayas";
 
 type UserType = "supplier" | "client";
+
+const normalizePhoneInput = (phone: string): string =>
+  phone.replace(/[\s().-]/g, "").trim();
+
+const registrationErrorMessage = (
+  result: { message?: string; errors?: string[] },
+  fallback: string
+): string => {
+  if (result.errors && result.errors.length > 0) {
+    return result.errors.join(" · ");
+  }
+  return result.message || fallback;
+};
 
 function RegisterPageContent() {
   const router = useRouter();
@@ -91,6 +104,15 @@ function RegisterPageContent() {
       return;
     }
 
+    const supplierLoc = enrichAlgeriaLocation(
+      supplierLocation!,
+      resolveWilayaFromCoordinates
+    );
+    if (!isLocationComplete(supplierLoc)) {
+      setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
+      return;
+    }
+
     if (!coversAllWilayas && coverageWilayas.length === 0) {
       setError("Sélectionnez au moins une wilaya de couverture ou activez « Toutes les wilayas ».");
       return;
@@ -110,14 +132,14 @@ function RegisterPageContent() {
           lastName: supplierFormData.lastName,
           email: supplierFormData.email,
           password: supplierFormData.password,
-          phone: supplierFormData.phone,
-          address: supplierLocation!.address,
-          latitude: supplierLocation!.latitude,
-          longitude: supplierLocation!.longitude,
-          wilaya: supplierLocation!.wilaya,
-          daira: supplierLocation!.daira || "",
-          commune: supplierLocation!.commune,
-          placeId: supplierLocation!.placeId,
+          phone: normalizePhoneInput(supplierFormData.phone),
+          address: supplierLoc.address,
+          latitude: supplierLoc.latitude,
+          longitude: supplierLoc.longitude,
+          wilaya: supplierLoc.wilaya,
+          daira: supplierLoc.daira || "",
+          commune: supplierLoc.commune,
+          placeId: supplierLoc.placeId,
           role: "supplier",
           coversAllWilayas,
           wilayas: coversAllWilayas ? [...ALGERIA_WILAYA_CODES] : coverageWilayas,
@@ -127,11 +149,17 @@ function RegisterPageContent() {
       const result = await parseResponseJson<{
         success: boolean;
         message?: string;
+        errors?: string[];
         data?: { redirectTo?: string };
       }>(response);
 
       if (!response.ok) {
-        setError(result.message || "Une erreur est survenue lors de l'inscription");
+        setError(
+          registrationErrorMessage(
+            result,
+            "Une erreur est survenue lors de l'inscription"
+          )
+        );
         setIsLoading(false);
         return;
       }
@@ -148,10 +176,15 @@ function RegisterPageContent() {
           "/supplier/upload-documents";
         setSuccess("Compte créé avec succès ! Redirection...");
         setTimeout(() => {
-          router.push(redirectTo);
+          router.replace(redirectTo);
         }, 800);
       } else {
-        setError(result.message || "Une erreur est survenue lors de l'inscription");
+        setError(
+          registrationErrorMessage(
+            result,
+            "Une erreur est survenue lors de l'inscription"
+          )
+        );
       }
     } catch (err) {
       const message =
@@ -193,6 +226,15 @@ function RegisterPageContent() {
       return;
     }
 
+    const clientLoc = enrichAlgeriaLocation(
+      clientLocation!,
+      resolveWilayaFromCoordinates
+    );
+    if (!isLocationComplete(clientLoc)) {
+      setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -201,14 +243,14 @@ function RegisterPageContent() {
         lastName: clientFormData.lastName,
         email: clientFormData.email,
         password: clientFormData.password,
-        phone: clientFormData.phone,
-        address: clientLocation!.address,
-        latitude: clientLocation!.latitude,
-        longitude: clientLocation!.longitude,
-        wilaya: clientLocation!.wilaya,
-        daira: clientLocation!.daira || "",
-        commune: clientLocation!.commune,
-        placeId: clientLocation!.placeId,
+        phone: normalizePhoneInput(clientFormData.phone),
+        address: clientLoc.address,
+        latitude: clientLoc.latitude,
+        longitude: clientLoc.longitude,
+        wilaya: clientLoc.wilaya,
+        daira: clientLoc.daira || "",
+        commune: clientLoc.commune,
+        placeId: clientLoc.placeId,
         role: "client",
         laboType: clientFormData.laboType as LaboTypeValue,
       });
@@ -221,13 +263,18 @@ function RegisterPageContent() {
         });
         const redirectTo =
           validateOnboardingRedirect(result.data?.redirectTo) ||
-          "/client/upload-documents";
+          "/client/upload-documents?fresh=1";
         setSuccess("Compte créé avec succès ! Redirection...");
         setTimeout(() => {
-          router.push(redirectTo);
+          router.replace(redirectTo);
         }, 800);
       } else {
-        setError(result.message || "Une erreur est survenue lors de l'inscription");
+        setError(
+          registrationErrorMessage(
+            result,
+            "Une erreur est survenue lors de l'inscription"
+          )
+        );
       }
     } catch (err) {
       const message =
@@ -650,7 +697,10 @@ function RegisterPageContent() {
                         key={opt.value}
                         type="button"
                         onClick={() =>
-                          setClientFormData({ ...clientFormData, laboType: opt.value })
+                          setClientFormData((prev) => ({
+                            ...prev,
+                            laboType: opt.value,
+                          }))
                         }
                         className={`text-left p-4 rounded-xl border-2 transition-all ${
                           selected

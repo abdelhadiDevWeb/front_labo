@@ -23,11 +23,19 @@ export function parseAddressComponents(
   const find = (types: string[]) =>
     components.find((c) => types.some((t) => c.types.includes(t)))?.long_name || "";
 
-  return {
-    wilaya: find(["administrative_area_level_1"]),
-    daira: find(["administrative_area_level_2"]),
-    commune: find(["locality", "sublocality", "sublocality_level_1", "administrative_area_level_3"]),
-  };
+  // Algeria Google results often omit locality; fall back through admin levels.
+  const wilaya =
+    find(["administrative_area_level_1"]) ||
+    find(["administrative_area_level_2"]);
+  const daira =
+    find(["administrative_area_level_2"]) ||
+    find(["administrative_area_level_3"]);
+  const commune =
+    find(["locality", "sublocality", "sublocality_level_1", "administrative_area_level_3"]) ||
+    find(["administrative_area_level_2"]) ||
+    wilaya;
+
+  return { wilaya, daira, commune };
 }
 
 export function isLocationComplete(location: LocationData | null): boolean {
@@ -39,6 +47,26 @@ export function isLocationComplete(location: LocationData | null): boolean {
     location.wilaya.trim().length > 0 &&
     location.commune.trim().length > 0
   );
+}
+
+/**
+ * Fill missing wilaya/commune from nearest Algerian wilaya when Google
+ * returns incomplete address components (common on map-click).
+ */
+export function enrichAlgeriaLocation(
+  location: LocationData,
+  resolveNearest: (lat: number, lng: number) => { name: string } | null
+): LocationData {
+  if (location.wilaya.trim() && location.commune.trim()) {
+    return location;
+  }
+  const nearest = resolveNearest(location.latitude, location.longitude);
+  if (!nearest) return location;
+  return {
+    ...location,
+    wilaya: location.wilaya.trim() || nearest.name,
+    commune: location.commune.trim() || location.wilaya.trim() || nearest.name,
+  };
 }
 
 import { getValidatedGoogleMapsApiKey } from "./security";
