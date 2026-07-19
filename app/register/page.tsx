@@ -9,11 +9,20 @@ import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { markSessionActive } from "@/lib/auth-session";
-import LocationPicker from "@/components/LocationPicker";
+import dynamic from "next/dynamic";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 import { type LocationData, isLocationComplete, enrichAlgeriaLocation } from "@/lib/location";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { ALGERIA_WILAYA_CODES, resolveWilayaFromCoordinates } from "@/lib/algeria-wilayas";
+
+const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 rounded-xl border border-gray-200 bg-gray-50 animate-pulse flex items-center justify-center text-sm text-gray-500">
+      Chargement de la carte…
+    </div>
+  ),
+});
 
 type UserType = "supplier" | "client";
 

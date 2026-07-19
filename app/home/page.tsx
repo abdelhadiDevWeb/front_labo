@@ -43,14 +43,10 @@ import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPu
 import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
 import { useCart } from "@/contexts/CartContext";
-import { io as socketIO } from "socket.io-client";
+import dynamic from "next/dynamic";
 import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
-import SponsoredProductsCarousel from "@/components/SponsoredProductsCarousel";
-import PromotionsShowcase from "@/components/PromotionsShowcase";
-import GroupSelleShowcase from "@/components/GroupSelleShowcase";
 import UniqueDataFields from "@/components/UniqueDataFields";
-import CatalogItemDetailsModal from "@/components/CatalogItemDetailsModal";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import {
   getUniqueDataTitle,
@@ -58,6 +54,23 @@ import {
 } from "@/lib/unique-data-display";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
+
+const SponsoredProductsCarousel = dynamic(
+  () => import("@/components/SponsoredProductsCarousel"),
+  { ssr: false, loading: () => null }
+);
+const PromotionsShowcase = dynamic(
+  () => import("@/components/PromotionsShowcase"),
+  { ssr: false, loading: () => null }
+);
+const GroupSelleShowcase = dynamic(
+  () => import("@/components/GroupSelleShowcase"),
+  { ssr: false, loading: () => null }
+);
+const CatalogItemDetailsModal = dynamic(
+  () => import("@/components/CatalogItemDetailsModal"),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const router = useRouter();
@@ -379,35 +392,36 @@ export default function HomePage() {
   };
 
   const setupSocketConnection = () => {
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
+    let cancelled = false;
+    let socket: { disconnect: () => void; on: (...args: unknown[]) => void } | null = null;
 
-    socket.on("connect", () => {
-      // Socket connected
-    });
+    void import("socket.io-client").then(({ io }) => {
+      if (cancelled) return;
+      socket = io(getBaseUrl(), {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+      }) as unknown as { disconnect: () => void; on: (...args: unknown[]) => void };
 
-    socket.on("orderStatusUpdate", async (data: {
-      orderId: string;
-      status: string;
-      message: string;
-      notificationId: string;
-    }) => {
-      // Reload notifications when status update arrives
-      await loadNotifications();
-      
-      // Show browser notification if permission granted
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Mise à jour de réserve", {
-          body: data.message,
-          icon: "/favicon.ico",
-        });
-      }
+      socket.on("orderStatusUpdate", async (data: {
+        orderId: string;
+        status: string;
+        message: string;
+        notificationId: string;
+      }) => {
+        await loadNotifications();
+
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Mise à jour de réserve", {
+            body: data.message,
+            icon: "/favicon.ico",
+          });
+        }
+      });
     });
 
     return () => {
-      socket.disconnect();
+      cancelled = true;
+      socket?.disconnect();
     };
   };
 
