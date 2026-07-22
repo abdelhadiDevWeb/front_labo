@@ -72,6 +72,9 @@ const CatalogItemDetailsModal = dynamic(
   { ssr: false }
 );
 
+/** Title-case in the DOM (avoids ALL-CAPS hydration rewrites by browsers/extensions). Use `uppercase` CSS where all-caps look is needed. */
+const BRAND_NAME = "Dz Labmarket";
+
 export default function HomePage() {
   const router = useRouter();
   const { getTotalItems, addToCart } = useCart();
@@ -539,11 +542,11 @@ export default function HomePage() {
 
   const faqs = [
     {
-      question: "Qu'est-ce que MarketLab ?",
-      answer: "MarketLab est une marketplace professionnelle qui connecte les laboratoires d'analyses avec leurs clients, facilitant la recherche, la réserve et le suivi des services d'analyse.",
+      question: `Qu'est-ce que ${BRAND_NAME} ?`,
+      answer: `${BRAND_NAME} est une marketplace professionnelle qui connecte les laboratoires d'analyses avec leurs clients, facilitant la recherche, la réserve et le suivi des services d'analyse.`,
     },
     {
-      question: "Comment fonctionne MarketLab ?",
+      question: `Comment fonctionne ${BRAND_NAME} ?`,
       answer: "Notre plateforme permet de rechercher des services précis, consulter les offres, réserver en ligne, payer en toute sécurité et suivre votre réserve en temps réel.",
     },
     {
@@ -562,31 +565,36 @@ export default function HomePage() {
 
   const processSteps = [
     {
-      title: "Recherchez des services précis",
-      description: "Trouvez rapidement les analyses dont vous avez besoin",
+      title: "Recherchez",
+      description:
+        "Recherchez des réactifs, consommables ou automates compatibles de vos choix.",
     },
     {
-      title: "Consultez les offres",
-      description: "Comparez les prix et les services des différents laboratoires",
+      title: "Comparez",
+      description:
+        "Comparez les offres des fournisseurs : prix, délais, services.",
     },
     {
-      title: "Réservez en ligne",
-      description: "Passez votre réserve en quelques clics",
+      title: "Commandez",
+      description:
+        "Commandez en un clic. Bon de commande et facture automatiques.",
     },
     {
-      title: "Payez en toute sécurité",
-      description: "Paiement sécurisé par carte bancaire ou virement",
+      title: "Payez",
+      description:
+        "Payez selon des modalités différentes : virements, chèques, ou bien en espèces à la livraison.",
     },
     {
-      title: "Suivez votre réserve",
-      description: "Recevez des notifications en temps réel sur l'avancement",
+      title: "Suivez",
+      description:
+        "Suivez votre commande en temps réel de la validation à la livraison.",
     },
   ];
 
   const benefits = [
     {
       icon: Microscope,
-      title: "Laboratoires certifiés",
+      title: "Laboratoires et fournisseurs certifiés",
       description: "Tous nos partenaires sont certifiés et vérifiés",
     },
     {
@@ -627,7 +635,7 @@ export default function HomePage() {
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
                   src="/pi/ima.png"
-                  alt="Marketj Lab Logo"
+                  alt={`${BRAND_NAME} Logo`}
                   width={120}
                   height={40}
                   className="h-8 sm:h-10 md:h-12 w-auto object-contain"
@@ -971,18 +979,19 @@ export default function HomePage() {
 
             {/* Title with Typewriter Effect */}
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white mb-3 sm:mb-4 md:mb-6 animate-fade-in-up animation-delay-200 drop-shadow-2xl tracking-tight px-2 sm:px-4">
-              <span className="inline-block animate-scale-in animation-delay-300 bg-gradient-to-r from-white via-blue-50 to-white bg-clip-text text-transparent">MARKET</span>{" "}
-              <span className="inline-block animate-scale-in animation-delay-500">LAB</span>
+              <span className="inline-block animate-scale-in animation-delay-300 bg-gradient-to-r from-white via-blue-50 to-white bg-clip-text text-transparent uppercase">
+                {BRAND_NAME}
+              </span>
             </h1>
 
             {/* Subtitle with Slide Animation */}
             <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-white/95 mb-3 sm:mb-4 md:mb-6 max-w-4xl mx-auto animate-fade-in-up animation-delay-400 font-medium drop-shadow-xl leading-tight px-2 sm:px-4">
-              La marketplace professionnelle des laboratoires d'analyses
+              L&apos;écosystème intelligent des laboratoires et de leurs partenaires fournisseurs
             </p>
 
             {/* Description */}
             <p className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-white/85 mb-6 sm:mb-8 md:mb-12 max-w-3xl mx-auto animate-fade-in-up animation-delay-600 leading-relaxed font-light px-2 sm:px-4">
-              Connectez-vous avec les meilleurs laboratoires certifiés et accédez à des services d'analyse de qualité supérieure
+              Accélérez vos collaborations, sécurisez vos transactions et centralisez vos échanges professionnels, que vous soyez laboratoire ou fournisseur.
             </p>
 
             {/* CTA Buttons with Modern Effects */}
@@ -1156,7 +1165,7 @@ export default function HomePage() {
                 À propos
               </div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 leading-tight">
-                À PROPOS DE <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">MARKETLAB</span>
+                À PROPOS DE <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span>
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed">
                 Une plateforme innovante qui révolutionne l'accès aux services d'analyse de laboratoire.
@@ -1278,7 +1287,7 @@ export default function HomePage() {
               Avantages
             </div>
             <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6 scroll-animate ${visibleElements.has("why-title") ? "animate" : ""}`} id="why-title">
-              Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">MarketLab</span> ?
+              Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
             </h2>
             <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">Des solutions professionnelles pour tous vos besoins d'analyse</p>
           </div>
@@ -1312,7 +1321,7 @@ export default function HomePage() {
       {/* Supplier Section */}
       <section className="py-12 sm:py-16 md:py-24 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-start">
             <div
               className={`scroll-animate-left ${visibleElements.has("supplier-left") ? "animate" : ""}`}
               id="supplier-left"
@@ -1329,7 +1338,7 @@ export default function HomePage() {
                 </div>
 
                 <p className="text-sm sm:text-base text-blue-50 leading-relaxed">
-                  Un fournisseur MarketLab publie son catalogue, reçoit des commandes des laboratoires,
+                  Un fournisseur {BRAND_NAME} publie son catalogue, reçoit des commandes des laboratoires,
                   gère la livraison par wilaya et suit ses ventes depuis un tableau de bord dédié.
                 </p>
 
@@ -1370,24 +1379,50 @@ export default function HomePage() {
                 Vous êtes fournisseur ?
               </h2>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
-                Vendez vos produits, machines et services aux laboratoires partenaires et développez votre activité sur MarketLab.
+                Vendez vos produits, machines et services aux laboratoires partenaires et développez votre activité sur {BRAND_NAME}.
               </p>
-              <ul className="space-y-4">
+              <ul className="space-y-3 sm:space-y-4">
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Visibilité auprès d&apos;un réseau de laboratoires actifs</span>
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Clients qualifiés :</strong>{" "}
+                    La plateforme regroupe exclusivement des laboratoires d&apos;analyses médicales. Chaque visite est une opportunité commerciale réelle, sans démarchage à froid.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Catalogue produits, machines et services en ligne</span>
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Croissance sans effort :</strong>{" "}
+                    Commandes 24h/24, 7j/7 et réapprovisionnements automatiques. Un chiffre d&apos;affaires prévisible et récurrent.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Gestion des commandes et suivi des performances</span>
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Réduction des coûts :</strong>{" "}
+                    Fini les visites terrain systématiques. Centralisez devis, catalogues et documents réglementaires. Moins d&apos;erreurs, moins de litiges.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Support dédié et outils de sponsoring / promotions</span>
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Conformité &amp; transparence :</strong>{" "}
+                    Historiques centralisés, certifications intégrées (CE, IVDR, ISO). Un atout majeur en cas d&apos;audit ou de contrôle.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Intelligence commerciale :</strong>{" "}
+                    Analysez les tendances de consommation, les comportements acheteurs et visualisez votre part de marché face aux concurrents.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 group">
+                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
+                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
+                    <strong className="font-semibold text-white">Avantage concurrentiel :</strong>{" "}
+                    Modernisez votre image, répondez aux appels d&apos;offres électroniques et créez une barrière à l&apos;entrée pour les fournisseurs non abonnés.
+                  </span>
                 </li>
               </ul>
               <Link
@@ -1405,34 +1440,29 @@ export default function HomePage() {
       <section className="py-12 sm:py-16 md:py-24 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 items-center">
-            <div className={`scroll-animate-left ${visibleElements.has("lab-left") ? "animate" : ""}`} id="lab-left">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 aspect-square flex items-center justify-center hover-lift">
-                <Laptop className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 text-white transform transition-transform hover:scale-110 hover:rotate-6" />
-              </div>
-            </div>
-            <div className="space-y-3 sm:space-y-4 md:space-y-6 animate-fade-in-right">
+            <div className={`space-y-3 sm:space-y-4 md:space-y-6 scroll-animate-left ${visibleElements.has("lab-left") ? "animate" : ""}`} id="lab-left">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">
-                Vous êtes un laboratoire ?
+                Vous êtes un laboratoire d&apos;analyses médicales ?
               </h2>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
-                Accédez à une plateforme complète pour développer votre activité et servir vos clients plus efficacement.
+                Accédez à une plateforme dédiée pour simplifier vos approvisionnements en réactifs, consommables et automates.
               </p>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Accès à un large réseau de clients professionnels</span>
+                  <span className="transition-all group-hover:text-blue-200">Accès à un large réseau de fournisseurs certifiés (réactifs, automates, SAV)</span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Outils de gestion et de suivi intégrés</span>
+                  <span className="transition-all group-hover:text-blue-200">Outils de gestion et de suivi intégrés (commandes, livraisons, stocks, factures)</span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Facturation et paiement automatisés</span>
+                  <span className="transition-all group-hover:text-blue-200">Facturation et traçabilité automatisées (bons de commande, avoirs, historique)</span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Formation et support technique inclus</span>
+                  <span className="transition-all group-hover:text-blue-200">Support technique et assistance fournisseurs inclus.</span>
                 </li>
               </ul>
               <Link
@@ -1441,6 +1471,11 @@ export default function HomePage() {
               >
                 Créez votre compte en tant que laboratoire
               </Link>
+            </div>
+            <div className="animate-fade-in-right">
+              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 aspect-square flex items-center justify-center hover-lift">
+                <Laptop className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 text-white transform transition-transform hover:scale-110 hover:rotate-6" />
+              </div>
             </div>
           </div>
         </div>
@@ -1866,7 +1901,7 @@ export default function HomePage() {
                   borderRadius: "3px",
                 }}
                   src="/pi/ima.png"
-                  alt="Market Lab Logo"
+                  alt={`${BRAND_NAME} Logo`}
                   width={80}
                   height={80}
                   className="h-6 sm:h-8 w-auto object-contain"
@@ -1904,7 +1939,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 sm:pt-8 text-center text-gray-400 text-xs sm:text-sm">
-            <p>© 2024 MarketLab. Tous droits réservés.</p>
+            <p>© 2024 {BRAND_NAME}. Tous droits réservés.</p>
           </div>
         </div>
       </footer>
