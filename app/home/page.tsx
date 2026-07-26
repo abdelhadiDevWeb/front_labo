@@ -1341,51 +1341,14 @@ export default function HomePage() {
               className={`scroll-animate-left ${visibleElements.has("supplier-left") ? "animate" : ""}`}
               id="supplier-left"
             >
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 hover-lift space-y-4 sm:space-y-5 h-full">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                    <Building2 className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-blue-100 uppercase tracking-wide">Espace fournisseur</p>
-                    <h3 className="text-lg sm:text-xl font-bold">Votre vitrine professionnelle</h3>
-                  </div>
-                </div>
-
-                <p className="text-sm sm:text-base text-blue-50 leading-relaxed">
-                  Un fournisseur {BRAND_NAME} publie son catalogue, reçoit des commandes des laboratoires,
-                  gère la livraison par wilaya et suit ses ventes depuis un tableau de bord dédié.
-                </p>
-
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
-                    <Package className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
-                    <p className="font-semibold text-sm sm:text-base">Produits</p>
-                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Réactifs & consommables</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
-                    <Laptop className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
-                    <p className="font-semibold text-sm sm:text-base">Machines</p>
-                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Équipements de labo</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
-                    <Truck className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
-                    <p className="font-semibold text-sm sm:text-base">Livraison</p>
-                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Couverture par wilaya</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 sm:p-4 border border-white/10">
-                    <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 mb-2 text-white" />
-                    <p className="font-semibold text-sm sm:text-base">Visibilité</p>
-                    <p className="text-xs sm:text-sm text-blue-100 mt-1">Sponsoring & promos</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-1 sm:pt-2 border-t border-white/15">
-                  <ShoppingBag className="w-5 h-5 text-white shrink-0" />
-                  <p className="text-xs sm:text-sm text-blue-50">
-                    Vendez aux laboratoires partenaires partout en Algérie
-                  </p>
-                </div>
+              <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl hover-lift aspect-[4/3] md:aspect-square md:min-h-[420px]">
+                <Image
+                  src="/pi/supplier-warehouse.png"
+                  alt="Équipe logistique fournisseur"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
             </div>
 
@@ -1488,8 +1451,14 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="animate-fade-in-right">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 aspect-square flex items-center justify-center hover-lift">
-                <Laptop className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 text-white transform transition-transform hover:scale-110 hover:rotate-6" />
+              <div className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl hover-lift aspect-square">
+                <Image
+                  src="/pi/labo-equipment.png"
+                  alt="Équipements de laboratoire"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
             </div>
           </div>
