@@ -19,6 +19,14 @@ export const metadata: Metadata = {
   description:
     "L'écosystème intelligent des laboratoires et de leurs partenaires fournisseurs",
   applicationName: "Dz Labmarket",
+  icons: {
+    icon: [
+      { url: "/favicon.png?v=3", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-32.png?v=3", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/apple-icon.png?v=3", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=3",
+  },
 };
 
 export default function RootLayout({

@@ -630,15 +630,15 @@ export default function HomePage() {
       {/* Header - Professional & Modern */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 md:h-24">
+          <div className="flex items-center justify-between h-20 md:h-28">
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/pi/ima.png"
+                  src="/pi/logo-dz-labomarket.png"
                   alt={`${BRAND_NAME} Logo`}
-                  width={120}
-                  height={40}
-                  className="h-8 sm:h-10 md:h-12 w-auto object-contain"
+                  width={280}
+                  height={140}
+                  className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto object-contain rounded-xl"
                   priority
                 />
              
@@ -1167,39 +1167,54 @@ export default function HomePage() {
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 leading-tight">
                 À PROPOS DE <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span>
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed">
-                Une plateforme innovante qui révolutionne l'accès aux services d'analyse de laboratoire.
-              </p>
               <ul className="space-y-3 sm:space-y-4 md:space-y-5 text-gray-700">
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Plateforme sécurisée et certifiée pour tous vos besoins d'analyse</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">DZ Marketlab :</strong> Première plateforme B2B de biologie médicale en Algérie.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Réseau de laboratoires partenaires vérifiés et accrédités</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">Partenaires certifiés :</strong> Laboratoires et fournisseurs rigoureusement vérifiés et agréés.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Suivi en temps réel de vos réserves et résultats</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">Catalogue complet :</strong> Accès direct aux produits, nouveautés, arrivages et promotions.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Support client dédié disponible 7j/7</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">Recherche de proximité :</strong> Filtre géographique intelligent pour vos commandes d&apos;urgence.
+                  </span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
                   <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">Paiements sécurisés et réservation simplifiée</span>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">Accessibilité 24h/7j :</strong> Demandes et vitrine commerciale disponibles en permanence.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 sm:gap-4 group">
+                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
+                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
+                  </div>
+                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
+                    <strong className="font-semibold text-gray-900">Optimisation globale :</strong> Gain de temps et réduction des coûts au quotidien.
+                  </span>
                 </li>
               </ul>
               <button className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-sm sm:text-base md:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl mt-4 sm:mt-6 md:mt-8 inline-flex items-center gap-2">
@@ -1898,13 +1913,13 @@ export default function HomePage() {
               <div className="flex items-center gap-2 mb-3 sm:mb-4" >
                 <Image
                 style={{
-                  borderRadius: "3px",
+                  borderRadius: "8px",
                 }}
-                  src="/pi/ima.png"
+                  src="/pi/logo-dz-labomarket.png"
                   alt={`${BRAND_NAME} Logo`}
-                  width={80}
-                  height={80}
-                  className="h-6 sm:h-8 w-auto object-contain"
+                  width={120}
+                  height={120}
+                  className="h-10 sm:h-12 w-auto object-contain rounded-lg"
                 />
               </div>
               <p className="text-gray-400 text-xs sm:text-sm">

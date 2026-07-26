@@ -418,7 +418,7 @@ export default function SupplierDashboardLayout({
           <div className="p-6 border-b border-gray-200">
             <Link href="/dashboard-supplier" className="flex items-center justify-center">
               <Image
-                src="/pi/ima.png"
+                src="/pi/logo-dz-labomarket.png"
                 alt="Market Lab Logo"
                 width={150}
                 height={60}
