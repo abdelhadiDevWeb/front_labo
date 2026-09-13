@@ -8,7 +8,7 @@ function ClientChooseSubscriptionInner() {
   return (
     <ChooseSubscriptionContent
       role="client"
-      backHref="/client/upload-documents"
+      backHref="/client/upload-documents?edit=1"
       dashboardHref="/home"
       pageTitle="Choisissez votre abonnement"
       pageSubtitle="Sélectionnez l'offre adaptée à votre laboratoire — paiement en ligne ou en main propre (demande envoyée à l'admin)"

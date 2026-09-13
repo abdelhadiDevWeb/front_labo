@@ -15,11 +15,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Market Lab - Marketplace des Laboratoires",
-  description: "La marketplace professionnelle des laboratoires d'analyses",
+  title: "Dz Labmarket - Marketplace des Laboratoires",
+  description:
+    "L'écosystème intelligent des laboratoires et de leurs partenaires fournisseurs",
+  applicationName: "Dz Labmarket",
   icons: {
-    icon: '/images/logo.jpeg',
-    apple: '/images/logo.jpeg',
+    icon: [
+      { url: "/favicon.png?v=3", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-32.png?v=3", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/apple-icon.png?v=3", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=3",
   },
 };
 

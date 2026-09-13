@@ -19,8 +19,13 @@ const ALLOWED_ONBOARDING_REDIRECTS = new Set([
 export const validateOnboardingRedirect = (path: string | undefined | null): string | null => {
   if (!path || typeof path !== "string") return null;
   if (!path.startsWith("/") || path.startsWith("//")) return null;
-  if (!ALLOWED_ONBOARDING_REDIRECTS.has(path)) return null;
-  return path;
+  const pathname = path.split("?")[0];
+  if (!ALLOWED_ONBOARDING_REDIRECTS.has(pathname)) return null;
+  // Client upload must open a fresh form (no restored previous File selection)
+  if (pathname === "/client/upload-documents") {
+    return "/client/upload-documents?fresh=1";
+  }
+  return pathname;
 };
 
 const CHARGILY_HOSTS = new Set([

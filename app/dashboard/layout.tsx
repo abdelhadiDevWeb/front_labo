@@ -277,8 +277,8 @@ export default function DashboardLayout({
           <div className="p-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center justify-center">
               <Image
-                src="/pi/ima.png"
-                alt="Market Lab Logo"
+                src="/pi/logo-dz-labomarket.png"
+                alt="Dz Labmarket Logo"
                 width={150}
                 height={60}
                 className="w-32 h-16 object-contain"

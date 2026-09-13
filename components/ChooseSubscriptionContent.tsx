@@ -34,7 +34,7 @@ interface ChooseSubscriptionContentProps {
 }
 
 export default function ChooseSubscriptionContent({
-  role,
+  role: _role,
   backHref,
   dashboardHref,
   pageTitle,
@@ -161,6 +161,50 @@ export default function ChooseSubscriptionContent({
     return `${days} jour${days > 1 ? "s" : ""}`;
   };
 
+  const formatSponsorHours = (hours: number) => {
+    if (hours >= 24 && hours % 24 === 0) {
+      const days = hours / 24;
+      return `${hours} h (${days} jour${days > 1 ? "s" : ""})`;
+    }
+    return `${hours} heure${hours > 1 ? "s" : ""}`;
+  };
+
+  const renderSponsorInfo = (plan: SubscriptionType) => {
+    const sponsorsCount = plan.sponsorsPerMonth ?? 0;
+    const durationHours =
+      plan.sponsorDurationHours && plan.sponsorDurationHours >= 1
+        ? plan.sponsorDurationHours
+        : sponsorsCount > 0
+          ? 48
+          : 0;
+
+    if (sponsorsCount <= 0) {
+      return (
+        <div className="flex items-start gap-2 text-gray-500 text-sm">
+          <Megaphone className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+          <span>Aucun sponsoring inclus</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2.5 space-y-2">
+        <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
+          <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            {sponsorsCount} sponsor{sponsorsCount > 1 ? "s" : ""} inclus
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
+          <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>
+            Temps de chaque sponsor&nbsp;: {formatSponsorHours(durationHours)}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
@@ -170,7 +214,7 @@ export default function ChooseSubscriptionContent({
             className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Retour</span>
+            <span>Retour aux documents</span>
           </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{pageTitle}</h1>
           <p className="text-gray-600">{pageSubtitle}</p>
@@ -213,17 +257,12 @@ export default function ChooseSubscriptionContent({
                   {plan.description && (
                     <p className="text-gray-600 text-sm mb-4 flex-1">{plan.description}</p>
                   )}
-                  <div className="space-y-2 mb-6">
+                  <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-2 text-gray-700 text-sm">
                       <Calendar className="w-4 h-4 text-blue-500" />
-                      <span>{formatDuration(plan.time)}</span>
+                      <span>Durée de l&apos;abonnement&nbsp;: {formatDuration(plan.time)}</span>
                     </div>
-                    {(plan.sponsorsPerMonth ?? 0) > 0 && role === "supplier" && (
-                      <div className="flex items-center gap-2 text-gray-700 text-sm">
-                        <Megaphone className="w-4 h-4 text-amber-500" />
-                        <span>{plan.sponsorsPerMonth} sponsoring(s) / mois</span>
-                      </div>
-                    )}
+                    {renderSponsorInfo(plan)}
                   </div>
                   <div className="mt-auto">
                     <p className="text-3xl font-bold text-blue-600 mb-4">
@@ -265,7 +304,12 @@ export default function ChooseSubscriptionContent({
                   <p className="text-3xl font-bold text-blue-600 mt-2">
                     {selectedPlan.price.toLocaleString("fr-DZ")} DZD
                   </p>
-                  <p className="text-gray-500 text-sm mt-1">{formatDuration(selectedPlan.time)}</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Durée de l&apos;abonnement&nbsp;: {formatDuration(selectedPlan.time)}
+                  </p>
+                  <div className="mt-4 text-left max-w-sm mx-auto">
+                    {renderSponsorInfo(selectedPlan)}
+                  </div>
                 </div>
 
                 <p className="text-gray-700 text-center mb-6">

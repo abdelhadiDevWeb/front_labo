@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+const isProd = process.env.NODE_ENV === "production";
 
 const parseRemotePatternFromApiUrl = () => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
@@ -21,14 +22,22 @@ const parseRemotePatternFromApiUrl = () => {
 
 const envRemotePattern = parseRemotePatternFromApiUrl();
 
+const resolveApiOrigin = (): string | null => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!apiUrl) return null;
+  try {
+    return new URL(apiUrl.replace(/\/api\/?$/, "")).origin;
+  } catch {
+    return null;
+  }
+};
+
 const buildContentSecurityPolicy = (): string => {
   const connectSrc = new Set<string>(["'self'"]);
   const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
   const scriptSrc = new Set<string>([
     "'self'",
     // Next.js App Router streams page data via inline <script> tags
-    // (self.__next_f.push). Blocking them breaks hydration with
-    // "Uncaught Error: Connection closed." on every page in production.
     "'unsafe-inline'",
     "https://maps.googleapis.com",
     "https://maps.gstatic.com",
@@ -44,21 +53,16 @@ const buildContentSecurityPolicy = (): string => {
 
   if (isDev) {
     scriptSrc.add("'unsafe-eval'");
-    scriptSrc.add("'unsafe-inline'");
   }
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (apiUrl) {
-    try {
-      const origin = new URL(apiUrl.replace(/\/api\/?$/, "")).origin;
-      connectSrc.add(origin);
-      imgSrc.add(origin);
-    } catch {
-      // ignore
-    }
+  const apiOrigin = resolveApiOrigin();
+  if (apiOrigin) {
+    connectSrc.add(apiOrigin);
+    imgSrc.add(apiOrigin);
+    // Socket.IO over the same API host
+    connectSrc.add(apiOrigin.replace(/^http/, "ws"));
   }
 
-  // Google Maps (JS API + Places + map tiles)
   [
     "https://maps.googleapis.com",
     "https://maps.gstatic.com",
@@ -72,10 +76,13 @@ const buildContentSecurityPolicy = (): string => {
   connectSrc.add("https://pay.chargily.net");
   connectSrc.add("https://pay.chargily.com");
   connectSrc.add("https://test.pay.chargily.net");
-  connectSrc.add("wss:");
-  connectSrc.add("ws:");
 
-  return [
+  if (isDev) {
+    connectSrc.add("ws:");
+    connectSrc.add("wss:");
+  }
+
+  const directives = [
     "default-src 'self'",
     `script-src ${Array.from(scriptSrc).join(" ")}`,
     `style-src ${Array.from(styleSrc).join(" ")}`,
@@ -88,18 +95,24 @@ const buildContentSecurityPolicy = (): string => {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-  ].join("; ");
+  ];
+
+  if (isProd) {
+    directives.push("upgrade-insecure-requests");
+  }
+
+  return directives.join("; ");
 };
 
 const nextConfig: NextConfig = {
-  // One-by-one / Excel uploads (images + PDF) go through the Next rewrite proxy.
-  // Default buffer is 10MB and truncates the body → backend hang / create fails.
+  output: "standalone",
+  poweredByHeader: false,
+  compress: true,
   experimental: {
-    // Allow large multipart bodies through Next middleware (Excel / image uploads).
     middlewareClientMaxBodySize: "50mb",
+    optimizePackageImports: ["lucide-react", "@react-google-maps/api"],
   },
   async rewrites() {
-    // Normalize missing https:// (common Hostinger env paste mistake).
     const rawBackend =
       process.env.API_INTERNAL_URL?.trim() ||
       process.env.NEXT_PUBLIC_API_URL?.trim() ||
@@ -114,10 +127,9 @@ const nextConfig: NextConfig = {
       withProtocol.replace(/\/api\/?$/, "").replace(/\/$/, "") ||
       (isDev ? "http://localhost:8000" : "");
 
-    // Never throw here: a throw breaks `next build`/boot on Vercel & Hostinger.
     if (!backendBase) {
       console.error(
-        "[next.config] API_INTERNAL_URL or NEXT_PUBLIC_API_URL is not set — socket.io rewrite disabled. Realtime features won't work until it is set."
+        "[next.config] API_INTERNAL_URL or NEXT_PUBLIC_API_URL is not set — socket.io rewrite disabled."
       );
       return [];
     }
@@ -128,8 +140,6 @@ const nextConfig: NextConfig = {
       );
     }
 
-    // /api/* is handled by app/api/[...path]/route.ts (BFF) so Set-Cookie
-    // becomes first-party on Hostinger. Only socket.io still uses a rewrite.
     return [
       {
         source: "/socket.io/:path*",
@@ -138,6 +148,27 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
+    const securityHeaders = [
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(self)",
+      },
+      {
+        key: "Content-Security-Policy",
+        value: buildContentSecurityPolicy(),
+      },
+    ];
+
+    if (isProd) {
+      securityHeaders.push({
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      });
+    }
+
     return [
       {
         source: "/_next/static/:path*",
@@ -150,25 +181,27 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/:path*",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
-          {
-            key: "Content-Security-Policy",
-            value: buildContentSecurityPolicy(),
-          },
-        ],
+        headers: securityHeaders,
       },
     ];
   },
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       ...(isDev
         ? [
-            { protocol: "http" as const, hostname: "localhost", port: "8000", pathname: "/**" },
-            { protocol: "http" as const, hostname: "127.0.0.1", port: "8000", pathname: "/**" },
+            {
+              protocol: "http" as const,
+              hostname: "localhost",
+              port: "8000",
+              pathname: "/**",
+            },
+            {
+              protocol: "http" as const,
+              hostname: "127.0.0.1",
+              port: "8000",
+              pathname: "/**",
+            },
           ]
         : []),
       ...(envRemotePattern ? [envRemotePattern] : []),

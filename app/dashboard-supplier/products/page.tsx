@@ -379,7 +379,18 @@ function ProductsPageContent() {
       });
 
       if (result.success) {
-        setSponsorSuccess("Sponsoring activé via votre abonnement (sans paiement) !");
+        const created = result.data?.sponsorProduct;
+        const durationLabel =
+          created?.timeUnit === "hours"
+            ? `${created.time} heure${created.time === 1 ? "" : "s"}`
+            : created
+              ? `${created.time} jour${created.time === 1 ? "" : "s"}`
+              : null;
+        setSponsorSuccess(
+          durationLabel && created
+            ? `Sponsoring activé (${durationLabel}) : ${formatDateTime(created.start_time)} → ${formatDateTime(created.end_time)}`
+            : "Sponsoring activé via votre abonnement (sans paiement) !"
+        );
         setShowSubscriptionSponsorModal(false);
         if (result.data?.quota) {
           setSubscriptionQuota(result.data.quota);
@@ -434,6 +445,35 @@ function ProductsPageContent() {
       month: "short",
       year: "numeric",
     });
+
+  const formatDateTime = (value: string | Date) =>
+    new Date(value).toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const subscriptionSponsorDurationHours =
+    subscriptionQuota?.sponsorDurationHours ??
+    subscriptionQuota?.abonnement?.sponsorDurationHours ??
+    0;
+
+  const subscriptionSponsorPeriodPreview = useMemo(() => {
+    if (!subscriptionSponsorDurationHours || subscriptionSponsorDurationHours < 1) {
+      return null;
+    }
+    const start = new Date();
+    let end = new Date(start.getTime() + subscriptionSponsorDurationHours * 60 * 60 * 1000);
+    const abonnementEnd = subscriptionQuota?.abonnement?.end
+      ? new Date(subscriptionQuota.abonnement.end)
+      : null;
+    if (abonnementEnd && end > abonnementEnd) {
+      end = abonnementEnd;
+    }
+    return { start, end, hours: subscriptionSponsorDurationHours };
+  }, [subscriptionSponsorDurationHours, subscriptionQuota?.abonnement?.end]);
 
   const getSponsorStatus = (record: SponsorProductRecord) => {
     if (record.source === "subscription" && record.payment_status) {
@@ -973,13 +1013,22 @@ function ProductsPageContent() {
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.abonnement ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Abonnement</p>
                 <p className="text-lg font-bold text-gray-900">{subscriptionQuota.abonnement.type}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   Jusqu&apos;au {formatDate(subscriptionQuota.abonnement.end)}
                 </p>
+              </div>
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Durée / sponsor</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {subscriptionSponsorDurationHours > 0
+                    ? `${subscriptionSponsorDurationHours} h`
+                    : "—"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Selon votre abonnement</p>
               </div>
               <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Sponsors inclus</p>
@@ -1069,7 +1118,13 @@ function ProductsPageContent() {
                     </p>
                     <p className="text-gray-600">
                       {record.price.toLocaleString("fr-FR")} DA · {record.time}{" "}
-                      {record.time === 1 ? "jour" : "jours"}
+                      {record.timeUnit === "hours"
+                        ? record.time === 1
+                          ? "heure"
+                          : "heures"
+                        : record.time === 1
+                          ? "jour"
+                          : "jours"}
                     </p>
                   </div>
                   <button
@@ -1232,7 +1287,14 @@ function ProductsPageContent() {
                                       : "—"}
                                   </td>
                                   <td className="py-2 px-3 text-gray-700">
-                                    {record.time} {record.time === 1 ? "jour" : "jours"}
+                                    {record.time}{" "}
+                                    {record.timeUnit === "hours"
+                                      ? record.time === 1
+                                        ? "heure"
+                                        : "heures"
+                                      : record.time === 1
+                                        ? "jour"
+                                        : "jours"}
                                   </td>
                                   <td className="py-2 px-3 text-gray-700">
                                     {record.price.toLocaleString("fr-FR")} DA
@@ -1405,7 +1467,7 @@ function ProductsPageContent() {
               </div>
               <form onSubmit={handleCreateSubscriptionSponsor} className="p-6 space-y-4">
                 {subscriptionQuota && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 space-y-1">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 space-y-2">
                     <p>
                       <strong>Abonnement:</strong> {subscriptionQuota.abonnement?.type}
                     </p>
@@ -1413,7 +1475,33 @@ function ProductsPageContent() {
                       <strong>Quota restant:</strong> {subscriptionQuota.sponsorsRemaining} /{" "}
                       {subscriptionQuota.sponsorsAllocated}
                     </p>
-                    <p className="text-xs text-blue-700">Durée: 2 jours · Sans paiement</p>
+                    <p>
+                      <strong>Durée du sponsoring:</strong>{" "}
+                      {subscriptionSponsorDurationHours > 0
+                        ? `${subscriptionSponsorDurationHours} heure${subscriptionSponsorDurationHours === 1 ? "" : "s"}`
+                        : "non définie"}{" "}
+                      · Sans paiement
+                    </p>
+                    {subscriptionSponsorPeriodPreview && (
+                      <div className="mt-2 pt-2 border-t border-blue-200 space-y-1 text-xs text-blue-800">
+                        <p>
+                          <strong>Début (estimé):</strong>{" "}
+                          {formatDateTime(subscriptionSponsorPeriodPreview.start)}
+                        </p>
+                        <p>
+                          <strong>Fin (estimée):</strong>{" "}
+                          {formatDateTime(subscriptionSponsorPeriodPreview.end)}
+                        </p>
+                        <p className="text-blue-700/80">
+                          Calcul: maintenant + {subscriptionSponsorPeriodPreview.hours} h
+                          {subscriptionQuota.abonnement?.end &&
+                          subscriptionSponsorPeriodPreview.end.getTime() ===
+                            new Date(subscriptionQuota.abonnement.end).getTime()
+                            ? " (limité à la fin de l'abonnement)"
+                            : ""}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div>

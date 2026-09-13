@@ -8,7 +8,9 @@ import {
   parseAddressComponents,
   getGoogleMapsApiKey,
   getMapProvider,
+  enrichAlgeriaLocation,
 } from "@/lib/location";
+import { resolveWilayaFromCoordinates } from "@/lib/algeria-wilayas";
 
 const libraries: ("places")[] = ["places"];
 
@@ -37,15 +39,18 @@ function buildLocationFromGeocoder(
   lng: number
 ): LocationData {
   const parsed = parseAddressComponents(result.address_components);
-  return {
-    address: result.formatted_address,
-    latitude: lat,
-    longitude: lng,
-    wilaya: parsed.wilaya,
-    daira: parsed.daira,
-    commune: parsed.commune,
-    placeId: result.place_id,
-  };
+  return enrichAlgeriaLocation(
+    {
+      address: result.formatted_address,
+      latitude: lat,
+      longitude: lng,
+      wilaya: parsed.wilaya,
+      daira: parsed.daira,
+      commune: parsed.commune,
+      placeId: result.place_id,
+    },
+    resolveWilayaFromCoordinates
+  );
 }
 
 function GoogleLocationPicker({
@@ -118,15 +123,19 @@ function GoogleLocationPicker({
 
     if (place.address_components && place.formatted_address) {
       const parsed = parseAddressComponents(place.address_components);
-      onChange({
-        address: place.formatted_address,
-        latitude: lat,
-        longitude: lng,
-        wilaya: parsed.wilaya,
-        daira: parsed.daira,
-        commune: parsed.commune,
-        placeId: place.place_id,
-      });
+      const location = enrichAlgeriaLocation(
+        {
+          address: place.formatted_address,
+          latitude: lat,
+          longitude: lng,
+          wilaya: parsed.wilaya,
+          daira: parsed.daira,
+          commune: parsed.commune,
+          placeId: place.place_id,
+        },
+        resolveWilayaFromCoordinates
+      );
+      onChange(location);
       if (inputRef.current) {
         inputRef.current.value = place.formatted_address;
       }
