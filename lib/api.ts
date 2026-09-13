@@ -2358,6 +2358,7 @@ export interface ChosenSubscription {
   time: number;
   price: number;
   sponsorsPerMonth?: number;
+  sponsorDurationHours?: number;
 }
 
 export interface SubscriptionUser {
@@ -2568,6 +2569,8 @@ export interface SubscriptionType {
   time: number; // Duration in days
   price: number;
   sponsorsPerMonth?: number;
+  /** Duration of each free sponsor included with this plan (hours). */
+  sponsorDurationHours?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -2578,6 +2581,7 @@ export interface CreateSubscriptionTypeData {
   time: number;
   price: number;
   sponsorsPerMonth?: number;
+  sponsorDurationHours?: number;
 }
 
 export interface UpdateSubscriptionTypeData {
@@ -2586,6 +2590,7 @@ export interface UpdateSubscriptionTypeData {
   time?: number;
   price?: number;
   sponsorsPerMonth?: number;
+  sponsorDurationHours?: number;
 }
 
 // Get all subscription types
@@ -2861,6 +2866,7 @@ export interface SponsorProductRecord {
   end_time: string;
   price: number;
   time: number;
+  timeUnit?: "days" | "hours";
   payment_status: boolean;
   isActive?: boolean;
   chargily_checkout_id?: string;
@@ -2881,6 +2887,7 @@ export interface SubscriptionSponsorQuota {
     type: string;
     sponsorsPerMonth: number;
     sponsorsAllocated?: number;
+    sponsorDurationHours?: number;
     start: string;
     end: string;
     isActive: boolean;
@@ -2889,6 +2896,7 @@ export interface SubscriptionSponsorQuota {
   sponsorsRemaining: number;
   sponsorsUsed: number;
   remaining: number;
+  sponsorDurationHours?: number;
   canCreateSubscriptionSponsor: boolean;
   /** @deprecated use sponsorsUsed */
   usedThisMonth?: number;

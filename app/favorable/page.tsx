@@ -36,9 +36,9 @@ export default function FavorablePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Favorable</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Favoris</h1>
           <Link href="/suppliers" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Suppliers
+            Fournisseurs
           </Link>
         </div>
 

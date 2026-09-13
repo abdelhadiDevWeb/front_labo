@@ -32,12 +32,12 @@ import { getMediaUrl } from "@/lib/media-url";
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard" },
   { icon: ShoppingCart, label: "Commandes", href: "/dashboard/orders" },
-  { icon: Users, label: "Gestion Users", href: "/dashboard/users" },
+  { icon: Users, label: "Utilisateurs", href: "/dashboard/users" },
   { icon: FolderTree, label: "Catégories", href: "/dashboard/categories" },
   { icon: CreditCard, label: "Gestion Abonnements", href: "/dashboard/subscriptions" },
-  { icon: Megaphone, label: "Sponsors", href: "/dashboard/sponsors" },
+  { icon: Megaphone, label: "Sponsorisations", href: "/dashboard/sponsors" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard/statistics" },
-  { icon: Shield, label: "Gestion Admin", href: "/dashboard/admins" },
+  { icon: Shield, label: "Administrateurs", href: "/dashboard/admins" },
   { icon: MessageCircle, label: "Problèmes", href: "/dashboard/problems" },
   { icon: User, label: "Profil", href: "/dashboard/profile" },
 ];
@@ -352,7 +352,7 @@ export default function DashboardLayout({
             </button>
             <div className="flex items-center justify-between w-full">
               <h1 className="text-xl font-bold text-gray-900">
-                {visibleMenuItems.find((item) => item.href === pathname)?.label || "Dashboard"}
+                {visibleMenuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
               </h1>
               <div className="flex items-center gap-4">
                 {/* Problems Notifications — full admin only */}

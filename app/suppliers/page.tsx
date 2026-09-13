@@ -78,13 +78,13 @@ export default function SuppliersPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6 gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Suppliers</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Fournisseurs</h1>
           <Link
             href="/favorable"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Heart className="w-4 h-4" />
-            Favorable
+            Favoris
           </Link>
         </div>
 

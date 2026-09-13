@@ -17,6 +17,7 @@ import {
   Heart,
   Check,
   ChevronDown,
+  ChevronRight,
   Search,
   FileText,
   ShoppingCart,
@@ -35,6 +36,7 @@ import {
   Megaphone,
   Percent,
   Eye,
+  type LucideIcon,
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
@@ -59,12 +61,113 @@ import {
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
+type HeaderMenuLink = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  hoverClass: string;
+};
+
+const marketplaceMenu: HeaderMenuLink[] = [
+  {
+    href: "/products",
+    label: "Tous les produits",
+    icon: Package,
+    hoverClass: "hover:bg-blue-50 hover:text-blue-600",
+  },
+  {
+    href: "/machines",
+    label: "Toutes les machines",
+    icon: Microscope,
+    hoverClass: "hover:bg-cyan-50 hover:text-cyan-700",
+  },
+  {
+    href: "/services",
+    label: "Tous les services",
+    icon: FlaskConical,
+    hoverClass: "hover:bg-amber-50 hover:text-amber-700",
+  },
+  {
+    href: "/products/promotions",
+    label: "Promotions",
+    icon: Percent,
+    hoverClass: "hover:bg-orange-50 hover:text-orange-600",
+  },
+  {
+    href: "/products/sponsored",
+    label: "Sponsorisés",
+    icon: Megaphone,
+    hoverClass: "hover:bg-purple-50 hover:text-purple-600",
+  },
+];
+
+const suppliersMenu: HeaderMenuLink[] = [
+  {
+    href: "/suppliers",
+    label: "Tous les fournisseurs",
+    icon: Building2,
+    hoverClass: "hover:bg-blue-50 hover:text-blue-600",
+  },
+  {
+    href: "/favorable",
+    label: "Favoris",
+    icon: Heart,
+    hoverClass: "hover:bg-rose-50 hover:text-rose-600",
+  },
+];
+
+function HeaderHoverMenu({
+  label,
+  items,
+}: {
+  label: string;
+  items: HeaderMenuLink[];
+}) {
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-gray-700 group-hover:text-blue-600 group-focus-within:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide"
+        aria-haspopup="true"
+      >
+        <span className="relative">
+          {label}
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full group-focus-within:w-full" />
+        </span>
+        <ChevronRight
+          className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90 group-focus-within:rotate-90"
+          aria-hidden
+        />
+      </button>
+      <div className="absolute left-0 top-full z-50 hidden pt-2 group-hover:block group-focus-within:block">
+        <div className="min-w-[240px] overflow-hidden rounded-xl border border-gray-100 bg-white py-1.5 shadow-xl">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors ${item.hoverClass}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { getTotalItems, addToCart } = useCart();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMarketplaceOpen, setMobileMarketplaceOpen] = useState(false);
+  const [mobileSuppliersOpen, setMobileSuppliersOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -627,36 +730,13 @@ export default function HomePage() {
                 Accueil
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
-              <Link href="/products" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
-                Marketplace
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-              </Link>
-              <a href="#sponsored-section" className="text-gray-700 hover:text-purple-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-1.5">
-                <Megaphone className="w-4 h-4" />
-                Sponsors
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-purple-600 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a href="#promotions-section" className="text-gray-700 hover:text-orange-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-1.5">
-                <Percent className="w-4 h-4" />
-                Promotions
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-600 transition-all duration-300 group-hover:w-full"></span>
-              </a>
+              <HeaderHoverMenu label="Marché" items={marketplaceMenu} />
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Contact
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
               {isAuthenticated && isClientUser && (
-                <Link href="/suppliers" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
-                  Suppliers
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                </Link>
-              )}
-              {isAuthenticated && isClientUser && (
-                <Link href="/favorable" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
-                  <Heart className="w-4 h-4" />
-                  <span>Favorable</span>
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                </Link>
+                <HeaderHoverMenu label="Fournisseurs" items={suppliersMenu} />
               )}
               {isAuthenticated && isClientUser && (
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
@@ -838,31 +918,72 @@ export default function HomePage() {
                 <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Accueil
                 </a>
-                <Link href="/products" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
-                  Marketplace
-                </Link>
-                <a href="#sponsored-section" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-purple-600 transition-colors font-medium py-2 flex items-center gap-2">
-                  <Megaphone className="w-4 h-4" />
-                  Sponsors
-                </a>
-                <a href="#promotions-section" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-orange-600 transition-colors font-medium py-2 flex items-center gap-2">
-                  <Percent className="w-4 h-4" />
-                  Promotions
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setMobileMarketplaceOpen((open) => !open)}
+                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center justify-between"
+                  aria-expanded={mobileMarketplaceOpen}
+                >
+                  <span>Marché</span>
+                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${mobileMarketplaceOpen ? "rotate-90" : ""}`} />
+                </button>
+                {mobileMarketplaceOpen && (
+                  <div className="ml-3 flex flex-col gap-1 border-l border-gray-200 pl-3">
+                    {marketplaceMenu.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setMobileMarketplaceOpen(false);
+                          }}
+                          className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
+                        >
+                          <Icon className="w-4 h-4" />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
                 <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </a>
                 {isAuthenticated && isClientUser && (
-                  <Link href="/suppliers" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    <span>Suppliers</span>
-                  </Link>
-                )}
-                {isAuthenticated && isClientUser && (
-                  <Link href="/favorable" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
-                    <Heart className="w-4 h-4" />
-                    <span>Favorable</span>
-                  </Link>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setMobileSuppliersOpen((open) => !open)}
+                      className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center justify-between"
+                      aria-expanded={mobileSuppliersOpen}
+                    >
+                      <span>Fournisseurs</span>
+                      <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${mobileSuppliersOpen ? "rotate-90" : ""}`} />
+                    </button>
+                    {mobileSuppliersOpen && (
+                      <div className="ml-3 flex flex-col gap-1 border-l border-gray-200 pl-3">
+                        {suppliersMenu.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                setMobileSuppliersOpen(false);
+                              }}
+                              className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
+                            >
+                              <Icon className="w-4 h-4" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
                 {isAuthenticated && isClientUser && (
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">

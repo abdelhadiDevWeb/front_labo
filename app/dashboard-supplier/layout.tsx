@@ -34,7 +34,7 @@ import { getMediaUrl } from "@/lib/media-url";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
-  { icon: Package, label: "MarketPlace", href: "/dashboard-supplier/products" },
+  { icon: Package, label: "Marché", href: "/dashboard-supplier/products" },
   { icon: Percent, label: "Promotions", href: "/dashboard-supplier/promotions" },
   { icon: Users, label: "Vente groupée", href: "/dashboard-supplier/sell-by-group" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },
@@ -483,7 +483,7 @@ export default function SupplierDashboardLayout({
                 )}
               </button>
               <h1 className="text-xl font-bold text-gray-900">
-                {menuItems.find((item) => item.href === pathname)?.label || "Dashboard Fournisseur"}
+                {menuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
               </h1>
             </div>
 

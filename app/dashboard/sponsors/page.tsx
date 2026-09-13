@@ -175,7 +175,7 @@ export default function SponsorsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Megaphone className="w-7 h-7 text-blue-600" />
-            Gestion des Sponsors
+            Gestion des sponsorisations
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Créer et gérer les packs sponsor (durée en jours et prix)
