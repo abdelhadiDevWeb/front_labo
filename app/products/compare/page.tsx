@@ -20,6 +20,7 @@ import {
 import { getProductById, PublicProduct } from "@/lib/api";
 import { getCompareProductIds, setCompareProductIds, clearCompareProductIds } from "@/lib/flow-session";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 const getMediaUrl = (mediaPath: string) => {
   return buildMediaUrl(mediaPath) || "";
@@ -30,6 +31,7 @@ function CompareProductsContent() {
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { canSeePrice } = useCanSeeCatalogPrice();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -236,7 +238,11 @@ function CompareProductsContent() {
                         {product.productType}
                       </span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+                    <CatalogPrice
+                      amount={product.price}
+                      visible={canSeePrice}
+                      className="text-2xl font-bold text-blue-600"
+                    />
                   </div>
                 </div>
               );
@@ -288,9 +294,12 @@ function CompareProductsContent() {
                           className="px-6 py-4 text-center border-b border-gray-200"
                         >
                           {field.key === "price" ? (
-                            <span className="font-bold text-blue-600">
-                              {product.price.toFixed(2)} DA
-                            </span>
+                            <CatalogPrice
+                              amount={product.price}
+                              visible={canSeePrice}
+                              className="font-bold text-blue-600"
+                              lockedClassName="text-xs font-medium text-gray-500"
+                            />
                           ) : field.key === "quantity" ? (
                             <span
                               className={`font-semibold ${

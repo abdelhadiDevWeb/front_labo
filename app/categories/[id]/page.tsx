@@ -24,12 +24,14 @@ import {
 import { getMediaUrl } from "@/lib/media-url";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 export default function CategoryPage() {
   const params = useParams();
   const router = useRouter();
   const categoryId = params.id as string;
   const { addToCart } = useCart();
+  const { canSeePrice } = useCanSeeCatalogPrice();
 
   const [category, setCategory] = useState<Category | null>(null);
   const [selectedSousCategory, setSelectedSousCategory] = useState<SousCategory | null>(null);
@@ -266,7 +268,12 @@ export default function CategoryPage() {
                         <span>{product.deliveryTime}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-lg font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+                        <CatalogPrice
+                          amount={product.price}
+                          visible={canSeePrice}
+                          className="text-lg font-bold text-blue-600"
+                          lockedClassName="text-xs font-medium text-gray-500"
+                        />
                         <button
                           onClick={() => handleAddToCart(product)}
                           disabled={product.quantity === 0}

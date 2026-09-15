@@ -26,6 +26,7 @@ import {
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 
 function isFicheTechniquePdfValue(value: unknown): boolean {
@@ -94,6 +95,7 @@ function JoinForm({
   const quantity = Math.max(0, Math.floor(Number(qty) || 0));
   const cost = quantity * item.price_by_one;
   const countdown = useCountdown(item.end_time);
+  const { canSeePrice } = useCanSeeCatalogPrice();
 
   const handleJoin = async () => {
     setError(null);
@@ -153,7 +155,11 @@ function JoinForm({
           className="flex-1 px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
         />
         <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold text-gray-800 whitespace-nowrap">
-          {cost.toFixed(2)} DA
+          {canSeePrice ? (
+            `${cost.toFixed(2)} DA`
+          ) : (
+            <span className="text-xs font-medium text-gray-500">Prix masqué</span>
+          )}
         </div>
       </div>
       <button
@@ -191,6 +197,7 @@ function GroupSellDetailsModal({
 }) {
   const countdown = useCountdown(item.end_time);
   const product = item.product;
+  const { canSeePrice } = useCanSeeCatalogPrice();
   const images = product?.images?.length
     ? product.images.map((src) => getMediaUrl(src)).filter(Boolean)
     : [];
@@ -303,19 +310,29 @@ function GroupSellDetailsModal({
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-2xl font-bold text-teal-700">
-                    {item.price_by_one.toFixed(2)} DA
-                    <span className="text-sm font-medium text-gray-500">
-                      {" "}
-                      / unité (groupée)
-                    </span>
-                  </p>
-                  {typeof product?.sellingPrice === "number" &&
-                    product.sellingPrice > 0 && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        Prix catalogue : {product.sellingPrice.toFixed(2)} DA
+                  {canSeePrice ? (
+                    <>
+                      <p className="text-2xl font-bold text-teal-700">
+                        {item.price_by_one.toFixed(2)} DA
+                        <span className="text-sm font-medium text-gray-500">
+                          {" "}
+                          / unité (groupée)
+                        </span>
                       </p>
-                    )}
+                      {typeof product?.sellingPrice === "number" &&
+                        product.sellingPrice > 0 && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Prix catalogue : {product.sellingPrice.toFixed(2)} DA
+                          </p>
+                        )}
+                    </>
+                  ) : (
+                    <CatalogPrice
+                      amount={item.price_by_one}
+                      visible={false}
+                      className="text-2xl font-bold text-teal-700"
+                    />
+                  )}
                 </div>
 
                 <div
@@ -471,6 +488,7 @@ function GroupSellDetailsModal({
                 <UniqueDataFields
                   data={product.unique_data}
                   max={20}
+                  hidePrices={!canSeePrice}
                   excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
                 />
               )}
@@ -573,6 +591,7 @@ function GroupSellCard({
   onSeeDetails: () => void;
 }) {
   const countdown = useCountdown(item.end_time);
+  const { canSeePrice } = useCanSeeCatalogPrice();
   const img = item.product?.images?.[0]
     ? getMediaUrl(item.product.images[0])
     : null;
@@ -600,10 +619,19 @@ function GroupSellCard({
         <h3 className="text-lg font-bold text-gray-900 line-clamp-2">
           {item.product?.name || "Produit"}
         </h3>
-        <p className="text-xl font-bold text-teal-700">
-          {item.price_by_one.toFixed(2)} DA
-          <span className="text-sm font-medium text-gray-500"> / unité</span>
-        </p>
+        {canSeePrice ? (
+          <p className="text-xl font-bold text-teal-700">
+            {item.price_by_one.toFixed(2)} DA
+            <span className="text-sm font-medium text-gray-500"> / unité</span>
+          </p>
+        ) : (
+          <CatalogPrice
+            amount={item.price_by_one}
+            visible={false}
+            className="text-xl font-bold text-teal-700"
+            lockedClassName="text-xs font-medium text-gray-500"
+          />
+        )}
 
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-gray-600">

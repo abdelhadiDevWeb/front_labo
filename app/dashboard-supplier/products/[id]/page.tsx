@@ -46,12 +46,39 @@ export default function ProductDetailPage() {
     sellingPrice: "",
     quantity: "",
     category: "",
+    sousCategory: "",
+    id_catgory: "" as string,
+    id_sous_catgory: "" as string,
     deliveryTime: "",
     brand: "",
     productType: "Labo médical" as "Labo médical" | "labo d'ana pathologies",
     images: [] as File[],
     video: null as File | null,
   });
+
+  const buildEditForm = (p: Product) => {
+    const sousFromUnique =
+      (typeof p.unique_data?.["Sous catégorie"] === "string"
+        ? p.unique_data["Sous catégorie"]
+        : "") ||
+      (typeof p.unique_data?.sousCategory === "string" ? p.unique_data.sousCategory : "") ||
+      "";
+    return {
+      name: p.name,
+      purchasePrice: p.purchasePrice.toString(),
+      sellingPrice: p.sellingPrice.toString(),
+      quantity: p.quantity.toString(),
+      category: p.category || "",
+      sousCategory: p.sousCategory || sousFromUnique || "",
+      id_catgory: p.id_catgory || "",
+      id_sous_catgory: p.id_sous_catgory || "",
+      deliveryTime: p.deliveryTime,
+      brand: p.brand,
+      productType: p.productType,
+      images: [] as File[],
+      video: null as File | null,
+    };
+  };
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -62,19 +89,7 @@ export default function ProductDetailPage() {
           const foundProduct = result.data.products.find((p) => p.id === productId);
           if (foundProduct) {
             setProduct(foundProduct);
-            // Initialize edit form with product data
-            setEditFormData({
-              name: foundProduct.name,
-              purchasePrice: foundProduct.purchasePrice.toString(),
-              sellingPrice: foundProduct.sellingPrice.toString(),
-              quantity: foundProduct.quantity.toString(),
-              category: foundProduct.category,
-              deliveryTime: foundProduct.deliveryTime,
-              brand: foundProduct.brand,
-              productType: foundProduct.productType,
-              images: [],
-              video: null,
-            });
+            setEditFormData(buildEditForm(foundProduct));
           } else {
             setError("Produit non trouvé");
           }
@@ -169,6 +184,7 @@ export default function ProductDetailPage() {
     setIsUpdating(true);
     setUpdateError(null);
     setUpdateSuccess(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
     try {
       const result = await updateProduct(product.id, {
@@ -176,10 +192,18 @@ export default function ProductDetailPage() {
         purchasePrice: parseFloat(editFormData.purchasePrice),
         sellingPrice: parseFloat(editFormData.sellingPrice),
         quantity: parseInt(editFormData.quantity),
-        category: editFormData.category,
         deliveryTime: editFormData.deliveryTime,
         brand: editFormData.brand,
         productType: editFormData.productType,
+        ...(editFormData.id_catgory
+          ? { id_catgory: editFormData.id_catgory }
+          : {}),
+        ...(editFormData.id_sous_catgory
+          ? { id_sous_catgory: editFormData.id_sous_catgory }
+          : {}),
+        ...(editFormData.category.trim().length >= 2
+          ? { category: editFormData.category.trim() }
+          : {}),
         images: editFormData.images.length > 0 ? editFormData.images : undefined,
         video: editFormData.video || undefined,
       });
@@ -193,18 +217,7 @@ export default function ProductDetailPage() {
           const updatedProduct = reloadResult.data.products.find((p) => p.id === productId);
           if (updatedProduct) {
             setProduct(updatedProduct);
-            setEditFormData({
-              name: updatedProduct.name,
-              purchasePrice: updatedProduct.purchasePrice.toString(),
-              sellingPrice: updatedProduct.sellingPrice.toString(),
-              quantity: updatedProduct.quantity.toString(),
-              category: updatedProduct.category,
-              deliveryTime: updatedProduct.deliveryTime,
-              brand: updatedProduct.brand,
-              productType: updatedProduct.productType,
-              images: [],
-              video: null,
-            });
+            setEditFormData(buildEditForm(updatedProduct));
           }
         }
         setTimeout(() => setUpdateSuccess(null), 3000);
@@ -395,7 +408,7 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Brand and Category */}
-            <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 <span className="font-medium">{product.brand}</span>
@@ -403,8 +416,23 @@ export default function ProductDetailPage() {
               <span>•</span>
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4" />
-                <span className="font-medium">{product.category}</span>
+                <span className="font-medium">{product.category || "Non définie"}</span>
               </div>
+              {(product.sousCategory ||
+                (typeof product.unique_data?.["Sous catégorie"] === "string"
+                  ? product.unique_data["Sous catégorie"]
+                  : "")) && (
+                <>
+                  <span>•</span>
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4" />
+                    <span className="font-medium">
+                      {product.sousCategory ||
+                        String(product.unique_data?.["Sous catégorie"] || "")}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -513,10 +541,23 @@ export default function ProductDetailPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
                     <input
                       type="text"
-                      value={editFormData.category}
-                      onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black"
+                      value={editFormData.category || "Non définie"}
+                      readOnly
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     />
+                    <p className="mt-1 text-xs text-gray-500">La catégorie ne peut pas être modifiée</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sous-catégorie</label>
+                    <input
+                      type="text"
+                      value={editFormData.sousCategory || "Non définie"}
+                      readOnly
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">La sous-catégorie ne peut pas être modifiée</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type de produit</label>
@@ -660,6 +701,7 @@ export default function ProductDetailPage() {
                     setIsEditing(false);
                     setUpdateError(null);
                     setUpdateSuccess(null);
+                    if (product) setEditFormData(buildEditForm(product));
                   }}
                   className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all"
                 >
@@ -670,7 +712,10 @@ export default function ProductDetailPage() {
           ) : (
             <div className="flex gap-3">
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all flex items-center justify-center gap-2"
               >
                 <Edit className="w-5 h-5" />

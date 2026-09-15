@@ -26,6 +26,7 @@ import { getAllProducts, getPublicCategories, PublicProduct, Category, getSessio
 import { setCompareProductIds } from "@/lib/flow-session";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
@@ -498,7 +499,8 @@ export default function ProductsPage() {
                   </select>
                 </div>
 
-                {/* Price Range Filter */}
+                {/* Price Range Filter — only when logged in */}
+                {!isGuest && (
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <DollarSign className="w-4 h-4 text-blue-600" />
@@ -524,6 +526,7 @@ export default function ProductsPage() {
                     />
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Active Filters Count */}
@@ -796,7 +799,11 @@ export default function ProductsPage() {
 
                     {/* Price */}
                     <div className="mb-4">
-                      <p className="text-2xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+                      <CatalogPrice
+                        amount={product.price}
+                        visible={!isGuest}
+                        className="text-2xl font-bold text-blue-600"
+                      />
                       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                         <Clock className="w-3 h-3" />
                         <span>{product.deliveryTime}</span>

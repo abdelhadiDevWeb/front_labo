@@ -28,11 +28,13 @@ import {
 import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, canRateSupplier, getSessionRole, getProfile, SupplierRatingsResponse, CanRateResponse, addSupplierToFavorites, removeSupplierFromFavorites, getFavoriteSuppliers, checkAuthSession } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { getMediaUrl } from "@/lib/media-url";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 export default function SupplierDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { addToCart } = useCart();
+  const { canSeePrice } = useCanSeeCatalogPrice();
   const supplierId = params.id as string;
   const [supplierData, setSupplierData] = useState<SupplierDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -697,9 +699,14 @@ export default function SupplierDetailsPage() {
                     <div className="flex items-center gap-2 mb-3 text-sm text-gray-600">
                       <span className="font-medium">{product.brand}</span>
                     </div>
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
-                      <span className="text-xs text-gray-500">Qté: {product.quantity}</span>
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <CatalogPrice
+                        amount={product.price}
+                        visible={canSeePrice}
+                        className="text-xl font-bold text-blue-600"
+                        lockedClassName="text-xs font-medium text-gray-500"
+                      />
+                      <span className="text-xs text-gray-500 shrink-0">Qté: {product.quantity}</span>
                     </div>
                     <button
                       onClick={() => handleAddToCart(product._id, product.name, product.price)}

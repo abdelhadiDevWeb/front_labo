@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SponsoredPublicProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import CatalogPrice from "@/components/CatalogPrice";
 
 type SponsoredProductCardProps = {
   product: SponsoredPublicProduct;
@@ -58,9 +59,12 @@ export default function SponsoredProductCard({
 
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-2xl font-extrabold text-blue-600">
-            {product.price.toLocaleString("fr-FR")} <span className="text-sm font-semibold">DA</span>
-          </p>
+          <CatalogPrice
+            amount={product.price}
+            className="text-2xl font-extrabold text-blue-600"
+            lockedClassName="text-xs font-medium text-gray-500"
+            linkToLogin={false}
+          />
           <span
             className={`px-2 py-1 rounded-full text-xs font-semibold ${
               product.productType === "Labo médical"

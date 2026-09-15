@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PublicPromotion } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 type PromotionCardProps = {
   promotion: PublicPromotion;
@@ -19,6 +20,7 @@ type PromotionCardProps = {
 export default function PromotionCard({ promotion, className = "" }: PromotionCardProps) {
   const product = promotion.product;
   const image = product?.images?.[0] ? getMediaUrl(product.images[0]) : null;
+  const { canSeePrice } = useCanSeeCatalogPrice();
   const endDate = new Date(promotion.end_day).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "short",
@@ -55,15 +57,26 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
       </div>
 
       <div className="p-4 space-y-3">
-        <div className="flex items-end gap-2 flex-wrap">
-          <span className="text-sm text-gray-400 line-through">
-            {promotion.normal_price.toLocaleString("fr-FR")} DA
-          </span>
-          <span className="text-2xl font-extrabold text-orange-600">
-            {promotion.price_discount.toLocaleString("fr-FR")}{" "}
-            <span className="text-sm font-semibold">DA</span>
-          </span>
-          <span className="text-xs text-gray-500">/ unité</span>
+        <div className="flex items-end gap-2 flex-wrap min-h-[2rem]">
+          {canSeePrice ? (
+            <>
+              <span className="text-sm text-gray-400 line-through">
+                {promotion.normal_price.toLocaleString("fr-FR")} DA
+              </span>
+              <span className="text-2xl font-extrabold text-orange-600">
+                {promotion.price_discount.toLocaleString("fr-FR")}{" "}
+                <span className="text-sm font-semibold">DA</span>
+              </span>
+              <span className="text-xs text-gray-500">/ unité</span>
+            </>
+          ) : (
+            <CatalogPrice
+              amount={promotion.price_discount}
+              visible={false}
+              linkToLogin={false}
+              lockedClassName="text-xs font-medium text-gray-500"
+            />
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">

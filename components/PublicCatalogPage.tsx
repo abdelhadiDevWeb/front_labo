@@ -32,6 +32,7 @@ import CatalogItemDetailsModal from "@/components/CatalogItemDetailsModal";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
+import CatalogPrice from "@/components/CatalogPrice";
 import { useCart } from "@/contexts/CartContext";
 
 type CatalogKind = "machine" | "service";
@@ -369,6 +370,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 </select>
               </div>
 
+              {!isGuest && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase">Prix min</label>
@@ -389,6 +391,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                   />
                 </div>
               </div>
+              )}
             </div>
           </aside>
 
@@ -470,12 +473,17 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                             {item.supplier.name}
                           </p>
                         )}
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                          <div className="flex items-center gap-1 text-blue-600 font-bold">
-                            <DollarSign className="w-4 h-4" />
-                            {item.price.toFixed(2)} DA
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2">
+                          <div className="flex items-center gap-1 text-blue-600 font-bold min-w-0">
+                            <DollarSign className="w-4 h-4 shrink-0" />
+                            <CatalogPrice
+                              amount={item.price}
+                              visible={!isGuest}
+                              className="font-bold text-blue-600"
+                              lockedClassName="text-xs font-medium text-gray-500"
+                            />
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <div className="flex items-center gap-1 text-xs text-gray-500 shrink-0">
                             <Clock className="w-3.5 h-3.5" />
                             {item.deliveryTime}
                           </div>

@@ -3,23 +3,29 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock, XCircle } from "lucide-react";
+import { FlaskConical, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, LogOut, Home, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { loginClient, logoutClient } from "@/lib/api";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { performLogout } from "@/lib/perform-logout";
+
+const LOGIN_MAX_ATTEMPTS = 4;
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [showWaitingAlert, setShowWaitingAlert] = useState(false);
   const [showSubscriptionExpiredAlert, setShowSubscriptionExpiredAlert] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  const isLocked = failedAttempts >= LOGIN_MAX_ATTEMPTS;
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -36,7 +42,14 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setWarning(null);
     setSuccess(null);
+
+    if (isLocked) {
+      setError("Trop de tentatives de connexion. Réessayez dans 15 minutes.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -46,6 +59,7 @@ export default function LoginPage() {
       });
 
       if (result.success) {
+        setFailedAttempts(0);
         const userRole = result.data?.role || "client";
         const safeRedirect = validateOnboardingRedirect(result.data?.redirectTo);
 
@@ -72,7 +86,29 @@ export default function LoginPage() {
           await logoutClient();
           setShowSubscriptionExpiredAlert(true);
         } else {
-        setError(result.message || "Email ou mot de passe incorrect");
+          const nextAttempts = failedAttempts + 1;
+          setFailedAttempts(nextAttempts);
+
+          const isRateLimited =
+            nextAttempts >= LOGIN_MAX_ATTEMPTS ||
+            /trop de tentatives|too many|rate limit|429/i.test(result.message || "");
+
+          if (isRateLimited) {
+            setFailedAttempts(LOGIN_MAX_ATTEMPTS);
+            setWarning(null);
+            setError(
+              result.message?.includes("Trop de tentatives")
+                ? result.message
+                : "Trop de tentatives de connexion. Réessayez dans 15 minutes."
+            );
+          } else if (nextAttempts === 3) {
+            setError(result.message || "Email ou mot de passe incorrect");
+            setWarning(
+              "Attention : il ne vous reste plus qu'une tentative avant un blocage temporaire (15 min)."
+            );
+          } else {
+            setError(result.message || "Email ou mot de passe incorrect");
+          }
         }
       }
     } catch (err) {
@@ -104,6 +140,17 @@ export default function LoginPage() {
 
         {/* Login Form */}
         <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-gray-200 hover-lift">
+          {/* Orange warning on 3rd failed attempt */}
+          {warning && (
+            <div className="mb-6 p-4 bg-orange-50 border border-orange-300 rounded-xl flex items-start gap-3 animate-fade-in">
+              <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">Avertissement</p>
+                <p className="text-sm text-orange-700 mt-0.5">{warning}</p>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-fade-in">
@@ -136,9 +183,10 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   required
+                  disabled={isLocked || isLoading}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="votre@email.com"
                 />
               </div>
@@ -159,15 +207,17 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
+                  disabled={isLocked || isLoading}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={isLocked}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -202,10 +252,14 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isLocked}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isLoading ? "Connexion en cours..." : "Se connecter"}
+              {isLoading
+                ? "Connexion en cours..."
+                : isLocked
+                  ? "Connexion bloquée temporairement"
+                  : "Se connecter"}
             </button>
           </form>
 

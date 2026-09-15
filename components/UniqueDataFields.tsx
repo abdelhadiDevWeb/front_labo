@@ -1,12 +1,15 @@
 "use client";
 
 import { getUniqueDataEntries } from "@/lib/unique-data-display";
+import { isPriceFieldKey } from "@/lib/catalog-price";
 
 type Props = {
   data: Record<string, unknown> | null | undefined;
   max?: number;
   className?: string;
   excludeKeys?: string[];
+  /** Hide prix / price fields (e.g. for guests). */
+  hidePrices?: boolean;
 };
 
 export default function UniqueDataFields({
@@ -14,8 +17,11 @@ export default function UniqueDataFields({
   max = 8,
   className = "",
   excludeKeys,
+  hidePrices = false,
 }: Props) {
-  const entries = getUniqueDataEntries(data, { max, excludeKeys });
+  const entries = getUniqueDataEntries(data, { max, excludeKeys }).filter(
+    ([key]) => !(hidePrices && isPriceFieldKey(key))
+  );
 
   if (entries.length === 0) {
     return (

@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
         setResetEmail(trimmedEmail);
         setTimeout(() => {
           router.push("/verify-reset-code");
-        }, 2000);
+        }, 800);
       } else {
         setError(result.message || "Erreur lors de l'envoi du code");
       }

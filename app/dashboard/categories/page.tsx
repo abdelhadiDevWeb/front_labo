@@ -28,6 +28,7 @@ import {
   Category,
   SousCategory,
   getSessionRole,
+  apiFetch,
 } from "@/lib/api";
 import { isSouAdminRole } from "@/lib/admin-access";
 import { getMediaUrl } from "@/lib/media-url";
@@ -83,6 +84,7 @@ export default function CategoriesPage() {
   const [sousCategoryName, setSousCategoryName] = useState("");
   const [sousCategoryImage, setSousCategoryImage] = useState<File | null>(null);
   const [sousCategoryImagePreview, setSousCategoryImagePreview] = useState<string | null>(null);
+  const [sousCategoryExcelFile, setSousCategoryExcelFile] = useState<File | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -123,6 +125,7 @@ export default function CategoriesPage() {
     setSousCategoryName("");
     setSousCategoryImage(null);
     setSousCategoryImagePreview(null);
+    setSousCategoryExcelFile(null);
     setSelectedCategory(null);
     setSelectedSousCategory(null);
   };
@@ -161,10 +164,13 @@ export default function CategoriesPage() {
 
   const openEditCategory = (category: Category) => {
     setSelectedCategory(category);
+    setSelectedSousCategory(null);
     setCategoryName(category.name_catgory);
     setCategoryDes(category.des);
     setCategoryType(category.type_catgory || "product");
+    setCategoryImage(null);
     setCategoryImagePreview(getMediaUrl(category.image));
+    setCategoryExcelFile(null);
     setModalType("editCategory");
   };
 
@@ -178,9 +184,97 @@ export default function CategoriesPage() {
     setSelectedCategory(category);
     setSelectedSousCategory(sousCategory);
     setSousCategoryName(sousCategory.name_sou_catgory);
+    setSousCategoryImage(null);
     setSousCategoryImagePreview(getMediaUrl(sousCategory.image));
+    setSousCategoryExcelFile(null);
     setModalType("editSousCategory");
   };
+
+  const pickExcelFile = (
+    file: File | null,
+    setFile: (f: File | null) => void,
+    input?: HTMLInputElement | null
+  ) => {
+    if (file) {
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+      if (![".xlsx", ".xls"].includes(ext)) {
+        setError("Seuls les fichiers Excel (.xlsx, .xls) sont acceptés");
+        setFile(null);
+        if (input) input.value = "";
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Le fichier Excel ne doit pas dépasser 10MB");
+        setFile(null);
+        if (input) input.value = "";
+        return;
+      }
+      setError(null);
+    }
+    setFile(file);
+  };
+
+  const openCurrentExcel = async (excelPath: string, fileName?: string | null) => {
+    const url = getMediaUrl(excelPath);
+    if (!url) {
+      setError("Fichier Excel introuvable");
+      return;
+    }
+    try {
+      const response = await apiFetch(url, { method: "GET" });
+      if (!response.ok) {
+        // Fallback: open in a new tab (works for public category media)
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName || excelPath.split("/").pop() || "categorie.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Also open a preview tab when possible
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const CurrentExcelPanel = ({
+    excelFile,
+    excelFileName,
+  }: {
+    excelFile?: string | null;
+    excelFileName?: string | null;
+  }) => (
+    <div className="rounded-lg border border-blue-200 bg-white px-3 py-3 space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+        Fichier Excel actuel
+      </p>
+      {excelFile ? (
+        <button
+          type="button"
+          onClick={() => openCurrentExcel(excelFile, excelFileName)}
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-800 hover:bg-green-100"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-left">
+            <FileSpreadsheet className="h-4 w-4 shrink-0" />
+            <span className="truncate font-medium">
+              {excelFileName || excelFile.split("/").pop() || "fichier.xlsx"}
+            </span>
+          </span>
+          <span className="shrink-0 font-semibold underline">Ouvrir</span>
+        </button>
+      ) : (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Aucun fichier Excel enregistré pour le moment. Importez-en un ci-dessous (obligatoire).
+        </p>
+      )}
+    </div>
+  );
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +290,9 @@ export default function CategoriesPage() {
     }
     if (!categoryImage) {
       fixes.push("Ajoutez une image de catégorie (JPEG, PNG, GIF, WebP ou BMP).");
+    }
+    if (!categoryExcelFile) {
+      fixes.push("Ajoutez un fichier Excel (.xlsx ou .xls) — obligatoire.");
     }
     if (fixes.length > 0) {
       setError(
@@ -213,7 +310,7 @@ export default function CategoriesPage() {
         des: categoryDes.trim(),
         type_catgory: categoryType,
         image: categoryImage!,
-        excelFile: categoryExcelFile || undefined,
+        excelFile: categoryExcelFile!,
       });
       if (result.success) {
         const imported = (result.data as any)?.excelImport?.imported;
@@ -236,6 +333,18 @@ export default function CategoriesPage() {
   const handleUpdateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) return;
+    if (!categoryName.trim() || categoryName.trim().length < 2) {
+      setError("Saisissez un nom de catégorie (au moins 2 caractères).");
+      return;
+    }
+    if (!categoryDes.trim() || categoryDes.trim().length < 2) {
+      setError("Ajoutez une description (au moins 2 caractères).");
+      return;
+    }
+    if (!categoryExcelFile && !selectedCategory.excelFile) {
+      setError("Le fichier Excel est obligatoire. Ajoutez un fichier .xlsx ou .xls.");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
@@ -244,12 +353,19 @@ export default function CategoriesPage() {
         des: categoryDes.trim(),
         type_catgory: categoryType,
         image: categoryImage || undefined,
+        excelFile: categoryExcelFile || undefined,
       });
       if (result.success) {
-        setSuccess("Catégorie mise à jour");
+        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
+          ?.excelImport?.imported;
+        setSuccess(
+          imported
+            ? `Catégorie mise à jour — ${imported} élément(s) importé(s) depuis Excel`
+            : "Catégorie mise à jour"
+        );
         closeModal();
         await loadCategories();
-        setTimeout(() => setSuccess(null), 3000);
+        setTimeout(() => setSuccess(null), 4000);
       } else {
         setError(formatApiError(result));
       }
@@ -286,19 +402,31 @@ export default function CategoriesPage() {
       setError("Le nom de la sous-catégorie est obligatoire (au moins 2 caractères).");
       return;
     }
+    if (!sousCategoryExcelFile) {
+      setError("Le fichier Excel est obligatoire. Ajoutez un fichier .xlsx ou .xls.");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
       const result = await createSousCategory(selectedCategory.id, {
         name_sou_catgory: sousCategoryName.trim(),
         image: sousCategoryImage,
+        excelFile: sousCategoryExcelFile,
       });
       if (result.success) {
-        setSuccess("Sous-catégorie créée avec succès");
+        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
+          ?.excelImport?.imported;
+        setSuccess(
+          imported
+            ? `Sous-catégorie créée — ${imported} élément(s) importé(s) depuis Excel`
+            : "Sous-catégorie créée avec succès"
+        );
+        const parentId = selectedCategory.id;
         closeModal();
         await loadCategories();
-        setExpandedIds((prev) => new Set(prev).add(selectedCategory.id));
-        setTimeout(() => setSuccess(null), 3000);
+        setExpandedIds((prev) => new Set(prev).add(parentId));
+        setTimeout(() => setSuccess(null), 4000);
       } else {
         setError(formatApiError(result));
       }
@@ -310,18 +438,33 @@ export default function CategoriesPage() {
   const handleUpdateSousCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSousCategory) return;
+    if (!sousCategoryName.trim() || sousCategoryName.trim().length < 2) {
+      setError("Le nom de la sous-catégorie est obligatoire (au moins 2 caractères).");
+      return;
+    }
+    if (!sousCategoryExcelFile && !selectedSousCategory.excelFile) {
+      setError("Le fichier Excel est obligatoire. Ajoutez un fichier .xlsx ou .xls.");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
       const result = await updateSousCategory(selectedSousCategory.id, {
         name_sou_catgory: sousCategoryName.trim(),
         image: sousCategoryImage || undefined,
+        excelFile: sousCategoryExcelFile || undefined,
       });
       if (result.success) {
-        setSuccess("Sous-catégorie mise à jour");
+        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
+          ?.excelImport?.imported;
+        setSuccess(
+          imported
+            ? `Sous-catégorie mise à jour — ${imported} élément(s) importé(s) depuis Excel`
+            : "Sous-catégorie mise à jour"
+        );
         closeModal();
         await loadCategories();
-        setTimeout(() => setSuccess(null), 3000);
+        setTimeout(() => setSuccess(null), 4000);
       } else {
         setError(formatApiError(result));
       }
@@ -459,17 +602,18 @@ export default function CategoriesPage() {
                     />
                   )}
                 </div>
-                {modalType === "createCategory" && (
+                {isCategoryModal && (
                   <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
                     <div className="flex items-start gap-2">
                       <FileSpreadsheet className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                       <div>
                         <label className="block text-sm font-medium text-gray-800">
-                          Fichier Excel (optionnel)
+                          Fichier Excel *
                         </label>
                         <p className="text-xs text-gray-600 mt-1">
-                          Importez le listing XLS de cette catégorie. Les lignes seront enregistrées
-                          selon le type sélectionné (
+                          {modalType === "editCategory"
+                            ? "Fichier obligatoire. Vous pouvez conserver le fichier actuel ou en importer un nouveau ("
+                            : "Fichier obligatoire. Importez le listing XLS de cette catégorie ("}
                           {categoryType === "machine"
                             ? "machines"
                             : categoryType === "services"
@@ -480,34 +624,33 @@ export default function CategoriesPage() {
                         </p>
                       </div>
                     </div>
+                    {modalType === "editCategory" && (
+                      <CurrentExcelPanel
+                        excelFile={selectedCategory?.excelFile}
+                        excelFileName={selectedCategory?.excelFileName}
+                      />
+                    )}
                     <input
                       type="file"
                       accept=".xlsx,.xls"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        if (file) {
-                          const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-                          if (![".xlsx", ".xls"].includes(ext)) {
-                            setError("Seuls les fichiers Excel (.xlsx, .xls) sont acceptés");
-                            setCategoryExcelFile(null);
-                            e.target.value = "";
-                            return;
-                          }
-                          if (file.size > 10 * 1024 * 1024) {
-                            setError("Le fichier Excel ne doit pas dépasser 10MB");
-                            setCategoryExcelFile(null);
-                            e.target.value = "";
-                            return;
-                          }
-                          setError(null);
-                        }
-                        setCategoryExcelFile(file);
-                      }}
+                      required={
+                        modalType === "createCategory" ||
+                        (modalType === "editCategory" && !selectedCategory?.excelFile)
+                      }
+                      onChange={(e) =>
+                        pickExcelFile(
+                          e.target.files?.[0] || null,
+                          setCategoryExcelFile,
+                          e.target
+                        )
+                      }
                       className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm"
                     />
                     {categoryExcelFile && (
                       <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
-                        <span className="truncate text-green-800 font-medium">{categoryExcelFile.name}</span>
+                        <span className="truncate text-green-800 font-medium">
+                          Nouveau fichier : {categoryExcelFile.name}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setCategoryExcelFile(null)}
@@ -558,6 +701,63 @@ export default function CategoriesPage() {
                       alt="Preview"
                       className="mt-3 h-32 w-full rounded-xl object-cover border border-gray-200"
                     />
+                  )}
+                </div>
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800">
+                        Fichier Excel *
+                      </label>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {modalType === "editSousCategory"
+                          ? "Fichier obligatoire. Conservez le fichier actuel ou importez-en un nouveau"
+                          : "Fichier obligatoire. Importez un listing XLS lié à cette sous-catégorie"}
+                        {selectedCategory
+                          ? ` (${selectedCategory.name_catgory} → ${
+                              sousCategoryName.trim() || "sous-catégorie"
+                            })`
+                          : ""}
+                        .
+                      </p>
+                    </div>
+                  </div>
+                  {modalType === "editSousCategory" && (
+                    <CurrentExcelPanel
+                      excelFile={selectedSousCategory?.excelFile}
+                      excelFileName={selectedSousCategory?.excelFileName}
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    required={
+                      modalType === "createSousCategory" ||
+                      (modalType === "editSousCategory" && !selectedSousCategory?.excelFile)
+                    }
+                    onChange={(e) =>
+                      pickExcelFile(
+                        e.target.files?.[0] || null,
+                        setSousCategoryExcelFile,
+                        e.target
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm"
+                  />
+                  {sousCategoryExcelFile && (
+                    <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
+                      <span className="truncate text-green-800 font-medium">
+                        Nouveau fichier : {sousCategoryExcelFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSousCategoryExcelFile(null)}
+                        className="ml-2 rounded p-1 text-red-600 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </>
@@ -687,6 +887,19 @@ export default function CategoriesPage() {
                           {category.sousCategories.length} sous-catégorie
                           {category.sousCategories.length !== 1 ? "s" : ""}
                         </p>
+                        {category.excelFile && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCurrentExcel(category.excelFile!, category.excelFileName)
+                            }
+                            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                            Ouvrir Excel
+                            {category.excelFileName ? ` (${category.excelFileName})` : ""}
+                          </button>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -754,6 +967,18 @@ export default function CategoriesPage() {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-gray-900">{sc.name_sou_catgory}</p>
+                                {sc.excelFile && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openCurrentExcel(sc.excelFile!, sc.excelFileName)
+                                    }
+                                    className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                  >
+                                    <FileSpreadsheet className="h-3 w-3" />
+                                    Ouvrir Excel
+                                  </button>
+                                )}
                                 <div className="mt-2 flex gap-2">
                                   <button
                                     onClick={() => openEditSousCategory(category, sc)}

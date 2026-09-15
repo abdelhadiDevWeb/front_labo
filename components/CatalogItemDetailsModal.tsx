@@ -16,6 +16,7 @@ import {
 import { PublicCatalogItem, getSessionRole } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
@@ -77,6 +78,7 @@ export default function CatalogItemDetailsModal({
   const [showPdf, setShowPdf] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const { addToCart } = useCart();
+  const { canSeePrice } = useCanSeeCatalogPrice();
 
   const fichePdfUrl = useMemo(
     () => getFicheTechniquePdfUrl(item.unique_data),
@@ -197,9 +199,11 @@ export default function CatalogItemDetailsModal({
               </div>
 
               <div className="space-y-3">
-                <p className="text-2xl font-bold text-blue-600">
-                  {Number(item.price || 0).toFixed(2)} DA
-                </p>
+                <CatalogPrice
+                  amount={item.price}
+                  visible={canSeePrice}
+                  className="text-2xl font-bold text-blue-600"
+                />
 
                 <div className="space-y-2 text-sm text-gray-700">
                   <div className="flex items-center gap-2">
@@ -269,6 +273,7 @@ export default function CatalogItemDetailsModal({
                 <UniqueDataFields
                   data={item.unique_data}
                   max={30}
+                  hidePrices={!canSeePrice}
                   excludeKeys={[
                     "Fiche Technique",
                     "ficheTechnique",

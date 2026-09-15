@@ -27,6 +27,7 @@ import { useCart } from "@/contexts/CartContext";
 import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 function getFicheTechniquePdfUrl(
   data: Record<string, unknown> | null | undefined
@@ -54,6 +55,7 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
   const { addToCart } = useCart();
+  const { canSeePrice } = useCanSeeCatalogPrice();
   const listHref = kind === "machine" ? "/machines" : "/services";
   const label = kind === "machine" ? "Machine" : "Service";
 
@@ -147,7 +149,11 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             {label}
           </span>
           <h1 className="text-3xl font-bold text-gray-900">{item.name}</h1>
-          <p className="text-2xl font-bold text-blue-600">{item.price.toFixed(2)} DA</p>
+          <CatalogPrice
+            amount={item.price}
+            visible={canSeePrice}
+            className="text-2xl font-bold text-blue-600"
+          />
 
           <div className="space-y-2 text-sm text-gray-700">
             <div className="flex items-center gap-2">
@@ -196,6 +202,7 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             <UniqueDataFields
               data={item.unique_data}
               max={40}
+              hidePrices={!canSeePrice}
               excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
               className="max-h-none"
             />

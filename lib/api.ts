@@ -646,6 +646,7 @@ export interface Product {
   sellingPrice: number;
   quantity: number;
   category: string;
+  sousCategory?: string | null;
   deliveryTime: string;
   brand: string;
   productType: "Labo médical" | "labo d'ana pathologies";
@@ -671,6 +672,8 @@ export interface CreateProductData {
   deliveryTime: string;
   brand: string;
   productType: "Labo médical" | "labo d'ana pathologies";
+  id_catgory?: string;
+  id_sous_catgory?: string;
   images?: File[];
   video?: File;
 }
@@ -829,6 +832,140 @@ export const getSupplierServices = async (): Promise<
   }
 };
 
+export type UpdateCatalogItemData = {
+  unique_data: Record<string, string | number>;
+  images?: File[];
+  ficheTechnique?: File | null;
+};
+
+export const updateMachine = async (
+  machineId: string,
+  data: UpdateCatalogItemData
+): Promise<ApiResponse<UniqueDataItem>> => {
+  try {
+    const formData = new FormData();
+    formData.append("unique_data", JSON.stringify(data.unique_data || {}));
+    if (data.images && Array.isArray(data.images)) {
+      data.images.forEach((image) => formData.append("images", image));
+    }
+    if (data.ficheTechnique) {
+      formData.append("ficheTechnique", data.ficheTechnique);
+    }
+
+    const response = await apiFetch(`${getApiBaseUrl()}/machines/${machineId}`, {
+      method: "PUT",
+      headers: {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to update machine",
+        errors: errorData.errors || [],
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Update machine error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deleteMachine = async (machineId: string): Promise<ApiResponse<null>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/machines/${machineId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to delete machine",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Delete machine error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const updateService = async (
+  serviceId: string,
+  data: UpdateCatalogItemData
+): Promise<ApiResponse<UniqueDataItem>> => {
+  try {
+    const formData = new FormData();
+    formData.append("unique_data", JSON.stringify(data.unique_data || {}));
+    if (data.images && Array.isArray(data.images)) {
+      data.images.forEach((image) => formData.append("images", image));
+    }
+    if (data.ficheTechnique) {
+      formData.append("ficheTechnique", data.ficheTechnique);
+    }
+
+    const response = await apiFetch(`${getApiBaseUrl()}/services/${serviceId}`, {
+      method: "PUT",
+      headers: {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to update service",
+        errors: errorData.errors || [],
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Update service error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deleteService = async (serviceId: string): Promise<ApiResponse<null>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/services/${serviceId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to delete service",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Delete service error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Update a product
 export const updateProduct = async (
   productId: string,
@@ -846,6 +983,8 @@ const formData = new FormData();
     if (data.deliveryTime !== undefined) formData.append("deliveryTime", data.deliveryTime);
     if (data.brand !== undefined) formData.append("brand", data.brand);
     if (data.productType !== undefined) formData.append("productType", data.productType);
+    if (data.id_catgory) formData.append("id_catgory", data.id_catgory);
+    if (data.id_sous_catgory) formData.append("id_sous_catgory", data.id_sous_catgory);
 
     // Append files
     if (data.images && Array.isArray(data.images)) {
@@ -2902,7 +3041,6 @@ export interface SubscriptionSponsorQuota {
   sponsorsRemaining: number;
   sponsorsUsed: number;
   remaining: number;
-  sponsorDurationHours?: number;
   canCreateSubscriptionSponsor: boolean;
   /** Duration of each free sponsor from the active abonnement (hours) */
   sponsorDurationHours?: number;
@@ -3970,6 +4108,8 @@ export interface SousCategory {
   name_sou_catgory: string;
   id_catgory: string;
   image: string;
+  excelFile?: string | null;
+  excelFileName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3980,6 +4120,8 @@ export interface Category {
   image: string;
   des: string;
   type_catgory: "machine" | "services" | "product";
+  excelFile?: string | null;
+  excelFileName?: string | null;
   createdAt: string;
   updatedAt: string;
   sousCategories: SousCategory[];
@@ -3990,7 +4132,7 @@ export interface CreateCategoryData {
   des: string;
   type_catgory: "machine" | "services" | "product";
   image: File;
-  excelFile?: File;
+  excelFile: File;
 }
 
 export interface UpdateCategoryData {
@@ -3998,17 +4140,20 @@ export interface UpdateCategoryData {
   des?: string;
   type_catgory?: "machine" | "services" | "product";
   image?: File;
+  excelFile?: File;
 }
 
 export interface CreateSousCategoryData {
   name_sou_catgory: string;
   image: File;
+  excelFile: File;
 }
 
 export interface UpdateSousCategoryData {
   name_sou_catgory?: string;
   id_catgory?: string;
   image?: File;
+  excelFile?: File;
 }
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
@@ -4073,9 +4218,7 @@ const formData = new FormData();
     formData.append("des", data.des);
     formData.append("type_catgory", data.type_catgory);
     formData.append("image", data.image);
-    if (data.excelFile) {
-      formData.append("excelFile", data.excelFile);
-    }
+    formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories`, {
       method: "POST",
@@ -4100,6 +4243,7 @@ const formData = new FormData();
     if (data.des) formData.append("des", data.des);
     if (data.type_catgory) formData.append("type_catgory", data.type_catgory);
     if (data.image) formData.append("image", data.image);
+    if (data.excelFile) formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
       method: "PUT",
@@ -4144,6 +4288,7 @@ export const createSousCategory = async (
 const formData = new FormData();
     formData.append("name_sou_catgory", data.name_sou_catgory);
     formData.append("image", data.image);
+    formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}/sous-categories`, {
       method: "POST",
@@ -4170,6 +4315,7 @@ const formData = new FormData();
     if (data.name_sou_catgory) formData.append("name_sou_catgory", data.name_sou_catgory);
     if (data.id_catgory) formData.append("id_catgory", data.id_catgory);
     if (data.image) formData.append("image", data.image);
+    if (data.excelFile) formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
       method: "PUT",

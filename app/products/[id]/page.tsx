@@ -23,6 +23,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { getProductById, PublicProduct, getSessionRole } from "@/lib/api";
 import LoginAlert from "@/components/LoginAlert";
+import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 
 const getMediaUrl = (mediaPath: string) => {
@@ -371,7 +372,11 @@ export default function ProductDetailPage() {
             {/* Price */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Prix</h2>
-              <p className="text-3xl sm:text-4xl font-bold text-blue-600">{product.price.toFixed(2)} DA</p>
+              <CatalogPrice
+                amount={product.price}
+                visible={Boolean(userRole)}
+                className="text-3xl sm:text-4xl font-bold text-blue-600"
+              />
             </div>
 
             {/* Supplier Information */}

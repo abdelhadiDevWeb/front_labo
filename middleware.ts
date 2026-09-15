@@ -3,8 +3,13 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "ml_auth";
 
-/** Only dashboards require a valid session cookie. Onboarding pages are open. */
-const PROTECTED_PREFIXES = ["/dashboard", "/dashboard-supplier"];
+/** Routes that require a valid session cookie. */
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/dashboard-supplier",
+  "/suppliers",
+  "/favorable",
+];
 
 const isProtectedPath = (pathname: string) =>
   PROTECTED_PREFIXES.some(
@@ -25,5 +30,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/dashboard-supplier/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/dashboard-supplier/:path*",
+    "/suppliers",
+    "/suppliers/:path*",
+    "/favorable",
+    "/favorable/:path*",
+  ],
 };
