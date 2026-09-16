@@ -158,19 +158,31 @@ export default function SupplierOrdersPage() {
       }
 
       const result = await response.json();
-      if (!(result.success && result.data)) return;
+      if (!result.success) {
+        throw new Error(result.message || "Failed to load orders");
+      }
 
-      const pageOrders: Order[] = result.data.orders || [];
+      const pageOrders: Order[] = Array.isArray(result.data?.orders)
+        ? result.data.orders
+        : Array.isArray(result.data)
+          ? result.data
+          : Array.isArray(result.orders)
+            ? result.orders
+            : [];
       setOrders((prev) => (append ? [...prev, ...pageOrders] : pageOrders));
-      setOrdersHasMore(Boolean(result.data.hasMore));
-      setOrdersCursor(result.data.nextCursor || null);
+      setOrdersHasMore(Boolean(result.data?.hasMore));
+      setOrdersCursor(result.data?.nextCursor || null);
 
-      const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
-      const pagePayments =
-        (paymentResult.success && paymentResult.data?.paymentsByCommande
-          ? paymentResult.data.paymentsByCommande
-          : {}) as { [commandeId: string]: Payment };
-      setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
+      if (pageOrders.length > 0) {
+        const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
+        const pagePayments =
+          (paymentResult.success && paymentResult.data?.paymentsByCommande
+            ? paymentResult.data.paymentsByCommande
+            : {}) as { [commandeId: string]: Payment };
+        setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
+      } else if (!append) {
+        setPayments({});
+      }
     } catch (err) {
       setError("Erreur lors du chargement des réserves");
     } finally {

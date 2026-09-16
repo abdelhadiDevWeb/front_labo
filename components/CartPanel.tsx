@@ -56,72 +56,58 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
         return;
       }
 
-      const itemsWithSupplierId = await Promise.all(
-        reservableCartItems.map(async (item) => {
-          const itemType = item.itemType || "product";
-          if (item.supplierId) {
-            return { ...item, supplierId: item.supplierId, itemType };
-          }
+      const resolveSupplierId = async (
+        item: (typeof cartItems)[0]
+      ): Promise<string | null> => {
+        const itemType = item.itemType === "machine" ? "machine" : "product";
+        if (item.supplierId && String(item.supplierId).trim()) {
+          return String(item.supplierId).trim();
+        }
 
-          try {
-            const endpoint =
-              itemType === "machine"
-                ? `${API_BASE_URL}/machines/public/${item.id}`
-                : `${API_BASE_URL}/products/public/${item.id}`;
-            const catalogResponse = await apiFetch(endpoint);
-            if (catalogResponse.ok) {
-              const catalogData = await catalogResponse.json();
-              const supplierId =
-                catalogData?.data?.supplier?.id ||
-                catalogData?.data?.supplierId ||
-                null;
-              if (catalogData.success && supplierId) {
-                return { ...item, supplierId: String(supplierId), itemType };
-              }
-            }
-          } catch (err) {
-            console.error("Error fetching catalog item:", err);
-          }
+        try {
+          const endpoint =
+            itemType === "machine"
+              ? `${API_BASE_URL}/machines/public/${item.id}`
+              : `${API_BASE_URL}/products/public/${item.id}`;
+          const catalogResponse = await apiFetch(endpoint);
+          if (!catalogResponse.ok) return null;
+          const catalogData = await catalogResponse.json();
+          const supplierId =
+            catalogData?.data?.supplier?.id ||
+            catalogData?.data?.supplierId ||
+            null;
+          return supplierId ? String(supplierId) : null;
+        } catch (err) {
+          console.error("Error fetching catalog item:", err);
           return null;
-        })
-      );
+        }
+      };
 
-      const validItems = itemsWithSupplierId.filter(
-        (p): p is typeof cartItems[0] & { supplierId: string; itemType: "product" | "machine" } =>
-          p !== null && !!p.supplierId
-      );
+      // Create one reserve request per cart line when supplier is unknown —
+      // backend resolves the real supplier from the catalog document.
+      const orderIds: string[] = [];
+      const errors: string[] = [];
 
-      if (validItems.length === 0) {
-        alert("Impossible de récupérer les informations des articles. Veuillez réessayer.");
-        setIsCreatingOrder(false);
-        return;
-      }
-
-      // Group by supplier (products + machines can share an order per supplier)
       const itemsBySupplier: {
-        [supplierId: string]: Array<{
+        [key: string]: Array<{
           id: string | number;
           quantity: number;
           itemType: "product" | "machine";
         }>;
       } = {};
 
-      validItems.forEach((item) => {
-        const supplierId = item.supplierId;
-        if (!itemsBySupplier[supplierId]) {
-          itemsBySupplier[supplierId] = [];
-        }
+      for (const item of reservableCartItems) {
+        const itemType = item.itemType === "machine" ? "machine" : "product";
+        const supplierId = (await resolveSupplierId(item)) || `__solo_${itemType}_${item.id}`;
+        if (!itemsBySupplier[supplierId]) itemsBySupplier[supplierId] = [];
         itemsBySupplier[supplierId].push({
           id: item.id,
-          quantity: item.quantity,
-          itemType: item.itemType === "machine" ? "machine" : "product",
+          quantity: item.quantity || 1,
+          itemType,
         });
-      });
+      }
 
-      const orderIds: string[] = [];
-      const errors: string[] = [];
-
-      for (const [supplierId, products] of Object.entries(itemsBySupplier)) {
+      for (const [, products] of Object.entries(itemsBySupplier)) {
         try {
           const response = await apiFetch(`${API_BASE_URL}/commandes`, {
             method: "POST",
@@ -131,19 +117,34 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
             body: JSON.stringify({ products }),
           });
 
-          const result = await response.json();
+          const result = await response.json().catch(() => ({}));
 
           if (!response.ok) {
-            errors.push(result.message || `Erreur pour le fournisseur ${supplierId}`);
+            errors.push(
+              result.message ||
+                (response.status === 403
+                  ? "Compte non autorisé à réserver (abonnement / activation)."
+                  : `Erreur serveur (${response.status})`)
+            );
             continue;
           }
 
-          if (result.success && result.orderId) {
-            orderIds.push(result.orderId);
+          const orderId =
+            result.orderId ||
+            result.data?._id ||
+            result.data?.id ||
+            null;
+          if (result.success && orderId) {
+            orderIds.push(String(orderId));
+          } else if (result.success) {
+            // Created but id missing — still count as success for navigation
+            orderIds.push("ok");
+          } else {
+            errors.push(result.message || "Création de réserve échouée");
           }
         } catch (err) {
-          console.error(`Error creating order for supplier ${supplierId}:`, err);
-          errors.push(`Erreur lors de la création de la réserve pour le fournisseur ${supplierId}`);
+          console.error("Error creating order:", err);
+          errors.push("Erreur réseau lors de la création de la réserve");
         }
       }
 
@@ -151,7 +152,6 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
         setShowInvoice(false);
         clearReservableItems();
         onClose();
-        // Navigate first — don't block behind alert()
         router.push("/orders");
         return;
       }

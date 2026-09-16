@@ -26,6 +26,7 @@ import { getAllProducts, getPublicCategories, PublicProduct, Category, getSessio
 import { setCompareProductIds } from "@/lib/flow-session";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import CartPanel from "@/components/CartPanel";
 import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -36,6 +37,7 @@ import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-w
 export default function ProductsPage() {
   const router = useRouter();
   const { addToCart } = useCart();
+  const [cartOpen, setCartOpen] = useState(false);
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -819,7 +821,9 @@ export default function ProductsPage() {
                               id: product.id,
                               name: product.name,
                               price: product.price,
+                              supplierId: product.supplier?.id || "",
                             });
+                            setCartOpen(true);
                           } else {
                             setLoginAlertOpen(true);
                           }
@@ -847,6 +851,7 @@ export default function ProductsPage() {
 
       {/* Login Alert */}
       <LoginAlert isOpen={loginAlertOpen} onClose={() => setLoginAlertOpen(false)} />
+      <CartPanel isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   );
 }
