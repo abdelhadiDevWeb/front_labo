@@ -140,6 +140,7 @@ export default function SupplierOrdersPage() {
   const loadOrders = async (opts?: { append?: boolean; cursor?: string | null }) => {
     try {
       if (!opts?.append) setIsLoading(true);
+      setError(null);
       const authed = await checkAuthSession();
       if (!authed) {
         router.push("/login");
@@ -148,11 +149,12 @@ export default function SupplierOrdersPage() {
 
       const API_BASE_URL = getApiUrl();
       const append = Boolean(opts?.append);
-      const url = new URL(`${API_BASE_URL}/commandes/supplier`);
-      url.searchParams.set("limit", "50");
-      if (opts?.cursor) url.searchParams.set("cursor", opts.cursor);
+      const params = new URLSearchParams({ limit: "50" });
+      if (opts?.cursor) params.set("cursor", opts.cursor);
 
-      const response = await apiFetch(url.toString());
+      const response = await apiFetch(
+        `${API_BASE_URL}/commandes/supplier?${params.toString()}`
+      );
       if (!response.ok) {
         throw new Error("Failed to load orders");
       }
@@ -173,15 +175,19 @@ export default function SupplierOrdersPage() {
       setOrdersHasMore(Boolean(result.data?.hasMore));
       setOrdersCursor(result.data?.nextCursor || null);
 
-      if (pageOrders.length > 0) {
-        const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
-        const pagePayments =
-          (paymentResult.success && paymentResult.data?.paymentsByCommande
-            ? paymentResult.data.paymentsByCommande
-            : {}) as { [commandeId: string]: Payment };
-        setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
-      } else if (!append) {
-        setPayments({});
+      try {
+        if (pageOrders.length > 0) {
+          const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
+          const pagePayments =
+            (paymentResult.success && paymentResult.data?.paymentsByCommande
+              ? paymentResult.data.paymentsByCommande
+              : {}) as { [commandeId: string]: Payment };
+          setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
+        } else if (!append) {
+          setPayments({});
+        }
+      } catch {
+        // Payments are optional — do not fail the whole reserves page
       }
     } catch (err) {
       setError("Erreur lors du chargement des réserves");

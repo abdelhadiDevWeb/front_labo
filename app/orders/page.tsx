@@ -156,11 +156,12 @@ export default function OrdersPage() {
     try {
       const API_BASE_URL = getApiUrl();
       const append = Boolean(opts?.append);
-      const url = new URL(`${API_BASE_URL}/commandes/client`);
-      url.searchParams.set("limit", "50");
-      if (opts?.cursor) url.searchParams.set("cursor", opts.cursor);
+      const params = new URLSearchParams({ limit: "50" });
+      if (opts?.cursor) params.set("cursor", opts.cursor);
 
-      const response = await apiFetch(url.toString());
+      const response = await apiFetch(
+        `${API_BASE_URL}/commandes/client?${params.toString()}`
+      );
       if (!response.ok) {
         console.error("Failed to load orders", response.status);
         throw new Error("Failed to load orders");
@@ -184,15 +185,19 @@ export default function OrdersPage() {
       setOrdersHasMore(Boolean(result.data?.hasMore));
       setOrdersCursor(result.data?.nextCursor || null);
 
-      if (pageOrders.length > 0) {
-        const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
-        const pagePayments =
-          (paymentResult.success && paymentResult.data?.paymentsByCommande
-            ? paymentResult.data.paymentsByCommande
-            : {}) as { [commandeId: string]: Payment };
-        setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
-      } else if (!append) {
-        setPayments({});
+      try {
+        if (pageOrders.length > 0) {
+          const paymentResult = await getPaymentsByCommandes(pageOrders.map((o) => o._id));
+          const pagePayments =
+            (paymentResult.success && paymentResult.data?.paymentsByCommande
+              ? paymentResult.data.paymentsByCommande
+              : {}) as { [commandeId: string]: Payment };
+          setPayments((prev) => (append ? { ...prev, ...pagePayments } : pagePayments));
+        } else if (!append) {
+          setPayments({});
+        }
+      } catch {
+        // Payments optional
       }
     } catch (err) {
       console.error("Load client orders error:", err);
