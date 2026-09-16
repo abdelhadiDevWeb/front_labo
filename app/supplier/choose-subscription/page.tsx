@@ -8,7 +8,7 @@ function SupplierChooseSubscriptionInner() {
   return (
     <ChooseSubscriptionContent
       role="supplier"
-      backHref="/supplier/upload-documents?edit=1"
+      backHref="/login"
       dashboardHref="/dashboard-supplier"
       pageTitle="Choisissez votre abonnement"
       pageSubtitle="Sélectionnez l'offre qui correspond à votre activité de fournisseur"

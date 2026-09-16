@@ -591,6 +591,7 @@ export const loginClient = async (
         success: false,
         message: result.message || `Login failed (${response.status})`,
         errors: result.errors || [result.message || "Unknown error"],
+        data: result.data,
       };
     }
 

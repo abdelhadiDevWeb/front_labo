@@ -83,8 +83,16 @@ export default function LoginPage() {
           await logoutClient();
           setShowWaitingAlert(true);
         } else if (result.message === "subscription_expired" || result.message === "no_subscription") {
-          await logoutClient();
-          setShowSubscriptionExpiredAlert(true);
+          // Fallback: send to choose-plan based on role from error payload if present
+          const role = result.data?.role;
+          const renewPath =
+            role === "supplier"
+              ? "/supplier/choose-subscription"
+              : "/client/choose-subscription";
+          setSuccess("Abonnement expiré — redirection vers le choix du plan...");
+          setTimeout(() => {
+            router.push(renewPath);
+          }, 800);
         } else {
           const nextAttempts = failedAttempts + 1;
           setFailedAttempts(nextAttempts);

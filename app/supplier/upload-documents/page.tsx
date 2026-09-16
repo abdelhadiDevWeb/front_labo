@@ -75,6 +75,12 @@ function SupplierUploadForm() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isCheckingDocs && hasExistingDocs && !isEditMode) {
+      router.replace(choosePlanHref);
+    }
+  }, [isCheckingDocs, hasExistingDocs, isEditMode, router, choosePlanHref]);
+
   const handleFileChange = async (field: DocField, file: File | null) => {
     if (!file) {
       setFiles((prev) => ({ ...prev, [field]: null }));

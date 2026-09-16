@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 <p className="text-sm text-gray-500">
-                  Nous vérifierons que votre email est enregistré, puis nous vous enverrons un code de confirmation.
+                  Entrez l'email de votre compte. Si l'adresse n'existe pas, aucun code ne sera envoyé.
                 </p>
               </div>
 

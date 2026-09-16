@@ -13,15 +13,14 @@ import {
   Calendar,
   Megaphone,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import {
   getPublicSubscriptionPlans,
-  createAbonnementCheckout,
   registerHandToHandAbonnement,
   verifyAbonnementPayment,
   SubscriptionType,
 } from "@/lib/api";
-import { validateCheckoutUrl } from "@/lib/security";
 import RegistrationPendingModal from "@/components/RegistrationPendingModal";
 
 interface ChooseSubscriptionContentProps {
@@ -114,27 +113,6 @@ export default function ChooseSubscriptionContent({
     setSelectedPlan(plan);
     setShowPaymentOptions(true);
     setError(null);
-  };
-
-  const handleOnlinePayment = async () => {
-    if (!selectedPlan) return;
-    setIsProcessing(true);
-    setError(null);
-
-    const result = await createAbonnementCheckout(selectedPlan.id);
-    if (result.success && result.data?.checkoutUrl) {
-      const safeUrl = validateCheckoutUrl(result.data.checkoutUrl);
-      if (!safeUrl) {
-        setError("Lien de paiement invalide");
-        setIsProcessing(false);
-        return;
-      }
-      window.location.href = safeUrl;
-      return;
-    }
-
-    setError(result.message || "Impossible de démarrer le paiement en ligne");
-    setIsProcessing(false);
   };
 
   const handleHandToHand = async () => {
@@ -317,25 +295,41 @@ export default function ChooseSubscriptionContent({
                 </p>
 
                 <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={handleOnlinePayment}
-                    disabled={isProcessing}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50"
+                  {/* Online payment — coming soon */}
+                  <div
+                    aria-disabled="true"
+                    className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50/40 p-5 opacity-90 cursor-not-allowed select-none"
                   >
-                    {isProcessing ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <CreditCard className="w-5 h-5" />
-                    )}
-                    Paiement en ligne (Chargily)
-                  </button>
+                    <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-200/30 blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-8 -left-4 h-20 w-20 rounded-full bg-slate-200/40 blur-2xl" />
+
+                    <div className="relative flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                        <CreditCard className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p className="font-semibold text-slate-700">
+                            Paiement en ligne (Chargily)
+                          </p>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800">
+                            <Clock className="h-3 w-3" />
+                            Coming soon
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-500 leading-relaxed">
+                          Le paiement en ligne arrive bientôt. Utilisez pour
+                          l&apos;instant le paiement en main propre.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   <button
                     type="button"
                     onClick={handleHandToHand}
                     disabled={isProcessing}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-white border-2 border-gray-200 text-gray-800 rounded-xl font-semibold hover:border-blue-400 hover:bg-blue-50 transition-all disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 shadow-md shadow-blue-600/20"
                   >
                     {isProcessing ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

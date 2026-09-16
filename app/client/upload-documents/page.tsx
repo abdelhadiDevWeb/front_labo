@@ -61,6 +61,12 @@ function ClientUploadForm() {
   }, []);
 
   useEffect(() => {
+    if (!isCheckingDocs && hasExistingDocs && !isEditMode) {
+      router.replace(choosePlanHref);
+    }
+  }, [isCheckingDocs, hasExistingDocs, isEditMode, router, choosePlanHref]);
+
+  useEffect(() => {
     if (isEditMode || hasExistingDocs) return;
     setFile(null);
     setError(null);
