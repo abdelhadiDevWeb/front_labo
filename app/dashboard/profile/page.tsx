@@ -6,6 +6,7 @@ import { getAdminProfile, updateAdminProfile, updateAdminPassword, uploadAdminPr
 import { validateStrongPassword } from "@/lib/password-validation";
 import Image from "next/image";
 import { getMediaUrl } from "@/lib/media-url";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<AdminProfile | null>(null);

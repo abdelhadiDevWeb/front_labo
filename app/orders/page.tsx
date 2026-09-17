@@ -11,6 +11,7 @@ import Image from "next/image";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 interface Order {
   _id: string;
@@ -307,14 +308,7 @@ export default function OrdersPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (!isAuthenticated) {

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package, Loader2 } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package } from "lucide-react";
 import { getAdminStatistics, AdminStatistics } from "@/lib/api";
 import Link from "next/link";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 const statusLabels: { [key: string]: string } = {
   "en cours": "En cours",
@@ -68,14 +69,7 @@ export default function DashboardPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des statistiques...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (error || !statistics) {

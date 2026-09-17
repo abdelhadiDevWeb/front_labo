@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { apiFetch, checkAuthSession, getPaymentsByCommandes, Payment } from "@/lib/api";
 import { printInvoiceSafely } from "@/lib/invoice-print";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 
@@ -338,14 +339,7 @@ export default function SupplierOrdersPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des réserves...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (

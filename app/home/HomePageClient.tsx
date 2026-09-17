@@ -31,11 +31,11 @@ import {
   CheckCircle,
   FolderTree,
   Eye,
-  Loader2,
 } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import LoginAlert from "@/components/LoginAlert";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import {
   HomeDesktopNavMenus,
   HomeMobileNavMenus,
@@ -566,7 +566,7 @@ export default function HomePage() {
     },
     {
       question: "Comment puis-je contacter le support ?",
-      answer: "Vous pouvez nous contacter via le formulaire de contact sur notre site, par email à support@marketlab.com ou par téléphone au +33 1 23 45 67 89.",
+      answer: "Vous pouvez nous contacter via la page Contact, par email à dzmarketLab@gmail.com ou par téléphone au 0781079959 (Blida).",
     },
   ];
 
@@ -629,43 +629,7 @@ export default function HomePage() {
 
   // Avoid flashing the guest header while session is verified
   if (!isAuthReady) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col">
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
-          <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-20 md:h-28">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/pi/logo-dz-labomarket.png"
-                  alt={`${BRAND_NAME} Logo`}
-                  width={280}
-                  height={140}
-                  className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto object-contain rounded-xl"
-                  priority
-                />
-              </div>
-              <div className="hidden md:flex items-center gap-3">
-                <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
-                <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
-                <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
-                <div className="h-10 w-28 rounded-xl bg-gray-200 animate-pulse" />
-              </div>
-              <div className="md:hidden h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
-            </div>
-          </nav>
-        </header>
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4">
-          <div className="relative">
-            <div className="h-14 w-14 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
-            <Loader2 className="absolute inset-0 m-auto h-6 w-6 text-blue-600/40" aria-hidden />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-base font-semibold text-gray-800">Préparation de votre espace…</p>
-            <p className="text-sm text-gray-500">Vérification de la session en cours</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (
@@ -692,12 +656,16 @@ export default function HomePage() {
                 Accueil
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
-              <HomeDesktopNavMenus showSuppliers={Boolean(userRole)} />
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
+              <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
+                À propos
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+              </Link>
+              <HomeDesktopNavMenus showSuppliers={isAuthReady && isAuthenticated} />
+              <Link href="/contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Contact
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              {isAuthenticated && isClientUser && (
+              </Link>
+              {isAuthReady && isAuthenticated && isClientUser && (
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   <span>Mes Réserves</span>
@@ -877,14 +845,17 @@ export default function HomePage() {
                 <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Accueil
                 </a>
+                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                  À propos
+                </Link>
                 <HomeMobileNavMenus
                   onNavigate={() => setMobileMenuOpen(false)}
-                  showSuppliers={Boolean(userRole)}
+                  showSuppliers={isAuthReady && isAuthenticated}
                 />
-                <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
-                </a>
-                {isAuthenticated && isClientUser && (
+                </Link>
+                {isAuthReady && isAuthenticated && isClientUser && (
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
                     <span>Mes Réserves</span>
@@ -1990,10 +1961,11 @@ export default function HomePage() {
               <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Navigation</h3>
               <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
                 <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
+                <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
                 <li><Link href="/products" className="hover:text-white transition-colors">Produits</Link></li>
                 <li><Link href="/machines" className="hover:text-white transition-colors">Machines</Link></li>
                 <li><Link href="/services" className="hover:text-white transition-colors">Services</Link></li>
-                <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
               </ul>
             </div>
             <div>
@@ -2007,14 +1979,16 @@ export default function HomePage() {
             <div>
               <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Support</h3>
               <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Aide</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Nous contacter</a></li>
+                <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Nous contacter</Link></li>
+                <li><a href="mailto:dzmarketLab@gmail.com" className="hover:text-white transition-colors">dzmarketLab@gmail.com</a></li>
+                <li><a href="tel:+213781079959" className="hover:text-white transition-colors">0781079959</a></li>
+                <li className="text-gray-500">Blida, Algérie</li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 sm:pt-8 text-center text-gray-400 text-xs sm:text-sm">
-            <p>© 2024 {BRAND_NAME}. Tous droits réservés.</p>
+            <p>© {new Date().getFullYear()} {BRAND_NAME}. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

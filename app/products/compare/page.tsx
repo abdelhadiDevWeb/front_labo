@@ -14,13 +14,13 @@ import {
   Building2,
   Image as ImageIcon,
   X,
-  Loader2,
   AlertCircle,
 } from "lucide-react";
 import { getProductById, PublicProduct } from "@/lib/api";
 import { getCompareProductIds, setCompareProductIds, clearCompareProductIds } from "@/lib/flow-session";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 const getMediaUrl = (mediaPath: string) => {
   return buildMediaUrl(mediaPath) || "";
@@ -90,14 +90,7 @@ function CompareProductsContent() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement de la comparaison...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (error || products.length < 2) {
@@ -353,14 +346,7 @@ function CompareProductsContent() {
 export default function CompareProductsPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Chargement de la comparaison...</p>
-          </div>
-        </div>
-      }
+      fallback={<AppLoadingScreen />}
     >
       <CompareProductsContent />
     </Suspense>

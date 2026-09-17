@@ -6,12 +6,12 @@ import {
   Megaphone,
   Package,
   ArrowLeft,
-  Loader2,
   Sparkles,
   Search,
 } from "lucide-react";
 import { getSponsoredProducts, SponsoredPublicProduct } from "@/lib/api";
 import SponsoredProductCard from "@/components/SponsoredProductCard";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 export default function SponsoredProductsPage() {
   const [products, setProducts] = useState<SponsoredPublicProduct[]>([]);
@@ -51,11 +51,7 @@ export default function SponsoredProductsPage() {
   }, [products, searchTerm]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (

@@ -23,6 +23,7 @@ import { getProfile, ClientData, apiFetch, checkAuthSession } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
 
 interface ProfileFormData {

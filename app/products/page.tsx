@@ -26,6 +26,7 @@ import { getAllProducts, getPublicCategories, PublicProduct, Category, getSessio
 import { setCompareProductIds } from "@/lib/flow-session";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import CartPanel from "@/components/CartPanel";
 import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl } from "@/lib/media-url";
@@ -300,14 +301,7 @@ export default function ProductsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des produits...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (

@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ShoppingBag,
 } from "lucide-react";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import {
   getSupplierProducts,
   getSupplierPromotions,

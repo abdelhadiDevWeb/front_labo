@@ -29,6 +29,7 @@ import { getSupplierDetails, SupplierDetails, getSupplierRatings, createRate, ca
 import { useCart } from "@/contexts/CartContext";
 import { getMediaUrl } from "@/lib/media-url";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 export default function SupplierDetailsPage() {
   const params = useParams();
@@ -214,14 +215,7 @@ export default function SupplierDetailsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement des détails du fournisseur...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (error || !supplierData) {

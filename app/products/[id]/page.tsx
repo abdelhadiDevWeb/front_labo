@@ -14,7 +14,6 @@ import {
   Video,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   AlertCircle,
   Phone,
   Mail,
@@ -23,6 +22,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { getProductById, PublicProduct, getSessionRole } from "@/lib/api";
 import LoginAlert from "@/components/LoginAlert";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 
@@ -102,14 +102,7 @@ export default function ProductDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement du produit...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (error || !product) {

@@ -51,6 +51,7 @@ import { validateCheckoutUrl } from "@/lib/security";
 import { getMediaUrl } from "@/lib/media-url";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 type MarketplaceKind = "product" | "machine" | "service";
 
@@ -791,14 +792,7 @@ function ProductsPageContent() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Chargement du MarketPlace...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (

@@ -6,12 +6,12 @@ import {
   Percent,
   Package,
   ArrowLeft,
-  Loader2,
   Sparkles,
   Search,
 } from "lucide-react";
 import { getPublicPromotions, PublicPromotion } from "@/lib/api";
 import PromotionCard from "@/components/PromotionCard";
+import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<PublicPromotion[]>([]);
@@ -54,11 +54,7 @@ export default function PromotionsPage() {
   }, [promotions, searchTerm]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-orange-500" />
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   return (
