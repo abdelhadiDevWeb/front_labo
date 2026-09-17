@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import MarketingShell from "@/components/MarketingShell";
+import { buildPageMetadata, PUBLIC_SEO_PAGES } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "À propos — Dz Labmarket",
-  description:
-    "Découvrez Dz Labmarket : la marketplace qui connecte laboratoires et fournisseurs en Algérie.",
-};
+const page = PUBLIC_SEO_PAGES.find((p) => p.path === "/about")!;
+
+export const metadata: Metadata = buildPageMetadata({
+  title: page.title,
+  description: page.description,
+  path: page.path,
+});
 
 export default function AboutLayout({ children }: { children: ReactNode }) {
   return <MarketingShell>{children}</MarketingShell>;
