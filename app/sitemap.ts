@@ -59,6 +59,7 @@ async function fetchPublicIds(apiPath: string): Promise<IdRow[]> {
 
 /**
  * sitemap.xml — public pages only (no dashboards, account, or auth).
+ * Canonical base: https://dzlabmarket.com (via getSiteUrl / NEXT_PUBLIC_SITE_URL)
  * Served at /sitemap.xml
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

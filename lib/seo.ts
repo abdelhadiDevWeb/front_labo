@@ -11,6 +11,8 @@ export const SITE_DESCRIPTION =
   "Dz Labmarket connecte les laboratoires d'analyses et les fournisseurs en Algérie : réactifs, consommables, machines et services — comparez, réservez et suivez vos commandes.";
 
 /** Production canonical origin (no trailing slash). Override with NEXT_PUBLIC_SITE_URL. */
+export const DEFAULT_SITE_URL = "https://dzlabmarket.com";
+
 export function getSiteUrl(): string {
   const fromEnv =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
@@ -22,10 +24,7 @@ export function getSiteUrl(): string {
       /* fall through */
     }
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`;
-  }
-  return "https://front-labo.vercel.app";
+  return DEFAULT_SITE_URL;
 }
 
 export type PublicSeoPage = {

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import {
+  DEFAULT_SITE_URL,
   getSiteUrl,
   PRIVATE_ROBOTS_DISALLOW,
   PUBLIC_ROBOTS_ALLOW,
@@ -8,12 +9,13 @@ import {
 /**
  * robots.txt — allow public marketing/catalog only; hide private app areas.
  * Served at /robots.txt
+ * Canonical host: https://dzlabmarket.com
  */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl();
-  let host = "front-labo.vercel.app";
+  let host = "dzlabmarket.com";
   try {
-    host = new URL(site).host;
+    host = new URL(site || DEFAULT_SITE_URL).host;
   } catch {
     /* keep default */
   }
