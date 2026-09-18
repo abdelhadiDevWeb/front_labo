@@ -23,7 +23,8 @@ export default function CatalogLocationBanner({
     return (
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-800">
         <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-        Détection de votre wilaya...
+        Chargement en cours — attente de votre localisation pour afficher les{" "}
+        {catalogLabel}...
       </div>
     );
   }
@@ -46,13 +47,14 @@ export default function CatalogLocationBanner({
         <div className="flex items-start gap-3">
           <Navigation className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-gray-900">
-              {isGuest ? "Autorisez votre localisation" : "Localisation requise"}
+            <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              En attente de votre localisation
             </p>
             <p className="text-sm text-gray-600">
               {isGuest
-                ? `Pour afficher les ${catalogLabel} disponibles dans votre wilaya, autorisez l'accès à votre position.`
-                : `Complétez la wilaya de votre profil labo ou autorisez la géolocalisation pour voir les ${catalogLabel} de votre région.`}
+                ? `Autorisez l'accès à votre position pour charger les ${catalogLabel} de votre wilaya.`
+                : `Complétez la wilaya de votre profil ou autorisez la géolocalisation pour charger les ${catalogLabel} de votre région.`}
             </p>
           </div>
         </div>

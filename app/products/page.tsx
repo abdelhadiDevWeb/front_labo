@@ -99,16 +99,20 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const loadProducts = async () => {
+      const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+      const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+
+      // Wait for location — keep loading, never fetch without wilaya
+      if (requiresWilayaForCatalog && !hasWilaya) {
+        setIsLoading(true);
+        setProducts([]);
+        setError(null);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
-
-        const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
-
-        if (requiresWilayaForCatalog && !wilayaCode) {
-          setProducts([]);
-          return;
-        }
 
         const result = await getAllProducts({
           ...(wilayaCode
@@ -130,12 +134,8 @@ export default function ProductsPage() {
       }
     };
 
-    if (requiresWilayaForCatalog && locationStatus === "loading") {
-      return;
-    }
-
     loadProducts();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+  }, [requiresWilayaForCatalog, userLocation?.wilaya]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
@@ -590,13 +590,14 @@ export default function ProductsPage() {
             <div className="flex items-start gap-3">
               <Navigation className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  {isGuest ? "Localisation requise" : "Afficher les produits de votre wilaya"}
+                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  En attente de votre localisation
                 </p>
                 <p className="text-sm text-gray-600">
                   {isGuest
-                    ? "Sans connexion, nous utilisons la position de votre navigateur pour afficher uniquement les produits disponibles dans votre wilaya."
-                    : "Autorisez la localisation pour voir les produits disponibles dans votre wilaya."}
+                    ? "Autorisez l'accès à votre position pour charger les produits de votre wilaya."
+                    : "Autorisez la localisation pour charger les produits disponibles dans votre wilaya."}
                 </p>
               </div>
             </div>
@@ -623,21 +624,15 @@ export default function ProductsPage() {
 
         {userRole === "client" && !clientWilayaCode && locationStatus !== "loading" && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-            Complétez la localisation de votre profil ou autorisez la géolocalisation du navigateur pour voir les
-            produits disponibles dans votre wilaya.
-          </div>
-        )}
-
-        {isGuest && !clientWilayaCode && locationStatus !== "loading" && locationStatus !== "granted" && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-            Autorisez la géolocalisation du navigateur pour voir les produits disponibles dans votre wilaya.
+            Complétez la localisation de votre profil ou autorisez la géolocalisation pour charger les produits de
+            votre wilaya.
           </div>
         )}
 
         {isGuest && !clientWilayaCode && locationStatus === "loading" && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-800">
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            Détection de votre position via le navigateur...
+            Chargement en cours — attente de votre localisation...
           </div>
         )}
 

@@ -6,6 +6,28 @@ import { GeoPoint, reverseGeocodeWilaya } from "@/lib/product-proximity";
 
 export type LocationStatus = "loading" | "granted" | "denied" | "prompt";
 
+const GEO_OPTIONS_FAST: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 12000,
+  maximumAge: 600000,
+};
+
+const GEO_OPTIONS_ACCURATE: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 20000,
+  maximumAge: 300000,
+};
+
+function getCurrentPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("unsupported"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
 export function useUserLocation() {
   const [location, setLocation] = useState<GeoPoint | null>(null);
   const [status, setStatus] = useState<LocationStatus>("loading");
@@ -13,9 +35,16 @@ export function useUserLocation() {
 
   const applyBrowserPosition = useCallback(async (latitude: number, longitude: number) => {
     const wilaya = await reverseGeocodeWilaya(latitude, longitude);
-    setLocation({ latitude, longitude, wilaya: wilaya || undefined });
+    if (!wilaya) {
+      // Coords obtained but wilaya unresolved — keep waiting for user retry
+      setLocation({ latitude, longitude });
+      setSource("browser");
+      setStatus("prompt");
+      return;
+    }
+    setLocation({ latitude, longitude, wilaya });
     setSource("browser");
-    setStatus(wilaya ? "granted" : "prompt");
+    setStatus("granted");
   }, []);
 
   const requestBrowserLocation = useCallback(() => {
@@ -25,19 +54,26 @@ export function useUserLocation() {
     }
 
     setStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        void applyBrowserPosition(position.coords.latitude, position.coords.longitude);
-      },
-      () => setStatus("denied"),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-    );
+
+    void (async () => {
+      try {
+        // Fast network/cell location first (more reliable on first visit)
+        const position = await getCurrentPosition(GEO_OPTIONS_FAST).catch(() =>
+          getCurrentPosition(GEO_OPTIONS_ACCURATE)
+        );
+        await applyBrowserPosition(position.coords.latitude, position.coords.longitude);
+      } catch {
+        setStatus("denied");
+      }
+    })();
   }, [applyBrowserPosition]);
 
   useEffect(() => {
     let cancelled = false;
 
     const resolveLocation = async () => {
+      setStatus("loading");
+
       const authenticated = await checkAuthSession();
       if (authenticated) {
         try {
@@ -51,16 +87,30 @@ export function useUserLocation() {
               lng != null &&
               Number(lat) !== 0 &&
               Number(lng) !== 0;
-            // Labo / client profile: wilaya alone is enough to filter catalog
-            if (hasCoords || wilaya) {
+
+            if (wilaya) {
               setLocation({
                 latitude: hasCoords ? Number(lat) : 0,
                 longitude: hasCoords ? Number(lng) : 0,
-                wilaya: wilaya || undefined,
+                wilaya,
               });
               setSource("profile");
-              setStatus(wilaya || hasCoords ? "granted" : "prompt");
+              setStatus("granted");
               return;
+            }
+
+            if (hasCoords) {
+              const fromCoords = await reverseGeocodeWilaya(Number(lat), Number(lng));
+              if (!cancelled && fromCoords) {
+                setLocation({
+                  latitude: Number(lat),
+                  longitude: Number(lng),
+                  wilaya: fromCoords,
+                });
+                setSource("profile");
+                setStatus("granted");
+                return;
+              }
             }
           }
         } catch {
@@ -75,18 +125,17 @@ export function useUserLocation() {
         return;
       }
 
-      // Auto-ask visitors for location permission
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (!cancelled) {
-            void applyBrowserPosition(position.coords.latitude, position.coords.longitude);
-          }
-        },
-        () => {
-          if (!cancelled) setStatus("prompt");
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-      );
+      // Auto-ask on first visit — stay in loading until we get a result
+      try {
+        const position = await getCurrentPosition(GEO_OPTIONS_FAST).catch(() =>
+          getCurrentPosition(GEO_OPTIONS_ACCURATE)
+        );
+        if (!cancelled) {
+          await applyBrowserPosition(position.coords.latitude, position.coords.longitude);
+        }
+      } catch {
+        if (!cancelled) setStatus("prompt");
+      }
     };
 
     void resolveLocation();

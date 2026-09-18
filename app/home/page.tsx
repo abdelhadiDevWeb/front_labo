@@ -212,14 +212,24 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Fetch products / machines / services filtered by visitor or labo wilaya
+  // Wait for wilaya before fetching — keep loading until location is available
   useEffect(() => {
     const loadCatalog = async () => {
-      if (requiresWilayaForCatalog && locationStatus === "loading") {
+      const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+      const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+
+      if (requiresWilayaForCatalog && !hasWilaya) {
+        // Do not skip location: stay in loading until wilaya is resolved
+        setIsLoadingProducts(true);
+        setIsLoadingMachines(true);
+        setIsLoadingServices(true);
+        setProducts([]);
+        setMachines([]);
+        setServices([]);
+        setProductsError(null);
         return;
       }
 
-      const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const filters = {
         ...(wilayaCode
           ? { wilayaCode }
@@ -228,17 +238,6 @@ export default function HomePage() {
             : {}),
         limit: 8,
       };
-
-      if (requiresWilayaForCatalog && !wilayaCode) {
-        setProducts([]);
-        setMachines([]);
-        setServices([]);
-        setIsLoadingProducts(false);
-        setIsLoadingMachines(false);
-        setIsLoadingServices(false);
-        setProductsError(null);
-        return;
-      }
 
       setIsLoadingProducts(true);
       setIsLoadingMachines(true);
@@ -285,7 +284,7 @@ export default function HomePage() {
     };
 
     void loadCatalog();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+  }, [requiresWilayaForCatalog, userLocation?.wilaya]);
 
   // Fetch categories from API
   useEffect(() => {
@@ -1628,8 +1627,10 @@ export default function HomePage() {
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {requiresWilayaForCatalog && !visitorWilayaCode
-                  ? "Autorisez la localisation pour voir les produits de votre wilaya"
-                  : "Aucun produit disponible dans votre wilaya pour le moment"}
+                  ? "En attente de votre localisation..."
+                  : visitorWilayaCode
+                    ? "Aucun produit disponible dans votre wilaya pour le moment"
+                    : "Aucun produit disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1777,8 +1778,10 @@ export default function HomePage() {
               <Microscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {requiresWilayaForCatalog && !visitorWilayaCode
-                  ? "Autorisez la localisation pour voir les machines de votre wilaya"
-                  : "Aucune machine disponible dans votre wilaya pour le moment"}
+                  ? "En attente de votre localisation..."
+                  : visitorWilayaCode
+                    ? "Aucune machine disponible dans votre wilaya pour le moment"
+                    : "Aucune machine disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1890,8 +1893,10 @@ export default function HomePage() {
               <Laptop className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {requiresWilayaForCatalog && !visitorWilayaCode
-                  ? "Autorisez la localisation pour voir les services de votre wilaya"
-                  : "Aucun service disponible dans votre wilaya pour le moment"}
+                  ? "En attente de votre localisation..."
+                  : visitorWilayaCode
+                    ? "Aucun service disponible dans votre wilaya pour le moment"
+                    : "Aucun service disponible pour le moment"}
               </p>
             </div>
           ) : (

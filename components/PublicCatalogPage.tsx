@@ -124,16 +124,20 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
 
   useEffect(() => {
     const load = async () => {
+      const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+      const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+
+      // Wait for location — keep loading, never fetch without wilaya
+      if (requiresWilayaForCatalog && !hasWilaya) {
+        setIsLoading(true);
+        setItems([]);
+        setError(null);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
-        const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
-
-        if (requiresWilayaForCatalog && !wilayaCode) {
-          setItems([]);
-          return;
-        }
-
         const filters = wilayaCode
           ? { wilayaCode }
           : userLocation?.wilaya
@@ -161,9 +165,8 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       }
     };
 
-    if (requiresWilayaForCatalog && locationStatus === "loading") return;
     void load();
-  }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+  }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),

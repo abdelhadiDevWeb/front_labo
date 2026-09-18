@@ -82,24 +82,17 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  // Same header logo — sizes Google prefers for search result favicons (multiples of 48px)
+  // Circular PNGs (transparent corners) — Google prefers multiples of 48px
   icons: {
     icon: [
-      { url: "/favicon.png?v=4", type: "image/png", sizes: "48x48" },
-      { url: "/favicon-96.png?v=4", type: "image/png", sizes: "96x96" },
-      { url: "/icon-192.png?v=4", type: "image/png", sizes: "192x192" },
-      { url: "/favicon-32.png?v=4", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.png?v=5", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96.png?v=5", type: "image/png", sizes: "96x96" },
+      { url: "/icon-192.png?v=5", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=5", type: "image/png", sizes: "512x512" },
+      { url: "/favicon-32.png?v=5", type: "image/png", sizes: "32x32" },
     ],
-    apple: [{ url: "/apple-icon.png?v=4", type: "image/png", sizes: "180x180" }],
-    shortcut: "/favicon.png?v=4",
-    other: [
-      {
-        rel: "icon",
-        url: "/pi/logo-dz-labomarket.png",
-        type: "image/png",
-        sizes: "500x500",
-      },
-    ],
+    apple: [{ url: "/apple-icon.png?v=5", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=5",
   },
   manifest: "/site.webmanifest",
   formatDetection: {
