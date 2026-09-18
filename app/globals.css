@@ -321,6 +321,17 @@ body {
   transform: scale(1);
 }
 
+/* Keep marketing sections readable if motion is reduced or animation never fires */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-animate,
+  .scroll-animate-left,
+  .scroll-animate-right,
+  .scroll-animate-scale {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Animation Delays */
 .animation-delay-100 {
   animation-delay: 100ms;

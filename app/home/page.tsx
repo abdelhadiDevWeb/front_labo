@@ -508,27 +508,46 @@ export default function HomePage() {
   }, [showSupportModal]);
 
 
+  // Must re-bind after auth ready: sections are not in the DOM while AppLoadingScreen shows.
   useEffect(() => {
+    if (!isAuthReady) return;
+
     const observerOptions = {
-      threshold: 0.1,
-      rootMargin: "0px 0px -100px 0px",
+      threshold: 0.05,
+      rootMargin: "0px 0px -40px 0px",
     };
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setVisibleElements((prev) => new Set(prev).add(entry.target.id));
+        if (!entry.isIntersecting) return;
+        const id = entry.target.id;
+        if (id) {
+          setVisibleElements((prev) => {
+            if (prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+          });
         }
+        entry.target.classList.add("animate");
       });
     }, observerOptions);
 
-    const elements = document.querySelectorAll(".scroll-animate, .scroll-animate-left, .scroll-animate-right, .scroll-animate-scale");
-    elements.forEach((el) => observer.observe(el));
+    let observed: Element[] = [];
+    const frame = window.requestAnimationFrame(() => {
+      observed = Array.from(
+        document.querySelectorAll(
+          ".scroll-animate, .scroll-animate-left, .scroll-animate-right, .scroll-animate-scale"
+        )
+      );
+      observed.forEach((el) => observer.observe(el));
+    });
 
     return () => {
-      elements.forEach((el) => observer.unobserve(el));
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
     };
-  }, []);
+  }, [isAuthReady, products.length, machines.length, services.length, categories.length]);
 
   useEffect(() => {
     // Generate particles only on client side to avoid hydration mismatch
@@ -1242,12 +1261,9 @@ export default function HomePage() {
               return (
                 <div
                   key={index}
-                  className={`bg-white/10 backdrop-blur-xl rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 hover:shadow-2xl scroll-animate-scale group`}
+                  className={`bg-white/10 backdrop-blur-xl rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:scale-105 hover:-translate-y-2 hover:shadow-2xl scroll-animate-scale group ${visibleElements.has(`step-${index}`) ? "animate" : ""}`}
                   id={`step-${index}`}
-                  style={{ 
-                    transitionDelay: `${index * 50}ms`,
-                    ...(visibleElements.has(`step-${index}`) ? { opacity: 1, transform: "scale(1)" } : {})
-                  }}
+                  style={{ transitionDelay: `${index * 50}ms` }}
                 >
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl md:rounded-2xl flex items-center justify-center text-white mb-4 md:mb-6 transform transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 shadow-lg">
                     <IconComponent className="w-6 h-6 md:w-8 md:h-8" />
@@ -1280,12 +1296,9 @@ export default function HomePage() {
               return (
                 <div
                   key={index}
-                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 scroll-animate-scale group`}
+                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 scroll-animate-scale group ${visibleElements.has(`benefit-${index}`) ? "animate" : ""}`}
                   id={`benefit-${index}`}
-                  style={{ 
-                    transitionDelay: `${index * 50}ms`,
-                    ...(visibleElements.has(`benefit-${index}`) ? { opacity: 1, transform: "scale(1)" } : {})
-                  }}
+                  style={{ transitionDelay: `${index * 50}ms` }}
                 >
                   <div className="mb-4 md:mb-6 transform transition-all duration-300 inline-block group-hover:scale-110 group-hover:rotate-6">
                     <div className="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-cyan-100 transition-all duration-300">

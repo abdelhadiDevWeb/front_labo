@@ -59,14 +59,14 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/pi/logo-dz-labomarket.png",
-        width: 512,
-        height: 512,
+        width: 500,
+        height: 500,
         alt: `${SITE_NAME} logo`,
       },
     ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     images: ["/pi/logo-dz-labomarket.png"],
@@ -82,14 +82,26 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
+  // Same header logo — sizes Google prefers for search result favicons (multiples of 48px)
   icons: {
     icon: [
-      { url: "/favicon.png?v=3", type: "image/png", sizes: "48x48" },
-      { url: "/favicon-32.png?v=3", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.png?v=4", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96.png?v=4", type: "image/png", sizes: "96x96" },
+      { url: "/icon-192.png?v=4", type: "image/png", sizes: "192x192" },
+      { url: "/favicon-32.png?v=4", type: "image/png", sizes: "32x32" },
     ],
-    apple: [{ url: "/apple-icon.png?v=3", type: "image/png", sizes: "180x180" }],
-    shortcut: "/favicon.png?v=3",
+    apple: [{ url: "/apple-icon.png?v=4", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=4",
+    other: [
+      {
+        rel: "icon",
+        url: "/pi/logo-dz-labomarket.png",
+        type: "image/png",
+        sizes: "500x500",
+      },
+    ],
   },
+  manifest: "/site.webmanifest",
   formatDetection: {
     email: false,
     address: false,
