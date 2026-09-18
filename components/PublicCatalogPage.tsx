@@ -109,8 +109,10 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const loadCategories = async () => {
       const result = await getPublicCategories();
+      if (cancelled) return;
       if (result.success && result.data) {
         setDbCategories(
           (result.data.categories || []).filter(
@@ -120,6 +122,9 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       }
     };
     void loadCategories();
+    return () => {
+      cancelled = true;
+    };
   }, [meta.categoryType]);
 
   useEffect(() => {

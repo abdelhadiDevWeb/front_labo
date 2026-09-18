@@ -1209,28 +1209,30 @@ export interface SponsoredPublicProduct extends PublicProduct {
 export const getSponsoredProducts = async (): Promise<
   ApiResponse<{ products: SponsoredPublicProduct[] }>
 > => {
-  try {
-    const response = await apiFetch(`${getApiBaseUrl()}/sponsored-products`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    });
+  return withCatalogRetry(async () => {
+    try {
+      const response = await apiFetch(`${getApiBaseUrl()}/sponsored-products`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || `Failed to fetch sponsored products (${response.status})`,
+        };
+      }
+
+      return await parseResponseJson(response);
+    } catch (error: any) {
       return {
         success: false,
-        message: errorData.message || `Failed to fetch sponsored products (${response.status})`,
+        message: error.message || "Network error. Please check your connection.",
       };
     }
-
-    return await response.json();
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error.message || "Network error. Please check your connection.",
-    };
-  }
+  });
 };
 
 export interface PublicPromotion {
@@ -1258,28 +1260,30 @@ export interface PublicPromotion {
 export const getPublicPromotions = async (): Promise<
   ApiResponse<{ promotions: PublicPromotion[] }>
 > => {
-  try {
-    const response = await apiFetch(`${getApiBaseUrl()}/public-promotions`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
-    });
+  return withCatalogRetry(async () => {
+    try {
+      const response = await apiFetch(`${getApiBaseUrl()}/public-promotions`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || `Failed to fetch promotions (${response.status})`,
+        };
+      }
+
+      return await parseResponseJson(response);
+    } catch (error: any) {
       return {
         success: false,
-        message: errorData.message || `Failed to fetch promotions (${response.status})`,
+        message: error.message || "Network error. Please check your connection.",
       };
     }
-
-    return await response.json();
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error.message || "Network error. Please check your connection.",
-    };
-  }
+  });
 };
 
 export interface GroupSelleProductInfo {
@@ -4178,39 +4182,43 @@ export interface UpdateSousCategoryData {
 }
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
-  try {
-    const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+  return withCatalogRetry(async () => {
+    try {
+      const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { success: false, message: errorData.message || "Failed to fetch categories" };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, message: errorData.message || "Failed to fetch categories" };
+      }
+
+      return await parseResponseJson(response);
+    } catch (error: any) {
+      return { success: false, message: error.message || "Network error. Please check your connection." };
     }
-
-    return await response.json();
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error. Please check your connection." };
-  }
+  }, 4);
 };
 
 export const getPublicCategoryById = async (categoryId: string): Promise<ApiResponse<Category>> => {
-  try {
-    const response = await apiFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+  return withCatalogRetry(async () => {
+    try {
+      const response = await apiFetch(`${getApiBaseUrl()}/categories/public/${categoryId}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { success: false, message: errorData.message || "Failed to fetch category" };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, message: errorData.message || "Failed to fetch category" };
+      }
+
+      return await parseResponseJson(response);
+    } catch (error: any) {
+      return { success: false, message: error.message || "Network error. Please check your connection." };
     }
-
-    return await response.json();
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error. Please check your connection." };
-  }
+  });
 };
 
 export const getAllCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {

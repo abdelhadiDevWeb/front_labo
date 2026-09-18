@@ -316,26 +316,37 @@ export default function HomePage() {
     isAuthReady,
   ]);
 
-  // Fetch categories from API
+  // Fetch categories after auth probe (avoids cold-start race on first visit)
   useEffect(() => {
+    if (!isAuthReady) {
+      setIsLoadingCategories(true);
+      return;
+    }
+
+    let cancelled = false;
+
     const loadCategories = async () => {
       try {
         setIsLoadingCategories(true);
         const result = await getPublicCategories();
+        if (cancelled) return;
         if (result.success && result.data) {
           setCategories(result.data.categories || []);
         } else {
           setCategories([]);
         }
       } catch {
-        setCategories([]);
+        if (!cancelled) setCategories([]);
       } finally {
-        setIsLoadingCategories(false);
+        if (!cancelled) setIsLoadingCategories(false);
       }
     };
 
-    loadCategories();
-  }, []);
+    void loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady]);
 
   // Request notification permission on mount
   useEffect(() => {

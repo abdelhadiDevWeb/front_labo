@@ -21,17 +21,22 @@ export default function SponsoredProductsCarousel() {
   const [randomDelay] = useState(() => -(Math.random() * 20 + 5));
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         const result = await getSponsoredProducts();
+        if (cancelled) return;
         if (result.success && result.data?.products?.length) {
           setProducts(shuffleArray(result.data.products));
         }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
     void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const shouldScroll = products.length > 4;

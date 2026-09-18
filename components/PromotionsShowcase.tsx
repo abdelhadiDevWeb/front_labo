@@ -11,17 +11,22 @@ export default function PromotionsShowcase() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         const result = await getPublicPromotions();
+        if (cancelled) return;
         if (result.success && result.data?.promotions?.length) {
           setPromotions(result.data.promotions);
         }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
     void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (isLoading || promotions.length === 0) {
