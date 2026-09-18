@@ -221,13 +221,50 @@ export default function DashboardLayout({
     };
   }, [isAuthenticated, userRole, loadPendingUsersCount]);
 
-  // Socket.io — problems + new user notifications (dashboard web + mobile_app WebView)
+  // Socket.io + polling fallback — realtime admin notifications
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    let cancelled = false;
+
+    const refreshAll = async () => {
+      await loadAdminNotifications();
+      if (!isSouAdminRole(userRole)) {
+        await loadPendingUsersCount();
+      }
+    };
+
+    // Polling fallback: Hostinger / Next rewrites often drop WebSocket upgrades,
+    // so sockets can fail silently while HTTP API still works.
+    const pollId = window.setInterval(() => {
+      if (!cancelled && document.visibilityState === "visible") {
+        void refreshAll();
+      }
+    }, 12_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    // Prefer polling first — more reliable through reverse proxies than websocket-first
     const socket = socketIO(getBaseUrl(), {
       withCredentials: true,
-      transports: ["websocket", "polling"],
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+    });
+
+    socket.on("connect", () => {
+      // Connected to admin room (server-assigned)
+      void refreshAll();
+    });
+
+    socket.on("connect_error", () => {
+      // Keep polling; do not leave the UI stuck without updates
     });
 
     socket.on("newProblem", async (data: { email?: string }) => {
@@ -249,19 +286,17 @@ export default function DashboardLayout({
       }
     });
 
+    // Badge + notification list (older clients may only emit this event)
     socket.on("pendingUserActivity", async () => {
-      if (!isSouAdminRole(userRole)) {
-        await loadPendingUsersCount();
-      }
+      await refreshAll();
     });
 
     socket.on(
       "newAdminNotification",
       async (data: { title?: string; message?: string }) => {
-        await loadAdminNotifications();
-        if (!isSouAdminRole(userRole)) {
-          await loadPendingUsersCount();
-        }
+        // Optimistic badge bump, then reload from DB (same pattern as supplier newOrder)
+        setUnreadNotificationsCount((c) => c + 1);
+        await refreshAll();
 
         if ("Notification" in window && Notification.permission === "granted") {
           new window.Notification(data.title || "Nouvel utilisateur", {
@@ -273,6 +308,10 @@ export default function DashboardLayout({
     );
 
     return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+      document.removeEventListener("visibilitychange", onVisible);
+      socket.removeAllListeners();
       socket.disconnect();
     };
   }, [isAuthenticated, userRole, loadPendingUsersCount, loadAdminNotifications]);
