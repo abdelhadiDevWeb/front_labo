@@ -123,12 +123,16 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   }, [meta.categoryType]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      // Wait for location — keep loading, never fetch without wilaya
-      if (requiresWilayaForCatalog && !hasWilaya) {
+      if (
+        requiresWilayaForCatalog &&
+        (!hasWilaya || locationStatus !== "granted")
+      ) {
         setIsLoading(true);
         setItems([]);
         setError(null);
@@ -147,6 +151,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           kind === "machine"
             ? await getPublicMachines(filters)
             : await getPublicServices(filters);
+        if (cancelled) return;
         if (result.success && result.data) {
           setItems(
             kind === "machine"
@@ -158,15 +163,19 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           setItems([]);
         }
       } catch {
+        if (cancelled) return;
         setError("Une erreur est survenue");
         setItems([]);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     void load();
-  }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya]);
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),

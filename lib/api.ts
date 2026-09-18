@@ -19,6 +19,21 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   devLog("API Base URL:", getApiBaseUrl());
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Retry transient catalog failures (cold start / 502 / 429) — common on first page load. */
+const withCatalogRetry = async <T extends { success: boolean }>(
+  run: () => Promise<T>,
+  attempts = 3
+): Promise<T> => {
+  let last = await run();
+  for (let i = 1; i < attempts && !last.success; i++) {
+    await sleep(400 * i);
+    last = await run();
+  }
+  return last;
+};
+
 const AUTH_SKIP_REFRESH_PATHS = [
   "/client/refresh-token",
   "/client/logout",
@@ -1473,33 +1488,35 @@ export const getPublicMachines = async (filters?: {
     limit?: number;
   }>
 > => {
-  try {
-    const params = new URLSearchParams();
-    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
-    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
-    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
-    if (filters?.limit != null) params.append("limit", String(filters.limit));
-    if (filters?.cursor) params.append("cursor", filters.cursor);
-    const query = params.toString() ? `?${params.toString()}` : "";
-    const response = await apiFetch(`${getApiBaseUrl()}/machines/public${query}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  return withCatalogRetry(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+      if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+      if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+      if (filters?.limit != null) params.append("limit", String(filters.limit));
+      if (filters?.cursor) params.append("cursor", filters.cursor);
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const response = await apiFetch(`${getApiBaseUrl()}/machines/public${query}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || "Failed to fetch machines",
+        };
+      }
+      return await parseResponseJson(response);
+    } catch (error) {
+      devError("Get public machines error:", error);
       return {
         success: false,
-        message: errorData.message || "Failed to fetch machines",
+        message: "Network error. Please check your connection.",
       };
     }
-    return await response.json();
-  } catch (error) {
-    devError("Get public machines error:", error);
-    return {
-      success: false,
-      message: "Network error. Please check your connection.",
-    };
-  }
+  });
 };
 
 export const getPublicServices = async (filters?: {
@@ -1518,33 +1535,35 @@ export const getPublicServices = async (filters?: {
     limit?: number;
   }>
 > => {
-  try {
-    const params = new URLSearchParams();
-    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
-    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
-    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
-    if (filters?.limit != null) params.append("limit", String(filters.limit));
-    if (filters?.cursor) params.append("cursor", filters.cursor);
-    const query = params.toString() ? `?${params.toString()}` : "";
-    const response = await apiFetch(`${getApiBaseUrl()}/services/public${query}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  return withCatalogRetry(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+      if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+      if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+      if (filters?.limit != null) params.append("limit", String(filters.limit));
+      if (filters?.cursor) params.append("cursor", filters.cursor);
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const response = await apiFetch(`${getApiBaseUrl()}/services/public${query}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || "Failed to fetch services",
+        };
+      }
+      return await parseResponseJson(response);
+    } catch (error) {
+      devError("Get public services error:", error);
       return {
         success: false,
-        message: errorData.message || "Failed to fetch services",
+        message: "Network error. Please check your connection.",
       };
     }
-    return await response.json();
-  } catch (error) {
-    devError("Get public services error:", error);
-    return {
-      success: false,
-      message: "Network error. Please check your connection.",
-    };
-  }
+  });
 };
 
 export const getPublicMachineById = async (
@@ -1614,39 +1633,40 @@ export const getAllProducts = async (filters?: {
     limit?: number;
   }>
 > => {
-  try {
-const params = new URLSearchParams();
-    if (filters?.categoryId) params.append("categoryId", filters.categoryId);
-    if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
-    if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
-    if (filters?.limit != null) params.append("limit", String(filters.limit));
-    if (filters?.cursor) params.append("cursor", filters.cursor);
-    const query = params.toString() ? `?${params.toString()}` : "";
-    
-    const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  return withCatalogRetry(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.categoryId) params.append("categoryId", filters.categoryId);
+      if (filters?.sousCategoryId) params.append("sousCategoryId", filters.sousCategoryId);
+      if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
+      if (filters?.limit != null) params.append("limit", String(filters.limit));
+      if (filters?.cursor) params.append("cursor", filters.cursor);
+      const query = params.toString() ? `?${params.toString()}` : "";
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          message: errorData.message || "Failed to fetch products",
+        };
+      }
+
+      return await parseResponseJson(response);
+    } catch (error) {
+      devError("Get all products error:", error);
       return {
         success: false,
-        message: errorData.message || "Failed to fetch products",
+        message: "Network error. Please check your connection.",
       };
     }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    devError("Get all products error:", error);
-    return {
-      success: false,
-      message: "Network error. Please check your connection.",
-    };
-  }
+  });
 };
 
 // Get product by ID (public - for clients)

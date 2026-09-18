@@ -55,6 +55,7 @@ import {
 } from "@/lib/unique-data-display";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
+import { toUserFacingError } from "@/lib/sanitize-error";
 
 const SponsoredProductsCarousel = dynamic(
   () => import("@/components/SponsoredProductsCarousel"),
@@ -212,14 +213,16 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Wait for wilaya before fetching — keep loading until location is available
+  // Wait for wilaya before fetching — keep loading until location is available.
+  // Ignore stale responses when effect re-runs (common cause of first-load errors).
   useEffect(() => {
+    let cancelled = false;
+
     const loadCatalog = async () => {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      if (requiresWilayaForCatalog && !hasWilaya) {
-        // Do not skip location: stay in loading until wilaya is resolved
+      if (requiresWilayaForCatalog && (!hasWilaya || locationStatus !== "granted")) {
         setIsLoadingProducts(true);
         setIsLoadingMachines(true);
         setIsLoadingServices(true);
@@ -227,6 +230,14 @@ export default function HomePage() {
         setMachines([]);
         setServices([]);
         setProductsError(null);
+        return;
+      }
+
+      // Wait for auth probe so we don't race the first cold API calls
+      if (!isAuthReady) {
+        setIsLoadingProducts(true);
+        setIsLoadingMachines(true);
+        setIsLoadingServices(true);
         return;
       }
 
@@ -251,12 +262,20 @@ export default function HomePage() {
           getPublicServices(filters),
         ]);
 
+        if (cancelled) return;
+
         if (productsRes.success && productsRes.data?.products) {
           const inStock = productsRes.data.products.filter((p) => p.quantity > 0);
           const outOfStock = productsRes.data.products.filter((p) => p.quantity === 0);
           setProducts([...inStock, ...outOfStock]);
+          setProductsError(null);
         } else {
-          setProductsError(productsRes.message || "Aucun produit trouvé");
+          setProductsError(
+            toUserFacingError(
+              productsRes.message,
+              "Erreur lors du chargement des produits"
+            )
+          );
           setProducts([]);
         }
 
@@ -272,19 +291,30 @@ export default function HomePage() {
           setServices([]);
         }
       } catch {
+        if (cancelled) return;
         setProductsError("Erreur lors du chargement des produits");
         setProducts([]);
         setMachines([]);
         setServices([]);
       } finally {
-        setIsLoadingProducts(false);
-        setIsLoadingMachines(false);
-        setIsLoadingServices(false);
+        if (!cancelled) {
+          setIsLoadingProducts(false);
+          setIsLoadingMachines(false);
+          setIsLoadingServices(false);
+        }
       }
     };
 
     void loadCatalog();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    requiresWilayaForCatalog,
+    userLocation?.wilaya,
+    locationStatus,
+    isAuthReady,
+  ]);
 
   // Fetch categories from API
   useEffect(() => {

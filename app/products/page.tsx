@@ -98,12 +98,16 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadProducts = async () => {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      // Wait for location — keep loading, never fetch without wilaya
-      if (requiresWilayaForCatalog && !hasWilaya) {
+      if (
+        requiresWilayaForCatalog &&
+        (!hasWilaya || locationStatus !== "granted")
+      ) {
         setIsLoading(true);
         setProducts([]);
         setError(null);
@@ -122,20 +126,25 @@ export default function ProductsPage() {
               : {}),
           limit: 48,
         });
+        if (cancelled) return;
         if (result.success && result.data) {
           setProducts(result.data.products || []);
         } else {
           setError(result.message || "Erreur lors du chargement des produits");
         }
       } catch {
+        if (cancelled) return;
         setError("Une erreur est survenue");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    loadProducts();
-  }, [requiresWilayaForCatalog, userLocation?.wilaya]);
+    void loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
