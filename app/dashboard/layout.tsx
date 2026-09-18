@@ -22,7 +22,7 @@ import {
   FolderTree,
   Megaphone,
 } from "lucide-react";
-import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
+import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
 import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { isPathAllowedForSouAdmin, isSouAdminRole, SOU_ADMIN_MENU_HREFS } from "@/lib/admin-access";
@@ -55,6 +55,9 @@ export default function DashboardLayout({
   const [problems, setProblems] = useState<Problem[]>([]);
   const [showProblemsDropdown, setShowProblemsDropdown] = useState(false);
   const [unreadProblemsCount, setUnreadProblemsCount] = useState(0);
+  const [adminNotifications, setAdminNotifications] = useState<NotificationData[]>([]);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
@@ -142,6 +145,19 @@ export default function DashboardLayout({
     }
   }, []);
 
+  const loadAdminNotifications = useCallback(async () => {
+    try {
+      const result = await getNotifications(true);
+      if (result.success && result.data) {
+        const unread = (result.data.notifications || []).filter((n) => !n.isRead);
+        setAdminNotifications(unread);
+        setUnreadNotificationsCount(result.data.unreadCount ?? unread.length);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Load problems on mount (full admin only — sou-admin has no problems access)
   useEffect(() => {
     if (!isAuthenticated || isSouAdminRole(userRole)) return;
@@ -161,6 +177,12 @@ export default function DashboardLayout({
 
     loadProblems();
   }, [isAuthenticated, userRole]);
+
+  // In-app notifications (new users, etc.) — web dashboard + mobile WebView
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void loadAdminNotifications();
+  }, [isAuthenticated, loadAdminNotifications]);
 
   // Register FCM token for admin push (mobile WebView)
   useEffect(() => {
@@ -199,59 +221,61 @@ export default function DashboardLayout({
     };
   }, [isAuthenticated, userRole, loadPendingUsersCount]);
 
-  // Socket.io connection for real-time problem notifications (full admin only)
+  // Socket.io — problems + new user notifications (dashboard web + mobile_app WebView)
   useEffect(() => {
-    if (!isAuthenticated || isSouAdminRole(userRole)) return;
+    if (!isAuthenticated) return;
 
     const socket = socketIO(getBaseUrl(), {
       withCredentials: true,
       transports: ["websocket", "polling"],
     });
 
-    socket.on("connect", () => {
-      // Socket connected
-    });
-
-    socket.on("newProblem", async (data: {
-      problemId: string;
-      email: string;
-      phone: string;
-      message: string;
-      createdAt: string;
-    }) => {
-      // Reload problems from database
+    socket.on("newProblem", async (data: { email?: string }) => {
+      if (isSouAdminRole(userRole)) return;
       try {
         const result = await getAllProblems();
         if (result.success && result.data) {
           setProblems(result.data);
-          const unreadCount = result.data.filter((p) => !p.is_read).length;
-          setUnreadProblemsCount(unreadCount);
+          setUnreadProblemsCount(result.data.filter((p) => !p.is_read).length);
         }
-      } catch (error) {
-        // Silent error handling
+      } catch {
+        // ignore
       }
-
-      // Show browser notification if permission granted
       if ("Notification" in window && Notification.permission === "granted") {
         new window.Notification("Nouveau message de support", {
-          body: `Nouveau message de ${data.email}`,
+          body: `Nouveau message de ${data.email || "un utilisateur"}`,
           icon: "/favicon.ico",
         });
       }
     });
 
     socket.on("pendingUserActivity", async () => {
-      await loadPendingUsersCount();
+      if (!isSouAdminRole(userRole)) {
+        await loadPendingUsersCount();
+      }
     });
 
-    socket.on("disconnect", () => {
-      // Socket disconnected
-    });
+    socket.on(
+      "newAdminNotification",
+      async (data: { title?: string; message?: string }) => {
+        await loadAdminNotifications();
+        if (!isSouAdminRole(userRole)) {
+          await loadPendingUsersCount();
+        }
+
+        if ("Notification" in window && Notification.permission === "granted") {
+          new window.Notification(data.title || "Nouvel utilisateur", {
+            body: data.message || "Un nouvel utilisateur attend une activation.",
+            icon: "/favicon.ico",
+          });
+        }
+      }
+    );
 
     return () => {
       socket.disconnect();
     };
-  }, [isAuthenticated, userRole, loadPendingUsersCount]);
+  }, [isAuthenticated, userRole, loadPendingUsersCount, loadAdminNotifications]);
 
   const getImageUrl = (imagePath: string | null) => {
     if (!imagePath) return null;
@@ -364,6 +388,111 @@ export default function DashboardLayout({
                 {visibleMenuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
               </h1>
               <div className="flex items-center gap-4">
+                {/* App notifications (new users, etc.) — same as supplier bell */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNotificationsDropdown(!showNotificationsDropdown);
+                      setShowProblemsDropdown(false);
+                    }}
+                    className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                    aria-label="Notifications"
+                  >
+                    <Users className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                      </span>
+                    )}
+                  </button>
+                  {showNotificationsDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowNotificationsDropdown(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-72 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                              <Bell className="w-5 h-5 text-indigo-600" />
+                              Notifications
+                            </h3>
+                            {!isSouAdminRole(userRole) && (
+                              <Link
+                                href="/dashboard/subscriptions"
+                                onClick={() => setShowNotificationsDropdown(false)}
+                                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                              >
+                                Abonnements
+                              </Link>
+                            )}
+                          </div>
+                          {unreadNotificationsCount > 0 && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {unreadNotificationsCount} non lu
+                              {unreadNotificationsCount > 1 ? "s" : ""}
+                            </p>
+                          )}
+                        </div>
+                        <div className="overflow-y-auto flex-1">
+                          {adminNotifications.length === 0 ? (
+                            <div className="p-6 text-center">
+                              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                              <p className="text-gray-500 text-sm">Aucune nouvelle notification</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-200">
+                              {adminNotifications.slice(0, 8).map((notification) => (
+                                <button
+                                  key={notification._id}
+                                  type="button"
+                                  className="w-full text-left block p-4 hover:bg-gray-50 transition-colors"
+                                  onClick={async () => {
+                                    try {
+                                      await markNotificationAsRead(notification._id);
+                                      await loadAdminNotifications();
+                                    } catch {
+                                      // ignore
+                                    }
+                                    setShowNotificationsDropdown(false);
+                                    if (!isSouAdminRole(userRole)) {
+                                      router.push("/dashboard/subscriptions");
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-indigo-100 rounded-lg flex-shrink-0">
+                                      <Users className="w-4 h-4 text-indigo-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        Nouvel utilisateur
+                                      </p>
+                                      <p className="text-xs text-gray-600 line-clamp-3">
+                                        {notification.message}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        {new Date(notification.createdAt).toLocaleDateString("fr-FR", {
+                                          day: "2-digit",
+                                          month: "short",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 {/* Problems Notifications — full admin only */}
                 {!isSouAdminRole(userRole) && (
                 <div className="relative">
