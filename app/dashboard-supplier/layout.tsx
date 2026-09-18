@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { getSessionRole, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, apiFetch } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
+import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
@@ -115,6 +116,12 @@ export default function SupplierDashboardLayout({
       Notification.requestPermission();
     }
   }, []);
+
+  // Save FCM token from React Native WebView (Android / iOS push)
+  useEffect(() => {
+    if (!isAuthenticated || userRole !== "supplier") return;
+    return setupNativeFcmBridge({ enabled: true });
+  }, [isAuthenticated, userRole]);
 
   // Fetch notifications from database on load (only unread for supplier)
   useEffect(() => {

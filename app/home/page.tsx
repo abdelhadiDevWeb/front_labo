@@ -40,9 +40,9 @@ import {
   HomeDesktopNavMenus,
   HomeMobileNavMenus,
 } from "@/components/HomeNavMenus";
-import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, saveFcmToken, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
-import { getReactNativeWebView, isAllowedPostMessageOrigin, postMessageToNative } from "@/lib/security";
+import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
+import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { useCart } from "@/contexts/CartContext";
 import dynamic from "next/dynamic";
 import { getBaseUrl } from "@/lib/api-config";
@@ -355,79 +355,19 @@ export default function HomePage() {
     }
   }, []);
 
-  // Load notifications for clients
+  // Load notifications for clients + register FCM token (mobile WebView)
   useEffect(() => {
     if (!(isAuthenticated && isClientUser)) return;
 
     loadNotifications();
     const cleanupSocket = setupSocketConnection();
-    const cleanupFcm = setupFcmTokenListener();
+    const cleanupFcm = setupNativeFcmBridge({ enabled: true });
 
     return () => {
       cleanupSocket?.();
       cleanupFcm?.();
     };
   }, [isAuthenticated, isClientUser]);
-
-  // Listen for FCM token from React Native WebView (mobile app)
-  const setupFcmTokenListener = () => {
-    if (typeof window !== "undefined" && getReactNativeWebView()) {
-      const requestFcmToken = () => {
-        if (isAuthenticated && isClientUser) {
-          postMessageToNative({ type: "REQUEST_FCM_TOKEN" });
-        }
-      };
-      
-      // Request token immediately if user is already logged in
-      requestFcmToken();
-      
-      // Request token periodically (every 5 minutes) to ensure it's always up to date
-      // Reduced frequency to minimize backend requests
-      const tokenRequestInterval = setInterval(() => {
-        if (isAuthenticated && isClientUser) {
-          requestFcmToken();
-        }
-      }, 300000); // Every 5 minutes instead of 30 seconds
-      
-      // Listen for messages from React Native
-      window.addEventListener("message", async (event) => {
-        if (!isAllowedPostMessageOrigin(event.origin)) return;
-        try {
-          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-
-          if (message.type === "FCM_TOKEN" && message.token && isAuthenticated && isClientUser) {
-            await saveFcmToken(message.token);
-            clearInterval(tokenRequestInterval);
-          }
-        } catch {
-          // Silent error handling
-        }
-      });
-
-      const handlePostMessage = async (event: MessageEvent) => {
-        if (!isAllowedPostMessageOrigin(event.origin)) return;
-        try {
-          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-
-          if (message.type === "FCM_TOKEN" && message.token && isAuthenticated && isClientUser) {
-            await saveFcmToken(message.token);
-          }
-        } catch {
-          // Silent error handling
-        }
-      };
-
-      window.addEventListener("message", handlePostMessage);
-      
-      return () => {
-        window.removeEventListener("message", handlePostMessage);
-        // Cleanup interval if component unmounts
-        if (tokenRequestInterval) {
-          clearInterval(tokenRequestInterval);
-        }
-      };
-    }
-  };
 
   const loadNotifications = async () => {
     try {

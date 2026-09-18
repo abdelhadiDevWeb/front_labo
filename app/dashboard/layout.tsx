@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
+import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { isPathAllowedForSouAdmin, isSouAdminRole, SOU_ADMIN_MENU_HREFS } from "@/lib/admin-access";
 import { io as socketIO } from "socket.io-client";
 import { getBaseUrl } from "@/lib/api-config";
@@ -159,6 +160,14 @@ export default function DashboardLayout({
     };
 
     loadProblems();
+  }, [isAuthenticated, userRole]);
+
+  // Register FCM token for admin push (mobile WebView)
+  useEffect(() => {
+    if (!isAuthenticated || (userRole !== "admin" && userRole !== "sou-admin")) {
+      return;
+    }
+    return setupNativeFcmBridge({ enabled: true });
   }, [isAuthenticated, userRole]);
 
   // Load pending users count (full admin only)
