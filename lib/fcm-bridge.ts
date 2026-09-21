@@ -38,27 +38,34 @@ export function setupNativeFcmBridge(options?: {
     }
   };
 
-  const onMessage = async (event: MessageEvent) => {
-    if (!isAllowedPostMessageOrigin(event.origin)) return;
-    try {
-      const message =
-        typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-      if (message?.type === "FCM_TOKEN" && typeof message.token === "string") {
-        await handleToken(message.token);
+  const onMessage = (event: Event) => {
+    const messageEvent = event as MessageEvent;
+    const origin =
+      typeof messageEvent.origin === "string" ? messageEvent.origin : "";
+    if (!isAllowedPostMessageOrigin(origin)) return;
+
+    void (async () => {
+      try {
+        const raw = messageEvent.data;
+        const message = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (message?.type === "FCM_TOKEN" && typeof message.token === "string") {
+          await handleToken(message.token);
+        }
+      } catch {
+        // ignore malformed messages
       }
-    } catch {
-      // ignore malformed messages
-    }
+    })();
   };
 
   requestFcmToken();
   const interval = window.setInterval(requestFcmToken, 300_000);
   window.addEventListener("message", onMessage);
-  document.addEventListener("message", onMessage as EventListener);
+  // React Native WebView may dispatch on document as well as window
+  document.addEventListener("message", onMessage);
 
   return () => {
     window.clearInterval(interval);
     window.removeEventListener("message", onMessage);
-    document.removeEventListener("message", onMessage as EventListener);
+    document.removeEventListener("message", onMessage);
   };
 }
