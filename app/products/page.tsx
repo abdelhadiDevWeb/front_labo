@@ -104,26 +104,23 @@ export default function ProductsPage() {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      if (
-        requiresWilayaForCatalog &&
-        (!hasWilaya || locationStatus !== "granted")
-      ) {
-        setIsLoading(true);
-        setProducts([]);
-        setError(null);
-        return;
-      }
-
       try {
         setIsLoading(true);
         setError(null);
 
+        const canFilterByWilaya =
+          requiresWilayaForCatalog &&
+          locationStatus === "granted" &&
+          hasWilaya;
+
         const result = await getAllProducts({
-          ...(wilayaCode
-            ? { wilayaCode }
-            : userLocation?.wilaya
-              ? { wilayaCode: userLocation.wilaya }
-              : {}),
+          ...(canFilterByWilaya
+            ? wilayaCode
+              ? { wilayaCode }
+              : userLocation?.wilaya
+                ? { wilayaCode: userLocation.wilaya }
+                : {}
+            : {}),
           limit: 48,
         });
         if (cancelled) return;

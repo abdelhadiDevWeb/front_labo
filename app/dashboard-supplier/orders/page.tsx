@@ -330,6 +330,21 @@ export default function SupplierOrdersPage() {
         alert(result.message || "Action impossible");
         return;
       }
+      if (
+        action === "accept" &&
+        Array.isArray(result.lowStockAlerts) &&
+        result.lowStockAlerts.length > 0
+      ) {
+        const lines = result.lowStockAlerts
+          .map(
+            (a: { name: string; remaining: number }) =>
+              `« ${a.name} » : ${a.remaining} restant(s)`
+          )
+          .join("\n");
+        alert(
+          `Réserve acceptée.\n\nAlerte stock bas (≤ 20%) :\n${lines}\n\nPensez à réapprovisionner.`
+        );
+      }
       await loadOrders();
     } catch {
       alert("Une erreur est survenue");

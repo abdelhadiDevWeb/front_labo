@@ -21,6 +21,25 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const isAbortError = (err: unknown): boolean =>
+  (typeof DOMException !== "undefined" &&
+    err instanceof DOMException &&
+    err.name === "AbortError") ||
+  (err instanceof Error && err.name === "AbortError");
+
+/** Browser aborts / offline / hard navigation mid-request */
+const isTransientNetworkError = (err: unknown): boolean => {
+  if (isAbortError(err)) return true;
+  if (!(err instanceof TypeError)) return false;
+  const msg = err.message || "";
+  return (
+    msg === "Failed to fetch" ||
+    msg.includes("NetworkError") ||
+    msg === "Load failed" ||
+    msg.includes("network")
+  );
+};
+
 /** Retry transient catalog failures (cold start / 502 / 429) — common on first page load. */
 const withCatalogRetry = async <T extends { success: boolean }>(
   run: () => Promise<T>,
@@ -28,6 +47,13 @@ const withCatalogRetry = async <T extends { success: boolean }>(
 ): Promise<T> => {
   let last = await run();
   for (let i = 1; i < attempts && !last.success; i++) {
+    // Do not hammer retries during page unload / abort
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+    ) {
+      break;
+    }
     await sleep(400 * i);
     last = await run();
   }
@@ -104,12 +130,26 @@ export const apiFetch = async (
 ): Promise<Response> => {
   const method = (init?.method || "GET").toUpperCase();
   const needsCsrf = !["GET", "HEAD", "OPTIONS"].includes(method);
+  const isSafeRead = method === "GET" || method === "HEAD";
 
-  const response = await fetch(input, {
-    ...init,
-    credentials: "include",
-    headers: needsCsrf ? withCsrfHeaders(init?.headers) : init?.headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      credentials: "include",
+      headers: needsCsrf ? withCsrfHeaders(init?.headers) : init?.headers,
+    });
+  } catch (err) {
+    // Page unload / HMR / backend bounce — one short retry for safe reads only
+    if (isSafeRead && !isRetry && isTransientNetworkError(err) && !isAbortError(err)) {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        throw err;
+      }
+      await sleep(350);
+      return apiFetch(input, init, true);
+    }
+    throw err;
+  }
 
   if (response.status !== 401 || typeof window === "undefined") {
     return response;
@@ -602,10 +642,17 @@ export const loginClient = async (
 
     if (!response.ok) {
       markSessionInactive();
+      const rawMessage = result.message || `Login failed (${response.status})`;
+      const message =
+        rawMessage === "Invalid email or password"
+          ? "Email ou mot de passe incorrect"
+          : rawMessage === "Validation error"
+            ? "Veuillez vérifier votre email et mot de passe"
+            : rawMessage;
       return {
         success: false,
-        message: result.message || `Login failed (${response.status})`,
-        errors: result.errors || [result.message || "Unknown error"],
+        message,
+        errors: result.errors || [message],
         data: result.data,
       };
     }
@@ -1514,7 +1561,16 @@ export const getPublicMachines = async (filters?: {
       }
       return await parseResponseJson(response);
     } catch (error) {
-      devError("Get public machines error:", error);
+      if (!isAbortError(error)) {
+        devWarn(
+          "Get public machines:",
+          isTransientNetworkError(error)
+            ? "network unavailable (will retry or show empty)"
+            : error instanceof Error
+              ? error.message
+              : error
+        );
+      }
       return {
         success: false,
         message: "Network error. Please check your connection.",
@@ -1561,7 +1617,16 @@ export const getPublicServices = async (filters?: {
       }
       return await parseResponseJson(response);
     } catch (error) {
-      devError("Get public services error:", error);
+      if (!isAbortError(error)) {
+        devWarn(
+          "Get public services:",
+          isTransientNetworkError(error)
+            ? "network unavailable (will retry or show empty)"
+            : error instanceof Error
+              ? error.message
+              : error
+        );
+      }
       return {
         success: false,
         message: "Network error. Please check your connection.",
@@ -1664,7 +1729,16 @@ export const getAllProducts = async (filters?: {
 
       return await parseResponseJson(response);
     } catch (error) {
-      devError("Get all products error:", error);
+      if (!isAbortError(error)) {
+        devWarn(
+          "Get all products:",
+          isTransientNetworkError(error)
+            ? "network unavailable (will retry or show empty)"
+            : error instanceof Error
+              ? error.message
+              : error
+        );
+      }
       return {
         success: false,
         message: "Network error. Please check your connection.",
@@ -2113,6 +2187,43 @@ const response = await apiFetch(`${getApiBaseUrl()}/admin/users/${userId}/certif
       return {
         success: false,
         message: errorData.message || `Failed to update certife (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Permanently delete a client or supplier (supplier cascade-deletes catalog items). */
+export const deleteAdminUser = async (
+  userId: string
+): Promise<
+  ApiResponse<{
+    id: string;
+    role: string;
+    deletedProducts: number;
+    deletedMachines: number;
+    deletedServices: number;
+    deletedGroupSelles: number;
+    deletedAbonnements?: number;
+  }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete user (${response.status})`,
       };
     }
 
@@ -2578,6 +2689,10 @@ export interface UpdateSubscriptionData {
   price?: number;
   start?: string;
   end?: string;
+  status?: boolean;
+  sponsorsPerMonth?: number;
+  sponsorsAllocated?: number;
+  sponsorDurationHours?: number;
 }
 
 // Get users with status false for subscriptions
@@ -2723,6 +2838,36 @@ const response = await apiFetch(`${getApiBaseUrl()}/admin/subscriptions/${subscr
     return result;
   } catch (error: any) {
     devError("Update subscription error:", error);
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Permanently delete one subscription (abonnement). */
+export const deleteSubscription = async (
+  subscriptionId: string
+): Promise<ApiResponse<{ id: string }>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/admin/subscriptions/${subscriptionId}`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete subscription (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",

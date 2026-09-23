@@ -1,15 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Users, Search, Phone, Filter, Loader2, Ban, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Tag, Plus } from "lucide-react";
-import { getAdminUsers, updateUserStatus, updateUserCertife, AdminUser, getSessionRole } from "@/lib/api";
+import {
+  Search,
+  Phone,
+  Loader2,
+  Ban,
+  CheckCircle,
+  Plus,
+  User,
+  Tag,
+  Trash2,
+  AlertTriangle,
+  X,
+} from "lucide-react";
+import {
+  getAdminUsers,
+  updateUserStatus,
+  updateUserCertife,
+  deleteAdminUser,
+  AdminUser,
+  getSessionRole,
+} from "@/lib/api";
 import { isSouAdminRole } from "@/lib/admin-access";
-
-const roleLabels: { [key: string]: string } = {
-  client: "Client",
-  supplier: "Fournisseur",
-};
 
 export default function UsersPage() {
   const router = useRouter();
@@ -18,13 +33,18 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [roleCounts, setRoleCounts] = useState<{ [key: string]: number }>({});
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [updatingCertife, setUpdatingCertife] = useState<string | null>(null);
   const [canMutateUsers, setCanMutateUsers] = useState(false);
   const [allowed, setAllowed] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     void getSessionRole().then((session) => {
@@ -38,7 +58,6 @@ export default function UsersPage() {
   }, [router]);
 
   useEffect(() => {
-    // Reset to page 1 when search changes
     setCurrentPage(1);
   }, [searchQuery]);
 
@@ -48,20 +67,16 @@ export default function UsersPage() {
       setIsLoading(true);
       setError(null);
       try {
-        // Load all users (no role filter)
         const result = await getAdminUsers({
           search: searchQuery || undefined,
           page: currentPage,
-          limit: 100, // Load more to show both sections
+          limit: 100,
           sortBy: "createdAt",
           sortOrder: "desc",
         });
 
         if (result.success && result.data) {
           setUsers(result.data.users);
-          setTotalPages(result.data.pagination.totalPages);
-          setTotalCount(result.data.pagination.totalCount);
-          setRoleCounts(result.data.filters.roleCounts);
         } else {
           setError(result.message || "Erreur lors du chargement des utilisateurs");
         }
@@ -73,7 +88,6 @@ export default function UsersPage() {
       }
     };
 
-    // Debounce search
     const timeoutId = setTimeout(() => {
       loadUsers();
     }, searchQuery ? 500 : 0);
@@ -99,7 +113,6 @@ export default function UsersPage() {
     try {
       const result = await updateUserStatus(userId, newStatus);
       if (result.success) {
-        // Update the user in the local state
         setUsers((prevUsers) =>
           prevUsers.map((user) => (user.id === userId ? { ...user, status: newStatus } : user))
         );
@@ -135,9 +148,77 @@ export default function UsersPage() {
     }
   };
 
+  const openDeleteModal = (user: AdminUser) => {
+    setDeleteError(null);
+    setUserToDelete(user);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setUserToDelete(null);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const result = await deleteAdminUser(userToDelete.id);
+      if (result.success) {
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        setUserToDelete(null);
+      } else {
+        setDeleteError(result.message || "Erreur lors de la suppression");
+      }
+    } catch {
+      setDeleteError("Une erreur est survenue lors de la suppression");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const renderActionButtons = (user: AdminUser) => {
+    if (!canMutateUsers) {
+      return <span className="text-xs text-gray-400">Lecture seule</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => handleToggleStatus(user.id, user.status)}
+          disabled={updatingStatus === user.id || isDeleting}
+          className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
+            user.status
+              ? "text-red-600 hover:text-red-900 hover:bg-red-50"
+              : "text-green-600 hover:text-green-900 hover:bg-green-50"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          title={user.status ? "Bloquer le compte" : "Débloquer le compte"}
+        >
+          {updatingStatus === user.id ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : user.status ? (
+            <Ban className="w-4 h-4" />
+          ) : (
+            <CheckCircle className="w-4 h-4" />
+          )}
+          <span>{user.status ? "Bloquer" : "Débloquer"}</span>
+        </button>
+        <button
+          onClick={() => openDeleteModal(user)}
+          disabled={isDeleting}
+          className="p-2 rounded-lg transition-all inline-flex items-center gap-1 text-red-700 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Supprimer définitivement"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>Supprimer</span>
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
@@ -149,7 +230,6 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {/* Search */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -163,7 +243,6 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Users Sections */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12 bg-white rounded-xl shadow-lg border border-gray-100">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -181,7 +260,6 @@ export default function UsersPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Clients Section */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-6 py-4 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -215,7 +293,7 @@ export default function UsersPage() {
                         Commandes
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date d'inscription
+                        Date d&apos;inscription
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -263,25 +341,7 @@ export default function UsersPage() {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => handleToggleStatus(user.id, user.status)}
-                              disabled={updatingStatus === user.id}
-                              className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
-                                user.status
-                                  ? "text-red-600 hover:text-red-900 hover:bg-red-50"
-                                  : "text-green-600 hover:text-green-900 hover:bg-green-50"
-                              } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              title={user.status ? "Bloquer le compte" : "Débloquer le compte"}
-                            >
-                              {updatingStatus === user.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : user.status ? (
-                                <Ban className="w-4 h-4" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                              <span>{user.status ? "Bloquer" : "Débloquer"}</span>
-                            </button>
+                            {renderActionButtons(user)}
                           </td>
                         </tr>
                       ))}
@@ -291,7 +351,6 @@ export default function UsersPage() {
             )}
           </div>
 
-          {/* Suppliers Section */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -325,7 +384,7 @@ export default function UsersPage() {
                         Commandes
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date d'inscription
+                        Date d&apos;inscription
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
@@ -369,23 +428,23 @@ export default function UsersPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {canMutateUsers ? (
-                            <button
-                              onClick={() => handleToggleCertife(user.id, !!user.certife)}
-                              disabled={updatingCertife === user.id}
-                              className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
-                                user.certife
-                                  ? "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
-                                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                              } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              title={user.certife ? "Retirer certifie" : "Marquer certifie"}
-                            >
-                              {updatingCertife === user.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                              <span>{user.certife ? "Certifie" : "Non certifie"}</span>
-                            </button>
+                              <button
+                                onClick={() => handleToggleCertife(user.id, !!user.certife)}
+                                disabled={updatingCertife === user.id}
+                                className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
+                                  user.certife
+                                    ? "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                title={user.certife ? "Retirer certifie" : "Marquer certifie"}
+                              >
+                                {updatingCertife === user.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                <span>{user.certife ? "Certifie" : "Non certifie"}</span>
+                              </button>
                             ) : (
                               <span className="text-sm text-gray-600">
                                 {user.certife ? "Certifie" : "Non certifie"}
@@ -399,29 +458,7 @@ export default function UsersPage() {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {canMutateUsers ? (
-                            <button
-                              onClick={() => handleToggleStatus(user.id, user.status)}
-                              disabled={updatingStatus === user.id}
-                              className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
-                                user.status
-                                  ? "text-red-600 hover:text-red-900 hover:bg-red-50"
-                                  : "text-green-600 hover:text-green-900 hover:bg-green-50"
-                              } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              title={user.status ? "Bloquer le compte" : "Débloquer le compte"}
-                            >
-                              {updatingStatus === user.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : user.status ? (
-                                <Ban className="w-4 h-4" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                              <span>{user.status ? "Bloquer" : "Débloquer"}</span>
-                            </button>
-                            ) : (
-                              <span className="text-xs text-gray-400">Lecture seule</span>
-                            )}
+                            {renderActionButtons(user)}
                           </td>
                         </tr>
                       ))}
@@ -432,7 +469,107 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
+      {mounted &&
+        userToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-user-title"
+              className="relative z-[10000] w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden"
+            >
+              <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 bg-red-50">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 id="delete-user-title" className="text-lg font-bold text-gray-900">
+                      Confirmer la suppression
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-0.5">
+                      {userToDelete.role === "supplier" ? "Fournisseur" : "Client"} :{" "}
+                      <span className="font-semibold text-gray-900">{userToDelete.name}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  disabled={isDeleting}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-white/80 hover:text-gray-800 disabled:opacity-50"
+                  aria-label="Fermer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-3 text-sm text-gray-700">
+                {userToDelete.role === "supplier" ? (
+                  <>
+                    <p>
+                      Vous êtes sur le point de <strong>supprimer définitivement</strong> ce
+                      fournisseur.
+                    </p>
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                      Tous les <strong>produits</strong> liés à cet fournisseur (ainsi que ses
+                      machines et services) et <strong>tous ses abonnements</strong> seront
+                      également <strong>supprimés</strong>. Cette action est irréversible.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Vous êtes sur le point de <strong>supprimer définitivement</strong> ce
+                      client.
+                    </p>
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                      Son compte, <strong>tous ses abonnements</strong> et ses données
+                      d&apos;accès seront effacés. Cette action est irréversible.
+                    </p>
+                  </>
+                )}
+                {deleteError && (
+                  <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                    {deleteError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  disabled={isDeleting}
+                  className="px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDeleteUser()}
+                  disabled={isDeleting}
+                  className="px-4 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Suppression…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Oui, supprimer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
-

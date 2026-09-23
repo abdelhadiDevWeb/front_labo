@@ -9,5 +9,10 @@ export const devWarn = (...args: unknown[]): void => {
 };
 
 export const devError = (...args: unknown[]): void => {
-  if (isDev) console.error(...args);
+  if (!isDev) return;
+  // Avoid console.error(Error) — Next.js overlays treat it as a page crash.
+  const safe = args.map((arg) =>
+    arg instanceof Error ? `${arg.name}: ${arg.message}` : arg
+  );
+  console.warn(...safe);
 };

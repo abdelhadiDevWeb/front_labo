@@ -217,6 +217,32 @@ export default function SupplierDashboardLayout({
       }
     });
 
+    socket.on("lowStockAlert", async (data: {
+      orderId: string;
+      productName: string;
+      remaining: number;
+      previous: number;
+      message: string;
+      notificationId?: string;
+    }) => {
+      try {
+        const result = await getNotifications(true);
+        if (result.success && result.data) {
+          const unreadNotifications = result.data.notifications.filter((n) => !n.isRead);
+          setNotifications(unreadNotifications);
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch {
+        // Silent
+      }
+      if ("Notification" in window && Notification.permission === "granted") {
+        new window.Notification("Alerte stock bas", {
+          body: data.message,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
     socket.on("paymentUploaded", async (data: {
       orderId: string;
       total: number;
@@ -566,7 +592,11 @@ export default function SupplierDashboardLayout({
                                   setUnreadCount((prev) => Math.max(0, prev - 1));
                                   void markNotificationAsRead(notification._id).catch(() => {});
                                 }
-                                router.push("/dashboard-supplier/orders");
+                                if (notification.type === "system") {
+                                  router.push("/dashboard-supplier/products");
+                                } else {
+                                  router.push("/dashboard-supplier/orders");
+                                }
                               }}
                             >
                               <div className="flex items-start gap-2 sm:gap-3">
@@ -575,17 +605,25 @@ export default function SupplierDashboardLayout({
                                     ? "bg-gradient-to-br from-green-600 to-emerald-600"
                                     : notification.type === "order_status"
                                     ? "bg-gradient-to-br from-blue-600 to-cyan-600"
+                                    : notification.type === "system"
+                                    ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                     : "bg-gradient-to-br from-gray-600 to-gray-700"
                                 }`}>
                                   {notification.type === "new_order" ? (
                                     <ShoppingCart className="w-5 h-5 text-white" />
+                                  ) : notification.type === "system" ? (
+                                    <Package className="w-5 h-5 text-white" />
                                   ) : (
                                     <Bell className="w-5 h-5 text-white" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
-                                    {notification.type === "new_order" ? "Nouvelle réserve" : "Mise à jour de réserve"}
+                                    {notification.type === "new_order"
+                                      ? "Nouvelle réserve"
+                                      : notification.type === "system"
+                                        ? "Alerte stock bas"
+                                        : "Mise à jour de réserve"}
                                   </p>
                                   <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
                                     {notification.message}

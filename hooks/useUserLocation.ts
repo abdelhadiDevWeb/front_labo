@@ -70,71 +70,82 @@ export function useUserLocation() {
 
   useEffect(() => {
     let cancelled = false;
+    const LOCATION_BUDGET_MS = 8000;
 
     const resolveLocation = async () => {
       setStatus("loading");
 
-      const authenticated = await checkAuthSession();
-      if (authenticated) {
-        try {
-          const profile = await getProfile();
-          if (!cancelled && profile.success && profile.data) {
-            const wilaya = profile.data.wilaya?.trim() || "";
-            const lat = profile.data.latitude;
-            const lng = profile.data.longitude;
-            const hasCoords =
-              lat != null &&
-              lng != null &&
-              Number(lat) !== 0 &&
-              Number(lng) !== 0;
+      const budget = window.setTimeout(() => {
+        if (!cancelled) {
+          // Don't leave the UI stuck on loading forever (geo permission prompt / hang)
+          setStatus((prev) => (prev === "loading" ? "prompt" : prev));
+        }
+      }, LOCATION_BUDGET_MS);
 
-            if (wilaya) {
-              setLocation({
-                latitude: hasCoords ? Number(lat) : 0,
-                longitude: hasCoords ? Number(lng) : 0,
-                wilaya,
-              });
-              setSource("profile");
-              setStatus("granted");
-              return;
-            }
+      try {
+        const authenticated = await checkAuthSession();
+        if (authenticated) {
+          try {
+            const profile = await getProfile();
+            if (!cancelled && profile.success && profile.data) {
+              const wilaya = profile.data.wilaya?.trim() || "";
+              const lat = profile.data.latitude;
+              const lng = profile.data.longitude;
+              const hasCoords =
+                lat != null &&
+                lng != null &&
+                Number(lat) !== 0 &&
+                Number(lng) !== 0;
 
-            if (hasCoords) {
-              const fromCoords = await reverseGeocodeWilaya(Number(lat), Number(lng));
-              if (!cancelled && fromCoords) {
+              if (wilaya) {
                 setLocation({
-                  latitude: Number(lat),
-                  longitude: Number(lng),
-                  wilaya: fromCoords,
+                  latitude: hasCoords ? Number(lat) : 0,
+                  longitude: hasCoords ? Number(lng) : 0,
+                  wilaya,
                 });
                 setSource("profile");
                 setStatus("granted");
                 return;
               }
+
+              if (hasCoords) {
+                const fromCoords = await reverseGeocodeWilaya(Number(lat), Number(lng));
+                if (!cancelled && fromCoords) {
+                  setLocation({
+                    latitude: Number(lat),
+                    longitude: Number(lng),
+                    wilaya: fromCoords,
+                  });
+                  setSource("profile");
+                  setStatus("granted");
+                  return;
+                }
+              }
             }
+          } catch {
+            // fall through to browser
+          }
+        }
+
+        if (cancelled) return;
+
+        if (typeof window === "undefined" || !navigator.geolocation) {
+          setStatus("prompt");
+          return;
+        }
+
+        try {
+          const position = await getCurrentPosition(GEO_OPTIONS_FAST).catch(() =>
+            getCurrentPosition(GEO_OPTIONS_ACCURATE)
+          );
+          if (!cancelled) {
+            await applyBrowserPosition(position.coords.latitude, position.coords.longitude);
           }
         } catch {
-          // fall through to browser
+          if (!cancelled) setStatus("prompt");
         }
-      }
-
-      if (cancelled) return;
-
-      if (typeof window === "undefined" || !navigator.geolocation) {
-        setStatus("prompt");
-        return;
-      }
-
-      // Auto-ask on first visit — stay in loading until we get a result
-      try {
-        const position = await getCurrentPosition(GEO_OPTIONS_FAST).catch(() =>
-          getCurrentPosition(GEO_OPTIONS_ACCURATE)
-        );
-        if (!cancelled) {
-          await applyBrowserPosition(position.coords.latitude, position.coords.longitude);
-        }
-      } catch {
-        if (!cancelled) setStatus("prompt");
+      } finally {
+        window.clearTimeout(budget);
       }
     };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import {
   Percent,
@@ -78,6 +78,150 @@ function getPromotionStatus(promotion: Promotion) {
   return { label: "Active", className: "bg-green-100 text-green-800" };
 }
 
+function discountPercent(normal: number, discount: number) {
+  if (normal <= 0) return 0;
+  return Math.round(((normal - discount) / normal) * 100);
+}
+
+function PromotionFormFields({
+  form,
+  setForm,
+  products,
+  onProductSelect,
+  isUpdate,
+}: {
+  form: PromotionFormState;
+  setForm: Dispatch<SetStateAction<PromotionFormState>>;
+  products: Product[];
+  onProductSelect: (productId: string, isUpdate?: boolean) => void;
+  isUpdate?: boolean;
+}) {
+  const normalNum = parseFloat(normalizeDecimalInput(form.normal_price));
+  const discountNum = parseFloat(normalizeDecimalInput(form.price_discount));
+
+  return (
+    <>
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Produit <span className="text-red-500">*</span>
+        </label>
+        <select
+          required
+          value={form.id_product || ""}
+          onChange={(e) => onProductSelect(e.target.value, isUpdate)}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+        >
+          <option value="">Sélectionner un produit</option>
+          {products.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name} — {product.sellingPrice.toFixed(2)} DA
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Prix normal / unité (DA) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            required
+            readOnly
+            placeholder="Sélectionnez un produit"
+            value={form.normal_price}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-700 outline-none cursor-default"
+          />
+          <p className="text-xs text-gray-500 mt-1">Prix de vente actuel du produit</p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Prix promo / unité (DA) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            required
+            autoComplete="off"
+            placeholder="Ex: 1500"
+            value={form.price_discount}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^\d.,]/g, "");
+              if (DECIMAL_INPUT.test(value) || value === "") {
+                setForm((prev) => ({ ...prev, price_discount: value }));
+              }
+            }}
+            className="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Saisissez le prix promotionnel (chiffres uniquement)
+          </p>
+          {!Number.isNaN(normalNum) &&
+            !Number.isNaN(discountNum) &&
+            normalNum > 0 &&
+            form.price_discount !== "" && (
+              <p className="text-xs text-green-700 mt-1">
+                Réduction: {discountPercent(normalNum, discountNum)}%
+              </p>
+            )}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Quantité minimum à acheter <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          required
+          placeholder="1"
+          value={form.min_quantity}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (INTEGER_INPUT.test(value)) {
+              setForm((prev) => ({ ...prev, min_quantity: value }));
+            }
+          }}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Le client doit acheter au moins cette quantité pour bénéficier du prix promotionnel.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Date de début <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            required
+            value={form.start_day || ""}
+            onChange={(e) => setForm((prev) => ({ ...prev, start_day: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Date de fin <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            required
+            value={form.end_day || ""}
+            onChange={(e) => setForm((prev) => ({ ...prev, end_day: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function PromotionsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -130,14 +274,16 @@ export default function PromotionsPage() {
       setUpdateForm((prev) => ({
         ...prev,
         id_product: productId,
-        normal_price: String(prev.normal_price || product.sellingPrice),
+        // Keep existing promo price if already set; only sync normal price from product
+        normal_price: String(product.sellingPrice),
       }));
     } else {
       setCreateForm((prev) => ({
         ...prev,
         id_product: productId,
         normal_price: String(product.sellingPrice),
-        price_discount: String(Math.round(product.sellingPrice * 0.9 * 100) / 100),
+        // Leave promo price empty so the supplier types the amount they want
+        price_discount: prev.id_product === productId ? prev.price_discount : "",
       }));
     }
   };
@@ -278,143 +424,6 @@ export default function PromotionsPage() {
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const discountPercent = (normal: number, discount: number) => {
-    if (normal <= 0) return 0;
-    return Math.round(((normal - discount) / normal) * 100);
-  };
-
-  const PromotionFormFields = ({
-    form,
-    setForm,
-    isUpdate,
-  }: {
-    form: PromotionFormState;
-    setForm: React.Dispatch<React.SetStateAction<PromotionFormState>>;
-    isUpdate?: boolean;
-  }) => {
-    const normalNum = parseFloat(normalizeDecimalInput(form.normal_price));
-    const discountNum = parseFloat(normalizeDecimalInput(form.price_discount));
-
-    return (
-    <>
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Produit <span className="text-red-500">*</span>
-        </label>
-        <select
-          required
-          value={form.id_product || ""}
-          onChange={(e) => handleProductSelect(e.target.value, isUpdate)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-        >
-          <option value="">Sélectionner un produit</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} — {product.sellingPrice.toFixed(2)} DA
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Prix normal / unité (DA) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            required
-            placeholder="0"
-            value={form.normal_price}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (DECIMAL_INPUT.test(value)) {
-                setForm({ ...form, normal_price: value });
-              }
-            }}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Prix promo / unité (DA) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            inputMode="decimal"
-            required
-            placeholder="0"
-            value={form.price_discount}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (DECIMAL_INPUT.test(value)) {
-                setForm({ ...form, price_discount: value });
-              }
-            }}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-          />
-          {!Number.isNaN(normalNum) && !Number.isNaN(discountNum) && normalNum > 0 && form.price_discount !== "" && (
-            <p className="text-xs text-green-700 mt-1">
-              Réduction: {discountPercent(normalNum, discountNum)}%
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Quantité minimum à acheter <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          inputMode="numeric"
-          required
-          placeholder="1"
-          value={form.min_quantity}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (INTEGER_INPUT.test(value)) {
-              setForm({ ...form, min_quantity: value });
-            }
-          }}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Le client doit acheter au moins cette quantité pour bénéficier du prix promotionnel.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Date de début <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            required
-            value={form.start_day || ""}
-            onChange={(e) => setForm({ ...form, start_day: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Date de fin <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            required
-            value={form.end_day || ""}
-            onChange={(e) => setForm({ ...form, end_day: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
-      </div>
-    </>
-    );
   };
 
   if (isLoading) {
@@ -570,7 +579,12 @@ export default function PromotionsPage() {
               </button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <PromotionFormFields form={createForm} setForm={setCreateForm} />
+              <PromotionFormFields
+                form={createForm}
+                setForm={setCreateForm}
+                products={products}
+                onProductSelect={handleProductSelect}
+              />
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-3 border rounded-xl">
                   Annuler
@@ -599,7 +613,13 @@ export default function PromotionsPage() {
               </button>
             </div>
             <form onSubmit={handleUpdate} className="p-6 space-y-4">
-              <PromotionFormFields form={updateForm} setForm={setUpdateForm} isUpdate />
+              <PromotionFormFields
+                form={updateForm}
+                setForm={setUpdateForm}
+                products={products}
+                onProductSelect={handleProductSelect}
+                isUpdate
+              />
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowUpdateModal(false)} className="flex-1 px-4 py-3 border rounded-xl">
                   Annuler

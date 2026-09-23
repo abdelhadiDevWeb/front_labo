@@ -134,24 +134,20 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      if (
-        requiresWilayaForCatalog &&
-        (!hasWilaya || locationStatus !== "granted")
-      ) {
-        setIsLoading(true);
-        setItems([]);
-        setError(null);
-        return;
-      }
-
       try {
         setIsLoading(true);
         setError(null);
-        const filters = wilayaCode
-          ? { wilayaCode }
-          : userLocation?.wilaya
-            ? { wilayaCode: userLocation.wilaya }
-            : undefined;
+        const canFilterByWilaya =
+          requiresWilayaForCatalog &&
+          locationStatus === "granted" &&
+          hasWilaya;
+        const filters = canFilterByWilaya
+          ? wilayaCode
+            ? { wilayaCode }
+            : userLocation?.wilaya
+              ? { wilayaCode: userLocation.wilaya }
+              : undefined
+          : undefined;
         const result =
           kind === "machine"
             ? await getPublicMachines(filters)

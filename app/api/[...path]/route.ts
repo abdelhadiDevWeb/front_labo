@@ -14,6 +14,8 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  // Undici (Node fetch) rejects Expect — causes 502 on login/register POSTs.
+  "expect",
   // fetch() already decompresses the body; forwarding this header makes the
   // browser try to gunzip plain text → ERR_CONTENT_DECODING_FAILED on every call.
   "content-encoding",
@@ -28,7 +30,9 @@ const resolveBackendApiBase = (frontendOrigin?: string): string | null => {
 
   if (!raw) {
     if (process.env.NODE_ENV === "development") {
-      return "http://localhost:8000/api";
+      // Prefer 127.0.0.1 — `localhost` can resolve to ::1 and briefly ECONNREFUSED
+      // while Express is only bound / ready on IPv4.
+      return "http://127.0.0.1:8000/api";
     }
     return null;
   }
@@ -37,6 +41,11 @@ const resolveBackendApiBase = (frontendOrigin?: string): string | null => {
   if (!/^https?:\/\//i.test(absolute)) {
     absolute = `https://${absolute}`;
   }
+  // Avoid intermittent ::1 ECONNREFUSED against a backend listening on 0.0.0.0 / IPv4.
+  absolute = absolute.replace(
+    /^http:\/\/localhost(?=[:/]|$)/i,
+    "http://127.0.0.1"
+  );
   const withApi = absolute.includes("/api") ? absolute : `${absolute}/api`;
 
   // Same Hostinger host for front + env API → calling ourselves loops forever.
@@ -168,25 +177,12 @@ async function proxyRequest(
     responseHeaders.set(key, value);
   });
 
-  const getSetCookie = (
-    upstream.headers as Headers & { getSetCookie?: () => string[] }
-  ).getSetCookie?.();
-
-  if (getSetCookie && getSetCookie.length > 0) {
-    for (const cookie of getSetCookie) {
-      responseHeaders.append(
-        "set-cookie",
-        rewriteSetCookieForFrontend(cookie, isHttps)
-      );
-    }
-  } else {
-    const single = upstream.headers.get("set-cookie");
-    if (single) {
-      responseHeaders.append(
-        "set-cookie",
-        rewriteSetCookieForFrontend(single, isHttps)
-      );
-    }
+  const setCookies = collectUpstreamSetCookies(upstream);
+  for (const cookie of setCookies) {
+    responseHeaders.append(
+      "set-cookie",
+      rewriteSetCookieForFrontend(cookie, isHttps)
+    );
   }
 
   const buffer = await upstream.arrayBuffer();
@@ -195,6 +191,26 @@ async function proxyRequest(
     statusText: upstream.statusText,
     headers: responseHeaders,
   });
+}
+
+/** Collect every Set-Cookie (Node/undici getSetCookie, or raw fallback). */
+function collectUpstreamSetCookies(upstream: Response): string[] {
+  const headers = upstream.headers as Headers & {
+    getSetCookie?: () => string[];
+    raw?: () => Record<string, string | string[]>;
+  };
+
+  if (typeof headers.getSetCookie === "function") {
+    const list = headers.getSetCookie();
+    if (list.length > 0) return list;
+  }
+
+  const raw = headers.raw?.()?.["set-cookie"];
+  if (Array.isArray(raw) && raw.length > 0) return raw;
+  if (typeof raw === "string" && raw) return [raw];
+
+  const single = upstream.headers.get("set-cookie");
+  return single ? [single] : [];
 }
 
 type RouteContext = { params: Promise<{ path: string[] }> };

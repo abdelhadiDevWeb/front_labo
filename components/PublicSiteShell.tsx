@@ -70,14 +70,31 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
     void load();
   }, []);
 
-  if (!isAuthReady) {
-    return <AppLoadingScreen />;
-  }
+  useEffect(() => {
+    const onLogout = () => {
+      setIsAuthReady(false);
+      setIsAuthenticated(false);
+      setUserRole(null);
+      setUserEmail("");
+      setMobileMenuOpen(false);
+    };
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, []);
 
   const navLinkClass =
     "text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group";
   const navUnderline =
     "absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full";
+
+  // Same shell as route `loading.tsx` until session resolves — avoids hydration mismatch.
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-white overflow-x-hidden flex flex-col">
+        <AppLoadingScreen />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden flex flex-col">
@@ -229,11 +246,12 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                     <button
                       type="button"
                       onClick={() => {
+                        setIsAuthReady(false);
+                        setMobileMenuOpen(false);
                         void performLogout(router, {
                           clearCart: true,
                           redirectTo: "/home",
                         });
-                        setMobileMenuOpen(false);
                       }}
                       className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 text-center"
                     >

@@ -47,14 +47,13 @@ export default function CatalogLocationBanner({
         <div className="flex items-start gap-3">
           <Navigation className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              En attente de votre localisation
+            <p className="text-sm font-semibold text-gray-900">
+              Localisation non activée
             </p>
             <p className="text-sm text-gray-600">
               {isGuest
-                ? `Autorisez l'accès à votre position pour charger les ${catalogLabel} de votre wilaya.`
-                : `Complétez la wilaya de votre profil ou autorisez la géolocalisation pour charger les ${catalogLabel} de votre région.`}
+                ? `Le catalogue national est affiché. Autorisez la position pour prioriser les ${catalogLabel} de votre wilaya.`
+                : `Complétez la wilaya de votre profil ou autorisez la géolocalisation pour prioriser les ${catalogLabel} de votre région.`}
             </p>
           </div>
         </div>

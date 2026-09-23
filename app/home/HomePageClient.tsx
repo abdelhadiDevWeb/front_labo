@@ -212,33 +212,26 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Fetch products / machines / services filtered by visitor or labo wilaya
+  // Fetch products / machines / services — do not block forever on geolocation
   useEffect(() => {
     const loadCatalog = async () => {
-      if (requiresWilayaForCatalog && locationStatus === "loading") {
-        return;
-      }
-
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+      const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+      const canFilterByWilaya =
+        requiresWilayaForCatalog &&
+        locationStatus === "granted" &&
+        hasWilaya;
+
       const filters = {
-        ...(wilayaCode
-          ? { wilayaCode }
-          : userLocation?.wilaya
-            ? { wilayaCode: userLocation.wilaya }
-            : {}),
+        ...(canFilterByWilaya
+          ? wilayaCode
+            ? { wilayaCode }
+            : userLocation?.wilaya
+              ? { wilayaCode: userLocation.wilaya }
+              : {}
+          : {}),
         limit: 8,
       };
-
-      if (requiresWilayaForCatalog && !wilayaCode) {
-        setProducts([]);
-        setMachines([]);
-        setServices([]);
-        setIsLoadingProducts(false);
-        setIsLoadingMachines(false);
-        setIsLoadingServices(false);
-        setProductsError(null);
-        return;
-      }
 
       setIsLoadingProducts(true);
       setIsLoadingMachines(true);
@@ -627,13 +620,10 @@ export default function HomePage() {
   ];
 
 
-  // Avoid flashing the guest header while session is verified
-  if (!isAuthReady) {
-    return <AppLoadingScreen />;
-  }
-
+  // Always render the same root tree on server + client (overlay while auth probes).
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
+      {!isAuthReady && <AppLoadingScreen />}
       {/* Header - Professional & Modern */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">

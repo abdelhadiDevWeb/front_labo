@@ -24,6 +24,8 @@ import {
   Sparkles,
   Building2,
   HandCoins,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   getUsersForSubscription,
@@ -31,6 +33,7 @@ import {
   activateSubscriptionFromUserChoice,
   getAllSubscriptions,
   updateSubscription,
+  deleteSubscription,
   getUserPapers,
   SubscriptionUser,
   Subscription,
@@ -79,6 +82,8 @@ export default function SubscriptionsPage() {
   const [isActivating, setIsActivating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [subscriptionToDelete, setSubscriptionToDelete] = useState<Subscription | null>(null);
+  const [isDeletingSubscription, setIsDeletingSubscription] = useState(false);
 
   const [createFormData, setCreateFormData] = useState<CreateSubscriptionData>({
     id_user: "",
@@ -477,10 +482,6 @@ export default function SubscriptionsPage() {
   };
 
   const handleOpenUpdateModal = (subscription: Subscription) => {
-    if (subscription.status === "ended") {
-      setError("Impossible de modifier un abonnement terminé");
-      return;
-    }
     setSelectedSubscription(subscription);
     setUpdateFormData({
       type: subscription.type,
@@ -489,6 +490,29 @@ export default function SubscriptionsPage() {
       end: subscription.end.split("T")[0],
     });
     setShowUpdateModal(true);
+  };
+
+  const handleConfirmDeleteSubscription = async () => {
+    if (!subscriptionToDelete || isDeletingSubscription) return;
+    setIsDeletingSubscription(true);
+    setError(null);
+    try {
+      const result = await deleteSubscription(subscriptionToDelete._id);
+      if (result.success) {
+        setSubscriptions((prev) =>
+          prev.filter((s) => s._id !== subscriptionToDelete._id)
+        );
+        setSuccess("Abonnement supprimé avec succès");
+        setSubscriptionToDelete(null);
+      } else {
+        setError(result.message || "Erreur lors de la suppression de l'abonnement");
+      }
+    } catch (err) {
+      console.error("Delete subscription error:", err);
+      setError("Une erreur est survenue lors de la suppression de l'abonnement");
+    } finally {
+      setIsDeletingSubscription(false);
+    }
   };
 
   const handleOpenPapersModal = async (user: SubscriptionUser) => {
@@ -829,18 +853,25 @@ export default function SubscriptionsPage() {
           </div>
         )}
       </div>
-      <button
-        onClick={() => handleOpenUpdateModal(subscription)}
-        disabled={subscription.status === "ended"}
-        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-          subscription.status === "ended"
-            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-blue-600 text-white hover:bg-blue-700"
-        }`}
-      >
-        <Edit className="w-4 h-4" />
-        {subscription.status === "ended" ? "Terminé" : "Modifier"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => handleOpenUpdateModal(subscription)}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit className="w-4 h-4" />
+          Modifier
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubscriptionToDelete(subscription)}
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200"
+          title="Supprimer l'abonnement"
+        >
+          <Trash2 className="w-4 h-4" />
+          Supprimer
+        </button>
+      </div>
     </div>
   );
 
@@ -1491,7 +1522,9 @@ export default function SubscriptionsPage() {
                 <div>
                   <h3 className="text-xl font-bold text-white">Modifier l'abonnement</h3>
                   <p className="text-sm text-blue-100 mt-0.5">
-                    {selectedSubscription.id_user.firstName} {selectedSubscription.id_user.lastName}
+                    {selectedSubscription.id_user
+                      ? `${selectedSubscription.id_user.firstName} ${selectedSubscription.id_user.lastName}`
+                      : "Utilisateur"}
                   </p>
             </div>
             </div>
@@ -2233,6 +2266,83 @@ export default function SubscriptionsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {mounted && subscriptionToDelete && createPortal(
+        <div className="fixed top-0 left-0 right-0 bottom-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-subscription-title"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          >
+            <div className="bg-red-50 px-5 py-4 border-b border-red-100 flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h3 id="delete-subscription-title" className="text-lg font-bold text-gray-900">
+                  Supprimer l&apos;abonnement
+                </h3>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {subscriptionToDelete.type}
+                  {subscriptionToDelete.id_user
+                    ? ` — ${subscriptionToDelete.id_user.firstName} ${subscriptionToDelete.id_user.lastName}`
+                    : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDeletingSubscription) setSubscriptionToDelete(null);
+                }}
+                disabled={isDeletingSubscription}
+                className="rounded-lg p-1.5 text-gray-500 hover:bg-white/80 disabled:opacity-50"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-5 py-4 text-sm text-gray-700 space-y-2">
+              <p>
+                Voulez-vous vraiment <strong>supprimer définitivement</strong> cet abonnement ?
+              </p>
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                Cette action est irréversible. L&apos;utilisateur concerné perdra immédiatement cet
+                abonnement.
+              </p>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setSubscriptionToDelete(null)}
+                disabled={isDeletingSubscription}
+                className="px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-100 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeleteSubscription()}
+                disabled={isDeletingSubscription}
+                className="px-4 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 inline-flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isDeletingSubscription ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Suppression…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Oui, supprimer
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>,
         document.body

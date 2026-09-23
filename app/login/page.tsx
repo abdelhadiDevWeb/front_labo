@@ -59,22 +59,38 @@ export default function LoginPage() {
       if (result.success) {
         const userRole = result.data?.role || "client";
         const safeRedirect = validateOnboardingRedirect(result.data?.redirectTo);
+        const nextParam =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("next")
+            : null;
 
         setSuccess("Connexion réussie ! Redirection...");
+
+        // Full navigation so HttpOnly session cookies from the BFF are applied
+        // before the next page probes /api/client/role.
+        const go = (path: string) => {
+          window.location.assign(path);
+        };
+
         setTimeout(() => {
           if (safeRedirect && result.data?.onboardingStep) {
-            router.push(safeRedirect);
+            go(safeRedirect);
+            return;
+          }
+
+          if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
+            go(nextParam);
             return;
           }
 
           if (userRole === "admin" || userRole === "sou-admin") {
-            router.push("/dashboard");
+            go("/dashboard");
           } else if (userRole === "supplier") {
-            router.push("/dashboard-supplier");
+            go("/dashboard-supplier");
           } else {
-            router.push("/home");
+            go("/home");
           }
-        }, 1000);
+        }, 400);
       } else if (result.message === "account_not_activated") {
         await logoutClient();
         setShowWaitingAlert(true);

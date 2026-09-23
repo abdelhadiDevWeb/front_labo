@@ -40,7 +40,7 @@ import {
   HomeDesktopNavMenus,
   HomeMobileNavMenus,
 } from "@/components/HomeNavMenus";
-import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, checkAuthSession } from "@/lib/api";
+import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, refreshAuthToken } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
 import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { useCart } from "@/contexts/CartContext";
@@ -48,6 +48,7 @@ import dynamic from "next/dynamic";
 import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import CatalogPrice from "@/components/CatalogPrice";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import {
   getUniqueDataTitle,
@@ -56,6 +57,10 @@ import {
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 import { toUserFacingError } from "@/lib/sanitize-error";
+import {
+  hasAuthSessionHint,
+  markSessionInactive,
+} from "@/lib/auth-session";
 
 const SponsoredProductsCarousel = dynamic(
   () => import("@/components/SponsoredProductsCarousel"),
@@ -138,16 +143,35 @@ export default function HomePage() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const session = await getSessionRole();
+        let session = await getSessionRole();
+
+        // After login we full-reload; cookies can lag one tick. Retry with refresh.
+        if (!session && hasAuthSessionHint()) {
+          await refreshAuthToken().catch(() => null);
+          session = await getSessionRole();
+        }
+
         if (!session) {
+          if (hasAuthSessionHint()) markSessionInactive();
           setIsAuthenticated(false);
           setUserRole(null);
           setUserData(null);
+          setUserEmail("");
           return;
         }
 
         const role = session.role || null;
         setUserRole(role);
+
+        // Home is for clients/guests — staff & suppliers belong on their dashboards.
+        if (role === "admin" || role === "sou-admin") {
+          router.replace("/dashboard");
+          return;
+        }
+        if (role === "supplier") {
+          router.replace("/dashboard-supplier");
+          return;
+        }
 
         if (role === "client") {
           setIsAuthenticated(true);
@@ -168,11 +192,12 @@ export default function HomePage() {
     };
 
     void loadUserData();
-  }, []);
+  }, [router]);
 
-  // Clear client auth UI immediately when logout happens on this same page
+  // On logout: show full-page loading (not the Connexion button) until /home remounts.
   useEffect(() => {
     const onLogout = () => {
+      setIsAuthReady(false);
       setIsAuthenticated(false);
       setUserRole(null);
       setUserEmail("");
@@ -181,7 +206,6 @@ export default function HomePage() {
       setUnreadCount(0);
       setShowNotifications(false);
       setMobileMenuOpen(false);
-      setIsAuthReady(true);
     };
     window.addEventListener("auth:logout", onLogout);
     return () => window.removeEventListener("auth:logout", onLogout);
@@ -213,40 +237,36 @@ export default function HomePage() {
     return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
 
-  // Wait for wilaya before fetching — keep loading until location is available.
-  // Ignore stale responses when effect re-runs (common cause of first-load errors).
+  // Wait for session + wilaya before fetching — skip while logout/session overlay is up
+  // (in-flight fetches aborted by hard reload surface as noisy "Failed to fetch").
   useEffect(() => {
+    if (!isAuthReady) {
+      setIsLoadingProducts(true);
+      setIsLoadingMachines(true);
+      setIsLoadingServices(true);
+      return;
+    }
+
     let cancelled = false;
 
     const loadCatalog = async () => {
       const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
       const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
 
-      if (requiresWilayaForCatalog && (!hasWilaya || locationStatus !== "granted")) {
-        setIsLoadingProducts(true);
-        setIsLoadingMachines(true);
-        setIsLoadingServices(true);
-        setProducts([]);
-        setMachines([]);
-        setServices([]);
-        setProductsError(null);
-        return;
-      }
-
-      // Wait for auth probe so we don't race the first cold API calls
-      if (!isAuthReady) {
-        setIsLoadingProducts(true);
-        setIsLoadingMachines(true);
-        setIsLoadingServices(true);
-        return;
-      }
+      // Prefer wilaya filter when we have it; never block the first DB fetch on geolocation.
+      const canFilterByWilaya =
+        requiresWilayaForCatalog &&
+        locationStatus === "granted" &&
+        hasWilaya;
 
       const filters = {
-        ...(wilayaCode
-          ? { wilayaCode }
-          : userLocation?.wilaya
-            ? { wilayaCode: userLocation.wilaya }
-            : {}),
+        ...(canFilterByWilaya
+          ? wilayaCode
+            ? { wilayaCode }
+            : userLocation?.wilaya
+              ? { wilayaCode: userLocation.wilaya }
+              : {}
+          : {}),
         limit: 8,
       };
 
@@ -310,19 +330,14 @@ export default function HomePage() {
       cancelled = true;
     };
   }, [
+    isAuthReady,
     requiresWilayaForCatalog,
     userLocation?.wilaya,
     locationStatus,
-    isAuthReady,
   ]);
 
-  // Fetch categories after auth probe (avoids cold-start race on first visit)
+  // Categories are public — do not wait on auth (avoids empty section when session probe is slow).
   useEffect(() => {
-    if (!isAuthReady) {
-      setIsLoadingCategories(true);
-      return;
-    }
-
     let cancelled = false;
 
     const loadCategories = async () => {
@@ -346,7 +361,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthReady]);
+  }, []);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -488,7 +503,7 @@ export default function HomePage() {
   }, [showSupportModal]);
 
 
-  // Must re-bind after auth ready: sections are not in the DOM while AppLoadingScreen shows.
+  // Bind scroll animations once the main sections are in the DOM.
   useEffect(() => {
     if (!isAuthReady) return;
 
@@ -626,8 +641,14 @@ export default function HomePage() {
   ];
 
 
+  // Early-return the same shell as `loading.tsx` until session resolves.
+  // Do not render header alongside the loader — that mismatches Suspense fallback HTML.
   if (!isAuthReady) {
-    return <AppLoadingScreen />;
+    return (
+      <div className="min-h-screen bg-white overflow-x-hidden">
+        <AppLoadingScreen />
+      </div>
+    );
   }
 
   return (
@@ -658,12 +679,12 @@ export default function HomePage() {
                 À propos
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </Link>
-              <HomeDesktopNavMenus showSuppliers={isAuthReady && isAuthenticated} />
+              <HomeDesktopNavMenus showSuppliers={isAuthenticated} />
               <Link href="/contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Contact
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </Link>
-              {isAuthReady && isAuthenticated && isClientUser && (
+              {isAuthenticated && isClientUser && (
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   <span>Mes Réserves</span>
@@ -672,7 +693,7 @@ export default function HomePage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {isAuthReady && isAuthenticated && isClientUser ? (
+              {isAuthenticated && isClientUser ? (
                 <>
                   {/* Notifications */}
                   <div className="relative">
@@ -684,6 +705,7 @@ export default function HomePage() {
                         }
                       }}
                       className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors group"
+                      aria-label="Notifications"
                     >
                       <Bell className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
                       {unreadCount > 0 && (
@@ -848,18 +870,18 @@ export default function HomePage() {
                 </Link>
                 <HomeMobileNavMenus
                   onNavigate={() => setMobileMenuOpen(false)}
-                  showSuppliers={isAuthReady && isAuthenticated}
+                  showSuppliers={isAuthenticated}
                 />
                 <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </Link>
-                {isAuthReady && isAuthenticated && isClientUser && (
+                {isAuthenticated && isClientUser && (
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
                     <span>Mes Réserves</span>
                   </Link>
                 )}
-                {isAuthReady && isAuthenticated && isClientUser ? (
+                {isAuthenticated && isClientUser ? (
                   <>
                     <button
                       onClick={() => {
@@ -880,8 +902,9 @@ export default function HomePage() {
                     </Link>
                     <button
                       onClick={() => {
-                        void performLogout(router, { clearCart: true, redirectTo: "/home" });
+                        setIsAuthReady(false);
                         setMobileMenuOpen(false);
+                        void performLogout(router, { clearCart: true, redirectTo: "/home" });
                       }}
                       className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 text-center"
                     >
@@ -934,12 +957,19 @@ export default function HomePage() {
         {/* Main Content */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="space-y-4 sm:space-y-5 md:space-y-6">
-            {/* Logo with Advanced Animation - First position */}
+            {/* App logo — First position */}
             <div className="inline-block mb-3 sm:mb-4 md:mb-6 animate-scale-in">
               <div className="relative">
                 <div className="absolute inset-0 bg-white/20 rounded-xl sm:rounded-2xl blur-2xl animate-pulse-glow"></div>
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-white via-blue-50 to-cyan-100 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform hover:scale-110 hover:rotate-12 transition-all duration-500 animate-bounce-slow">
-                  <FlaskConical className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 text-blue-600 animate-float" />
+                <div className="relative flex items-center justify-center transform hover:scale-105 transition-all duration-500 animate-bounce-slow">
+                  <Image
+                    src="/pi/logo-dz-labomarket.png"
+                    alt={`${BRAND_NAME} Logo`}
+                    width={280}
+                    height={140}
+                    className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto object-contain drop-shadow-2xl animate-float rounded-xl sm:rounded-2xl"
+                    priority
+                  />
                 </div>
               </div>
             </div>
@@ -1088,6 +1118,11 @@ export default function HomePage() {
                           src={catImage}
                           alt={cat.name_catgory}
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = "/icon.png";
+                          }}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">
@@ -1193,27 +1228,43 @@ export default function HomePage() {
             </div>
             <div className={`grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 scroll-animate-right ${visibleElements.has("about-right") ? "animate" : ""}`} id="about-right">
               <div className="space-y-3 sm:space-y-4 md:space-y-6">
-                <div className="aspect-square bg-gradient-to-br from-blue-50 via-blue-100 to-cyan-100 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl border border-blue-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <div className="p-3 sm:p-4 md:p-6 bg-white/50 rounded-xl md:rounded-2xl backdrop-blur-sm">
-                    <Microscope className="w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 text-blue-600 transform transition-transform duration-300 hover:scale-110" />
-                  </div>
+                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-blue-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
+                  <Image
+                    src="/images/about/marketplace.jpg"
+                    alt={`${BRAND_NAME} — marketplace laboratoire`}
+                    width={480}
+                    height={480}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-                <div className="aspect-square bg-gradient-to-br from-purple-50 via-purple-100 to-pink-100 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl border border-purple-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <div className="p-3 sm:p-4 md:p-6 bg-white/50 rounded-xl md:rounded-2xl backdrop-blur-sm">
-                    <User className="w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 text-purple-600 transform transition-transform duration-300 hover:scale-110" />
-                  </div>
+                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-purple-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
+                  <Image
+                    src="/images/about/laboratoire.jpg"
+                    alt="Analyses de laboratoire et biologie médicale"
+                    width={480}
+                    height={480}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
               </div>
               <div className="space-y-3 sm:space-y-4 md:space-y-6 pt-6 sm:pt-8 md:pt-12">
-                <div className="aspect-square bg-gradient-to-br from-green-50 via-green-100 to-emerald-100 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl border border-green-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <div className="p-3 sm:p-4 md:p-6 bg-white/50 rounded-xl md:rounded-2xl backdrop-blur-sm">
-                    <FlaskConical className="w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 text-green-600 transform transition-transform duration-300 hover:scale-110" />
-                  </div>
+                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-green-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
+                  <Image
+                    src="/images/about/proximite.jpg"
+                    alt="Recherche de proximité et couverture géographique"
+                    width={480}
+                    height={480}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-                <div className="aspect-square bg-gradient-to-br from-orange-50 via-orange-100 to-yellow-100 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl border border-orange-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <div className="p-3 sm:p-4 md:p-6 bg-white/50 rounded-xl md:rounded-2xl backdrop-blur-sm">
-                    <FlaskConical className="w-10 h-10 sm:w-14 sm:h-14 md:w-20 md:h-20 text-orange-600 transform transition-transform duration-300 hover:scale-110" />
-                  </div>
+                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-orange-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
+                  <Image
+                    src="/images/about/partenaire.jpg"
+                    alt="Partenariats laboratoires et fournisseurs"
+                    width={480}
+                    height={480}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
               </div>
             </div>
@@ -1607,11 +1658,11 @@ export default function HomePage() {
             <div className="text-center py-12">
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
-                {requiresWilayaForCatalog && !visitorWilayaCode
+                {requiresWilayaForCatalog &&
+                locationStatus === "loading" &&
+                !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : visitorWilayaCode
-                    ? "Aucun produit disponible dans votre wilaya pour le moment"
-                    : "Aucun produit disponible pour le moment"}
+                  : "Aucun produit disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1643,7 +1694,8 @@ export default function HomePage() {
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.style.display = "none";
+                              target.onerror = null;
+                              target.src = "/icon.png";
                             }}
                           />
                         ) : (
@@ -1690,6 +1742,11 @@ export default function HomePage() {
                       )}
 
                       <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <CatalogPrice
+                        amount={product.price}
+                        visible={Boolean(userRole)}
+                        className="text-xl font-bold text-blue-600"
+                      />
 
                       <div className="flex gap-2">
                         <button
@@ -1758,11 +1815,11 @@ export default function HomePage() {
             <div className="text-center py-12">
               <Microscope className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
-                {requiresWilayaForCatalog && !visitorWilayaCode
+                {requiresWilayaForCatalog &&
+                locationStatus === "loading" &&
+                !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : visitorWilayaCode
-                    ? "Aucune machine disponible dans votre wilaya pour le moment"
-                    : "Aucune machine disponible pour le moment"}
+                  : "Aucune machine disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1785,6 +1842,11 @@ export default function HomePage() {
                           src={mainImage}
                           alt={displayName}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = "/icon.png";
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -1800,6 +1862,11 @@ export default function HomePage() {
                         {displayName}
                       </h3>
                       <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <CatalogPrice
+                        amount={machine.price}
+                        visible={Boolean(userRole)}
+                        className="text-xl font-bold text-blue-600"
+                      />
                       <div className="mt-auto flex gap-2">
                         <button
                           type="button"
@@ -1873,11 +1940,11 @@ export default function HomePage() {
             <div className="text-center py-12">
               <Laptop className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
-                {requiresWilayaForCatalog && !visitorWilayaCode
+                {requiresWilayaForCatalog &&
+                locationStatus === "loading" &&
+                !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : visitorWilayaCode
-                    ? "Aucun service disponible dans votre wilaya pour le moment"
-                    : "Aucun service disponible pour le moment"}
+                  : "Aucun service disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1900,6 +1967,11 @@ export default function HomePage() {
                           src={mainImage}
                           alt={displayName}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = "/icon.png";
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -1915,6 +1987,11 @@ export default function HomePage() {
                         {displayName}
                       </h3>
                       <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <CatalogPrice
+                        amount={service.price}
+                        visible={Boolean(userRole)}
+                        className="text-xl font-bold text-amber-700"
+                      />
                       <button
                         type="button"
                         onClick={() =>
