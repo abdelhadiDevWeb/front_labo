@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -34,6 +34,7 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
 
+const PAGE_SIZE = 48;
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -41,7 +42,13 @@ export default function ProductsPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreLockRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
@@ -49,8 +56,8 @@ export default function ProductsPage() {
   const [filterBrand, setFilterBrand] = useState<string>("all");
   const [filterSupplier, setFilterSupplier] = useState<string>("all");
   const [filterDeliveryTime, setFilterDeliveryTime] = useState<string>("all");
-  const [filterPriceMin, setFilterPriceMin] = useState<string>("");
-  const [filterPriceMax, setFilterPriceMax] = useState<string>("");
+  /** `default` | `asc` (cheap→expensive) | `desc` (expensive→cheap) */
+  const [priceSort, setPriceSort] = useState<"default" | "asc" | "desc">("default");
   const [showFilters, setShowFilters] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -107,6 +114,9 @@ export default function ProductsPage() {
       try {
         setIsLoading(true);
         setError(null);
+        setHasMore(false);
+        setNextCursor(null);
+        setTotalCount(null);
 
         const canFilterByWilaya =
           requiresWilayaForCatalog &&
@@ -121,16 +131,27 @@ export default function ProductsPage() {
                 ? { wilayaCode: userLocation.wilaya }
                 : {}
             : {}),
-          limit: 48,
+          limit: PAGE_SIZE,
         });
         if (cancelled) return;
         if (result.success && result.data) {
           setProducts(result.data.products || []);
+          setNextCursor(result.data.nextCursor ?? null);
+          setHasMore(Boolean(result.data.hasMore));
+          setTotalCount(
+            typeof result.data.totalCount === "number"
+              ? result.data.totalCount
+              : (result.data.products || []).length
+          );
         } else {
-          setError(result.message || "Erreur lors du chargement des produits");
+          setProducts([]);
+          setTotalCount(0);
+          setError(result.message || "Erreur lors du chargement des réactifs");
         }
       } catch {
         if (cancelled) return;
+        setProducts([]);
+        setTotalCount(0);
         setError("Une erreur est survenue");
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -142,6 +163,76 @@ export default function ProductsPage() {
       cancelled = true;
     };
   }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
+      return;
+    }
+
+    loadMoreLockRef.current = true;
+    setIsLoadingMore(true);
+
+    const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+    const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+    const canFilterByWilaya =
+      requiresWilayaForCatalog &&
+      locationStatus === "granted" &&
+      hasWilaya;
+
+    try {
+      const result = await getAllProducts({
+        ...(canFilterByWilaya
+          ? wilayaCode
+            ? { wilayaCode }
+            : userLocation?.wilaya
+              ? { wilayaCode: userLocation.wilaya }
+              : {}
+          : {}),
+        limit: PAGE_SIZE,
+        cursor: nextCursor,
+      });
+
+      if (result.success && result.data) {
+        const incoming = result.data.products || [];
+        setProducts((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          return [...prev, ...incoming.filter((p) => !seen.has(p.id))];
+        });
+        setNextCursor(result.data.nextCursor ?? null);
+        setHasMore(Boolean(result.data.hasMore));
+      }
+    } catch {
+      // Keep already loaded products; user can scroll again to retry
+    } finally {
+      setIsLoadingMore(false);
+      loadMoreLockRef.current = false;
+    }
+  }, [
+    hasMore,
+    nextCursor,
+    isLoading,
+    isLoadingMore,
+    requiresWilayaForCatalog,
+    userLocation?.wilaya,
+    locationStatus,
+  ]);
+
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current;
+    if (!node || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMoreProducts();
+        }
+      },
+      { root: null, rootMargin: "320px", threshold: 0 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMoreProducts, products.length]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
@@ -168,7 +259,7 @@ export default function ProductsPage() {
     const category = dbCategories.find((c) => c.id === filterCategoryId);
     const sousCategories = category?.sousCategories ?? [];
 
-    return products.filter((product) => {
+    const matched = products.filter((product) => {
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -196,11 +287,6 @@ export default function ProductsPage() {
       const matchesDeliveryTime =
         filterDeliveryTime === "all" || product.deliveryTime === filterDeliveryTime;
 
-      const productPrice = product.price;
-      const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : 0;
-      const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
-      const matchesPrice = productPrice >= minPrice && productPrice <= maxPrice;
-
       const matchesWilaya =
         !appliesWilayaFilter ||
         catalogItemAvailableInWilaya(product, clientWilayaCode, userLocation?.wilaya);
@@ -212,9 +298,16 @@ export default function ProductsPage() {
         matchesBrand &&
         matchesSupplier &&
         matchesDeliveryTime &&
-        matchesPrice &&
         matchesWilaya
       );
+    });
+
+    if (priceSort === "default") return matched;
+
+    return [...matched].sort((a, b) => {
+      const pa = Number(a.price) || 0;
+      const pb = Number(b.price) || 0;
+      return priceSort === "asc" ? pa - pb : pb - pa;
     });
   }, [
     products,
@@ -224,8 +317,7 @@ export default function ProductsPage() {
     filterBrand,
     filterSupplier,
     filterDeliveryTime,
-    filterPriceMin,
-    filterPriceMax,
+    priceSort,
     dbCategories,
     appliesWilayaFilter,
     clientWilayaCode,
@@ -245,6 +337,12 @@ export default function ProductsPage() {
   const userWilaya = userLocation?.wilaya ?? "";
 
   useEffect(() => {
+    // Price sort takes priority over proximity ordering
+    if (priceSort !== "default") {
+      setDisplayProducts([]);
+      return;
+    }
+
     if (userLat == null || userLng == null) {
       return;
     }
@@ -268,12 +366,14 @@ export default function ProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [filteredProductIdsKey, userLat, userLng, userWilaya]);
+  }, [filteredProductIdsKey, userLat, userLng, userWilaya, priceSort]);
 
   const productsToShow =
-    userLocation && locationStatus === "granted" && displayProducts.length > 0
-      ? displayProducts
-      : filteredProducts;
+    priceSort !== "default"
+      ? filteredProducts
+      : userLocation && locationStatus === "granted" && displayProducts.length > 0
+        ? displayProducts
+        : filteredProducts;
 
   // Handle product comparison selection
   const toggleComparison = (productId: string) => {
@@ -284,7 +384,7 @@ export default function ProductsPage() {
       } else {
         // Add to selection (max 5 products)
         if (prev.length >= 5) {
-          alert("Vous pouvez comparer un maximum de 5 produits à la fois");
+          alert("Vous pouvez comparer un maximum de 5 réactifs à la fois");
           return prev;
         }
         return [...prev, productId];
@@ -298,7 +398,7 @@ export default function ProductsPage() {
 
   const handleCompare = () => {
     if (selectedForComparison.length < 2) {
-      alert("Veuillez sélectionner au moins 2 produits pour comparer");
+      alert("Veuillez sélectionner au moins 2 réactifs pour comparer");
       return;
     }
     // Navigate to comparison page with selected product IDs
@@ -327,8 +427,12 @@ export default function ProductsPage() {
                 <Package className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Tous les Produits</h1>
-                <p className="text-sm text-gray-600">{products.length} produit{products.length > 1 ? "s" : ""} disponible{products.length > 1 ? "s" : ""}</p>
+                <h1 className="text-2xl font-bold text-gray-900">Tous les réactifs</h1>
+                <p className="text-sm text-gray-600">
+                  {totalCount == null
+                    ? "…"
+                    : `${totalCount} réactif${totalCount > 1 ? "s" : ""} au total`}
+                </p>
               </div>
             </div>
           </div>
@@ -339,7 +443,7 @@ export default function ProductsPage() {
               <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un produit..."
+                placeholder="Rechercher un réactif..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 sm:pl-12 pr-24 sm:pr-32 py-2.5 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm sm:text-base"
@@ -358,7 +462,7 @@ export default function ProductsPage() {
                       filterBrand !== "all",
                       filterSupplier !== "all",
                       filterDeliveryTime !== "all",
-                      filterPriceMin || filterPriceMax,
+                      priceSort !== "default",
                     ].filter(Boolean).length}
                   </span>
                 )}
@@ -381,8 +485,7 @@ export default function ProductsPage() {
                     setFilterBrand("all");
                     setFilterSupplier("all");
                     setFilterDeliveryTime("all");
-                    setFilterPriceMin("");
-                    setFilterPriceMax("");
+                    setPriceSort("default");
                   }}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
@@ -501,42 +604,38 @@ export default function ProductsPage() {
                   </select>
                 </div>
 
-                {/* Price Range Filter — only when logged in */}
-                {!isGuest && (
+                {/* Price sort */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     <DollarSign className="w-4 h-4 text-blue-600" />
-                    Prix (DA)
+                    Prix
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={filterPriceMin}
-                      onChange={(e) => setFilterPriceMin(e.target.value)}
-                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
-                      min="0"
-                    />
-                    <span className="self-center text-gray-400">-</span>
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={filterPriceMax}
-                      onChange={(e) => setFilterPriceMax(e.target.value)}
-                      className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
-                      min="0"
-                    />
-                  </div>
+                  <select
+                    value={priceSort}
+                    onChange={(e) =>
+                      setPriceSort(e.target.value as "default" | "asc" | "desc")
+                    }
+                    className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm bg-white"
+                  >
+                    <option value="default">Par défaut</option>
+                    <option value="asc">Moins cher → plus cher</option>
+                    <option value="desc">Plus cher → moins cher</option>
+                  </select>
                 </div>
-                )}
               </div>
 
               {/* Active Filters Count */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                 <p className="text-sm text-gray-600">
-                  {productsToShow.length} produit{productsToShow.length > 1 ? "s" : ""} trouvé
+                  {productsToShow.length} réactif{productsToShow.length > 1 ? "s" : ""} trouvé
                   {productsToShow.length > 1 ? "s" : ""}
-                  {userLocation && locationStatus === "granted" ? " · du plus proche au plus loin" : ""}
+                  {priceSort === "asc"
+                    ? " · du moins cher au plus cher"
+                    : priceSort === "desc"
+                      ? " · du plus cher au moins cher"
+                      : userLocation && locationStatus === "granted"
+                        ? " · du plus proche au plus loin"
+                        : ""}
                 </p>
                 <button
                   onClick={() => setShowFilters(false)}
@@ -558,7 +657,7 @@ export default function ProductsPage() {
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <Scale className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 <span className="font-semibold text-sm sm:text-base">
-                  {selectedForComparison.length} produit{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""}
+                  {selectedForComparison.length} réactif{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""}
                 </span>
                 {selectedForComparison.length < 5 && (
                   <span className="text-xs sm:text-sm text-blue-100 hidden sm:inline">
@@ -602,8 +701,8 @@ export default function ProductsPage() {
                 </p>
                 <p className="text-sm text-gray-600">
                   {isGuest
-                    ? "Autorisez l'accès à votre position pour charger les produits de votre wilaya."
-                    : "Autorisez la localisation pour charger les produits disponibles dans votre wilaya."}
+                    ? "Autorisez l'accès à votre position pour charger les réactifs de votre wilaya."
+                    : "Autorisez la localisation pour charger les réactifs disponibles dans votre wilaya."}
                 </p>
               </div>
             </div>
@@ -620,7 +719,7 @@ export default function ProductsPage() {
           <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-sm text-green-800">
             <MapPin className="w-4 h-4 flex-shrink-0" />
             <span>
-              Produits triés par proximité
+              Réactifs triés par proximité
               {userLocation.wilaya ? ` (votre wilaya : ${userLocation.wilaya})` : ""}
               {locationSource === "profile" ? " · depuis votre profil" : " · depuis votre position"}
             </span>
@@ -630,7 +729,7 @@ export default function ProductsPage() {
 
         {userRole === "client" && !clientWilayaCode && locationStatus !== "loading" && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-            Complétez la localisation de votre profil ou autorisez la géolocalisation pour charger les produits de
+            Complétez la localisation de votre profil ou autorisez la géolocalisation pour charger les réactifs de
             votre wilaya.
           </div>
         )}
@@ -652,13 +751,13 @@ export default function ProductsPage() {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {products.length === 0 ? "Aucun produit" : "Aucun produit trouvé"}
+              {products.length === 0 ? "Aucun réactif" : "Aucun réactif trouvé"}
             </h3>
             <p className="text-gray-600">
               {products.length === 0
                 ? appliesWilayaFilter && clientWilayaCode
-                  ? "Aucun produit disponible pour votre wilaya pour le moment"
-                  : "Aucun produit disponible pour le moment"
+                  ? "Aucun réactif disponible pour votre wilaya pour le moment"
+                  : "Aucun réactif disponible pour le moment"
                 : "Essayez de modifier vos filtres de recherche"}
             </p>
           </div>
@@ -840,6 +939,18 @@ export default function ProductsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Infinite scroll sentinel — loads next page when visible */}
+        {products.length > 0 && (
+          <div ref={loadMoreSentinelRef} className="py-8 flex flex-col items-center justify-center gap-2">
+            {isLoadingMore && (
+              <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+            )}
+            {!hasMore && !isLoadingMore && (
+              <p className="text-sm text-gray-500">Tous les réactifs ont été chargés</p>
+            )}
           </div>
         )}
       </main>

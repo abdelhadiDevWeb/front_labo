@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -37,6 +37,8 @@ import { useCart } from "@/contexts/CartContext";
 
 type CatalogKind = "machine" | "service";
 
+const PAGE_SIZE = 48;
+
 const KIND_META: Record<
   CatalogKind,
   {
@@ -70,15 +72,21 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   const meta = KIND_META[kind];
   const [items, setItems] = useState<PublicCatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreLockRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState("all");
   const [filterSousCategoryId, setFilterSousCategoryId] = useState("all");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterSupplier, setFilterSupplier] = useState("all");
-  const [filterPriceMin, setFilterPriceMin] = useState("");
-  const [filterPriceMax, setFilterPriceMax] = useState("");
+  /** `default` | `asc` (cheap→expensive) | `desc` (expensive→cheap) */
+  const [priceSort, setPriceSort] = useState<"default" | "asc" | "desc">("default");
   const [showFilters, setShowFilters] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(true);
@@ -137,31 +145,46 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       try {
         setIsLoading(true);
         setError(null);
+        setHasMore(false);
+        setNextCursor(null);
+        setTotalCount(null);
+
         const canFilterByWilaya =
           requiresWilayaForCatalog &&
           locationStatus === "granted" &&
           hasWilaya;
-        const filters = canFilterByWilaya
-          ? wilayaCode
-            ? { wilayaCode }
-            : userLocation?.wilaya
-              ? { wilayaCode: userLocation.wilaya }
-              : undefined
-          : undefined;
+        const filters = {
+          ...(canFilterByWilaya
+            ? wilayaCode
+              ? { wilayaCode }
+              : userLocation?.wilaya
+                ? { wilayaCode: userLocation.wilaya }
+                : {}
+            : {}),
+          limit: PAGE_SIZE,
+        };
         const result =
           kind === "machine"
             ? await getPublicMachines(filters)
             : await getPublicServices(filters);
         if (cancelled) return;
         if (result.success && result.data) {
-          setItems(
+          const list =
             kind === "machine"
               ? (result.data as { machines: PublicCatalogItem[] }).machines || []
-              : (result.data as { services: PublicCatalogItem[] }).services || []
+              : (result.data as { services: PublicCatalogItem[] }).services || [];
+          setItems(list);
+          setNextCursor(result.data.nextCursor ?? null);
+          setHasMore(Boolean(result.data.hasMore));
+          setTotalCount(
+            typeof result.data.totalCount === "number"
+              ? result.data.totalCount
+              : list.length
           );
         } else {
           setError(result.message || `Erreur lors du chargement des ${meta.title.toLowerCase()}`);
           setItems([]);
+          setTotalCount(0);
         }
       } catch {
         if (cancelled) return;
@@ -177,6 +200,84 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       cancelled = true;
     };
   }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+
+  const loadMoreItems = useCallback(async () => {
+    if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
+      return;
+    }
+
+    loadMoreLockRef.current = true;
+    setIsLoadingMore(true);
+
+    const wilayaCode = resolveWilayaCode(userLocation?.wilaya);
+    const hasWilaya = Boolean(wilayaCode || userLocation?.wilaya);
+    const canFilterByWilaya =
+      requiresWilayaForCatalog &&
+      locationStatus === "granted" &&
+      hasWilaya;
+    const filters = {
+      ...(canFilterByWilaya
+        ? wilayaCode
+          ? { wilayaCode }
+          : userLocation?.wilaya
+            ? { wilayaCode: userLocation.wilaya }
+            : {}
+        : {}),
+      limit: PAGE_SIZE,
+      cursor: nextCursor,
+    };
+
+    try {
+      const result =
+        kind === "machine"
+          ? await getPublicMachines(filters)
+          : await getPublicServices(filters);
+
+      if (result.success && result.data) {
+        const incoming =
+          kind === "machine"
+            ? (result.data as { machines: PublicCatalogItem[] }).machines || []
+            : (result.data as { services: PublicCatalogItem[] }).services || [];
+        setItems((prev) => {
+          const seen = new Set(prev.map((i) => i.id));
+          return [...prev, ...incoming.filter((i) => !seen.has(i.id))];
+        });
+        setNextCursor(result.data.nextCursor ?? null);
+        setHasMore(Boolean(result.data.hasMore));
+      }
+    } catch {
+      // keep loaded items
+    } finally {
+      setIsLoadingMore(false);
+      loadMoreLockRef.current = false;
+    }
+  }, [
+    hasMore,
+    nextCursor,
+    isLoading,
+    isLoadingMore,
+    kind,
+    requiresWilayaForCatalog,
+    userLocation?.wilaya,
+    locationStatus,
+  ]);
+
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current;
+    if (!node || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMoreItems();
+        }
+      },
+      { root: null, rootMargin: "320px", threshold: 0 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMoreItems, items.length]);
 
   const selectedCategory = useMemo(
     () => dbCategories.find((c) => c.id === filterCategoryId),
@@ -198,7 +299,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     const category = dbCategories.find((c) => c.id === filterCategoryId);
     const sousCategories = category?.sousCategories ?? [];
 
-    return items.filter((item) => {
+    const matched = items.filter((item) => {
       const haystack = `${item.name} ${item.brand} ${item.category} ${item.sousCategory || ""} ${
         item.supplier?.name || ""
       }`.toLowerCase();
@@ -223,9 +324,6 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       const matchesBrand = filterBrand === "all" || item.brand === filterBrand;
       const matchesSupplier =
         filterSupplier === "all" || item.supplier?.name === filterSupplier;
-      const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : 0;
-      const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : Infinity;
-      const matchesPrice = item.price >= minPrice && item.price <= maxPrice;
       const matchesWilaya =
         !appliesWilayaFilter ||
         catalogItemAvailableInWilaya(item, clientWilayaCode, userLocation?.wilaya);
@@ -236,9 +334,16 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
         matchesSousCategory &&
         matchesBrand &&
         matchesSupplier &&
-        matchesPrice &&
         matchesWilaya
       );
+    });
+
+    if (priceSort === "default") return matched;
+
+    return [...matched].sort((a, b) => {
+      const pa = Number(a.price) || 0;
+      const pb = Number(b.price) || 0;
+      return priceSort === "asc" ? pa - pb : pb - pa;
     });
   }, [
     items,
@@ -247,8 +352,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     filterSousCategoryId,
     filterBrand,
     filterSupplier,
-    filterPriceMin,
-    filterPriceMax,
+    priceSort,
     dbCategories,
     appliesWilayaFilter,
     clientWilayaCode,
@@ -270,8 +374,14 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{meta.title}</h1>
               <p className="text-sm text-gray-500">
-                {filteredItems.length} {meta.singular}
-                {filteredItems.length > 1 ? "s" : ""}
+                {totalCount == null
+                  ? "…"
+                  : `${totalCount} ${meta.singular}${totalCount > 1 ? "s" : ""} au total`}
+                {priceSort === "asc"
+                  ? " · du moins cher au plus cher"
+                  : priceSort === "desc"
+                    ? " · du plus cher au moins cher"
+                    : ""}
               </p>
             </div>
           </div>
@@ -383,28 +493,20 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 </select>
               </div>
 
-              {!isGuest && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase">Prix min</label>
-                  <input
-                    type="number"
-                    value={filterPriceMin}
-                    onChange={(e) => setFilterPriceMin(e.target.value)}
-                    className="mt-1 w-full py-2.5 px-3 border border-gray-300 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase">Prix max</label>
-                  <input
-                    type="number"
-                    value={filterPriceMax}
-                    onChange={(e) => setFilterPriceMax(e.target.value)}
-                    className="mt-1 w-full py-2.5 px-3 border border-gray-300 rounded-xl"
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase">Prix</label>
+                <select
+                  value={priceSort}
+                  onChange={(e) =>
+                    setPriceSort(e.target.value as "default" | "asc" | "desc")
+                  }
+                  className="mt-1 w-full py-2.5 px-3 border border-gray-300 rounded-xl bg-white"
+                >
+                  <option value="default">Par défaut</option>
+                  <option value="asc">Moins cher → plus cher</option>
+                  <option value="desc">Plus cher → moins cher</option>
+                </select>
               </div>
-              )}
             </div>
           </aside>
 
@@ -543,6 +645,22 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {items.length > 0 && (
+              <div
+                ref={loadMoreSentinelRef}
+                className="py-8 flex flex-col items-center justify-center gap-2"
+              >
+                {isLoadingMore && (
+                  <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+                )}
+                {!hasMore && !isLoadingMore && (
+                  <p className="text-sm text-gray-500">
+                    Tous les {meta.title.toLowerCase()} ont été chargés
+                  </p>
+                )}
               </div>
             )}
           </main>

@@ -27,30 +27,7 @@ import {
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
-import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
-
-function isFicheTechniquePdfValue(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  return (
-    /\.pdf($|\?)/i.test(trimmed) ||
-    /uploads\/.*docs?\//i.test(trimmed) ||
-    /uploads\/pdf\//i.test(trimmed)
-  );
-}
-
-function getFicheTechniquePdfUrl(
-  uniqueData: Record<string, unknown> | null | undefined
-): string | null {
-  if (!uniqueData) return null;
-  for (const [key, value] of Object.entries(uniqueData)) {
-    if (isFicheTechniqueField(key) && isFicheTechniquePdfValue(value)) {
-      return getMediaUrl(String(value));
-    }
-  }
-  return null;
-}
+import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 
 function useCountdown(endTime: string) {
   const [now, setNow] = useState(() => Date.now());
@@ -425,7 +402,7 @@ function GroupSellDetailsModal({
             <section>
               <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Package className="w-4 h-4 text-teal-600" />
-                Infos produit
+                Infos réactif
               </h4>
               <div className="grid sm:grid-cols-2 gap-2 text-sm mb-3">
                 <DetailRow
@@ -497,7 +474,7 @@ function GroupSellDetailsModal({
                   href={`/products/${product.id}`}
                   className="inline-flex mt-3 text-sm font-semibold text-teal-700 hover:underline"
                 >
-                  Voir la fiche produit complète →
+                  Voir la fiche réactif complète →
                 </Link>
               )}
             </section>

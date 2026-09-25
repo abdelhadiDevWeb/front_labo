@@ -69,14 +69,14 @@ export default function SponsoredProductsPage() {
             <div className="p-2 rounded-xl bg-purple-500/30">
               <Megaphone className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Produits sponsorisés</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Réactifs sponsorisés</h1>
           </div>
           <p className="text-blue-100/80 text-sm sm:text-base max-w-2xl">
-            Tous les produits actuellement mis en avant par nos fournisseurs partenaires
+            Tous les réactifs actuellement mis en avant par nos fournisseurs partenaires
           </p>
           <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-sm">
             <Sparkles className="w-4 h-4 text-purple-300" />
-            {products.length} produit{products.length > 1 ? "s" : ""} sponsorisé
+            {products.length} réactif{products.length > 1 ? "s" : ""} sponsorisé
             {products.length > 1 ? "s" : ""}
           </div>
         </div>
@@ -93,7 +93,7 @@ export default function SponsoredProductsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Rechercher un produit sponsorisé..."
+            placeholder="Rechercher un réactif sponsorisé..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 outline-none"
@@ -110,18 +110,18 @@ export default function SponsoredProductsPage() {
           <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {searchTerm ? "Aucun résultat" : "Aucun produit sponsorisé"}
+              {searchTerm ? "Aucun résultat" : "Aucun réactif sponsorisé"}
             </h2>
             <p className="text-gray-600 mb-6">
               {searchTerm
                 ? "Essayez un autre terme de recherche"
-                : "Revenez plus tard pour découvrir les produits mis en avant"}
+                : "Revenez plus tard pour découvrir les réactifs mis en avant"}
             </p>
             <Link
               href="/products"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
             >
-              Voir tous les produits
+              Voir tous les réactifs
             </Link>
           </div>
         )}

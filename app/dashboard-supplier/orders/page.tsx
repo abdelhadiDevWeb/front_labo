@@ -337,12 +337,14 @@ export default function SupplierOrdersPage() {
       ) {
         const lines = result.lowStockAlerts
           .map(
-            (a: { name: string; remaining: number }) =>
-              `« ${a.name} » : ${a.remaining} restant(s)`
+            (a: { name: string; remaining: number; firstQu?: number }) =>
+              a.firstQu != null
+                ? `« ${a.name} » : ${a.remaining} restant(s) / ${a.firstQu} initial`
+                : `« ${a.name} » : ${a.remaining} restant(s)`
           )
           .join("\n");
         alert(
-          `Réserve acceptée.\n\nAlerte stock bas (≤ 20%) :\n${lines}\n\nPensez à réapprovisionner.`
+          `Réserve acceptée.\n\nAlerte stock bas (≤ 20% du stock initial) :\n${lines}\n\nPensez à réapprovisionner.`
         );
       }
       await loadOrders();

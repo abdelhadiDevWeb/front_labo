@@ -29,6 +29,7 @@ import {
 
 type PromotionFormState = {
   id_product: string;
+  id_product_free: string;
   normal_price: string;
   price_discount: string;
   min_quantity: string;
@@ -38,6 +39,7 @@ type PromotionFormState = {
 
 const emptyForm: PromotionFormState = {
   id_product: "",
+  id_product_free: "",
   price_discount: "",
   normal_price: "",
   min_quantity: "1",
@@ -192,6 +194,33 @@ function PromotionFormFields({
         </p>
       </div>
 
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Produit offert gratuitement{" "}
+          <span className="text-gray-400 font-normal">(optionnel)</span>
+        </label>
+        <select
+          value={form.id_product_free || ""}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, id_product_free: e.target.value }))
+          }
+          className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/40"
+        >
+          <option value="">Aucun — pas de produit gratuit</option>
+          {products
+            .filter((p) => p.id !== form.id_product)
+            .map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} — {product.sellingPrice.toFixed(2)} DA
+              </option>
+            ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Si renseigné, le client reçoit ce produit gratuitement lorsqu&apos;il achète le produit
+          en promotion (quantité minimum respectée).
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -276,6 +305,8 @@ export default function PromotionsPage() {
         id_product: productId,
         // Keep existing promo price if already set; only sync normal price from product
         normal_price: String(product.sellingPrice),
+        id_product_free:
+          prev.id_product_free === productId ? "" : prev.id_product_free,
       }));
     } else {
       setCreateForm((prev) => ({
@@ -284,6 +315,9 @@ export default function PromotionsPage() {
         normal_price: String(product.sellingPrice),
         // Leave promo price empty so the supplier types the amount they want
         price_discount: prev.id_product === productId ? prev.price_discount : "",
+        // Clear free gift if it was the same product
+        id_product_free:
+          prev.id_product_free === productId ? "" : prev.id_product_free,
       }));
     }
   };
@@ -322,6 +356,7 @@ export default function PromotionsPage() {
 
       const result = await createPromotion({
         id_product: createForm.id_product,
+        id_product_free: createForm.id_product_free || null,
         start_day: createForm.start_day,
         end_day: createForm.end_day,
         normal_price: parsed.normal_price,
@@ -348,6 +383,7 @@ export default function PromotionsPage() {
     setSelectedPromotion(promotion);
     setUpdateForm({
       id_product: promotion.id_product,
+      id_product_free: promotion.id_product_free || "",
       price_discount: String(promotion.price_discount),
       normal_price: String(promotion.normal_price),
       min_quantity: String(promotion.min_quantity),
@@ -382,6 +418,7 @@ export default function PromotionsPage() {
 
       const result = await updatePromotion(selectedPromotion.id, {
         id_product: updateForm.id_product,
+        id_product_free: updateForm.id_product_free || null,
         start_day: updateForm.start_day,
         end_day: updateForm.end_day,
         normal_price: parsed.normal_price,
@@ -488,6 +525,7 @@ export default function PromotionsPage() {
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
                   <th className="py-3 px-3 font-semibold">Produit</th>
+                  <th className="py-3 px-3 font-semibold">Offert gratuit</th>
                   <th className="py-3 px-3 font-semibold">Prix normal</th>
                   <th className="py-3 px-3 font-semibold">Prix promo</th>
                   <th className="py-3 px-3 font-semibold">Qté min.</th>
@@ -503,6 +541,11 @@ export default function PromotionsPage() {
                     <tr key={promotion.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-3 font-medium text-gray-900">
                         {promotion.product?.name || promotion.id_product}
+                      </td>
+                      <td className="py-3 px-3 text-sm text-amber-800">
+                        {promotion.freeProduct?.name || (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-3">{promotion.normal_price.toLocaleString("fr-FR")} DA</td>
                       <td className="py-3 px-3 text-green-700 font-semibold">

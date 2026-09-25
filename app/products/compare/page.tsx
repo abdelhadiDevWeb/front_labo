@@ -39,13 +39,13 @@ function CompareProductsContent() {
         setIsLoading(true);
         const ids = getCompareProductIds();
         if (!ids) {
-          setError("Aucun produit sélectionné pour la comparaison");
+          setError("Aucun réactif sélectionné pour la comparaison");
           setIsLoading(false);
           return;
         }
 
         if (ids.length < 2 || ids.length > 5) {
-          setError("Veuillez sélectionner entre 2 et 5 produits pour la comparaison");
+          setError("Veuillez sélectionner entre 2 et 5 réactifs pour la comparaison");
           setIsLoading(false);
           return;
         }
@@ -61,7 +61,7 @@ function CompareProductsContent() {
         }
 
         if (loadedProducts.length < 2) {
-          setError("Impossible de charger les produits sélectionnés");
+          setError("Impossible de charger les réactifs sélectionnés");
           setIsLoading(false);
           return;
         }
@@ -69,7 +69,7 @@ function CompareProductsContent() {
         setProducts(loadedProducts);
       } catch (err) {
         console.error("Load products error:", err);
-        setError("Une erreur est survenue lors du chargement des produits");
+        setError("Une erreur est survenue lors du chargement des réactifs");
       } finally {
         setIsLoading(false);
       }
@@ -99,17 +99,17 @@ function CompareProductsContent() {
         <div className="text-center max-w-md mx-auto px-4">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {error || "Pas assez de produits à comparer"}
+            {error || "Pas assez de réactifs à comparer"}
           </h1>
           <p className="text-gray-600 mb-6">
-            {error || "Veuillez sélectionner au moins 2 produits pour la comparaison"}
+            {error || "Veuillez sélectionner au moins 2 réactifs pour la comparaison"}
           </p>
           <Link
             href="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Retour aux produits</span>
+            <span>Retour aux réactifs</span>
           </Link>
         </div>
       </div>
@@ -124,7 +124,7 @@ function CompareProductsContent() {
     { key: "category", label: "Catégorie", icon: Tag },
     { key: "brand", label: "Marque", icon: Building2 },
     { key: "deliveryTime", label: "Délai de livraison", icon: Clock },
-    { key: "productType", label: "Type de produit", icon: Package },
+    { key: "productType", label: "Type de réactif", icon: Package },
     { key: "supplier", label: "Fournisseur", icon: Building2 },
   ];
 
@@ -146,9 +146,9 @@ function CompareProductsContent() {
                   <Scale className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Comparaison de Produits</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Comparaison de réactifs</h1>
                   <p className="text-sm text-gray-600">
-                    {products.length} produit{products.length > 1 ? "s" : ""} sélectionné{products.length > 1 ? "s" : ""}
+                    {products.length} réactif{products.length > 1 ? "s" : ""} sélectionné{products.length > 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
@@ -326,7 +326,7 @@ function CompareProductsContent() {
             href="/products"
             className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all"
           >
-            Retour aux produits
+            Retour aux réactifs
           </Link>
           {products.map((product) => (
             <Link

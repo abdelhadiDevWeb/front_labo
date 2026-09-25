@@ -46,7 +46,7 @@ export default function PromotionsShowcase() {
             Promotions en cours
           </h2>
           <p className="text-sm sm:text-base text-gray-600 mt-2 max-w-2xl mx-auto">
-            Profitez de prix réduits sur une sélection de produits — quantité minimum requise
+            Profitez de prix réduits — et parfois un réactif offert gratuitement
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export default function PromotionsShowcase() {
             href="/products/promotions"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all shadow-lg hover:shadow-xl"
           >
-            Voir tous les produits en promotion
+            Voir tous les réactifs en promotion
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>

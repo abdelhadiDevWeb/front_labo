@@ -309,8 +309,13 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/allthings" className="hover:text-white transition-colors">
+                    Catalogue
+                  </Link>
+                </li>
+                <li>
                   <Link href="/products" className="hover:text-white transition-colors">
-                    Produits
+                    Réactifs
                   </Link>
                 </li>
                 <li>

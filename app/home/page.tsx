@@ -62,8 +62,8 @@ import {
   markSessionInactive,
 } from "@/lib/auth-session";
 
-const SponsoredProductsCarousel = dynamic(
-  () => import("@/components/SponsoredProductsCarousel"),
+const HomeSponsoredHero = dynamic(
+  () => import("@/components/HomeSponsoredHero"),
   { ssr: false, loading: () => null }
 );
 const PromotionsShowcase = dynamic(
@@ -293,7 +293,7 @@ export default function HomePage() {
           setProductsError(
             toUserFacingError(
               productsRes.message,
-              "Erreur lors du chargement des produits"
+              "Erreur lors du chargement des réactifs"
             )
           );
           setProducts([]);
@@ -312,7 +312,7 @@ export default function HomePage() {
         }
       } catch {
         if (cancelled) return;
-        setProductsError("Erreur lors du chargement des produits");
+        setProductsError("Erreur lors du chargement des réactifs");
         setProducts([]);
         setMachines([]);
         setServices([]);
@@ -926,6 +926,8 @@ export default function HomePage() {
         </nav>
       </header>
 
+      <HomeSponsoredHero />
+
       {/* Hero Section - Modern with Advanced Animations */}
       <section id="accueil" className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700 overflow-hidden py-12 sm:py-16 md:py-0">
         {/* Animated Background Elements */}
@@ -994,7 +996,7 @@ export default function HomePage() {
             {/* CTA Buttons with Modern Effects */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6 justify-center animate-fade-in-up animation-delay-800 px-2 sm:px-4">
               <Link
-                href="/products"
+                href="/allthings"
                 className="group relative px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white text-blue-600 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg overflow-hidden transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-white/50 w-full sm:w-auto inline-flex items-center justify-center"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-2 md:gap-3">
@@ -1065,8 +1067,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <SponsoredProductsCarousel />
-
       {/* Categories Section */}
       <section id="categories" className="py-12 sm:py-16 md:py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
@@ -1078,7 +1078,7 @@ export default function HomePage() {
               Nos catégories
             </h2>
             <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-              Parcourez nos catégories produits, machines et services
+              Parcourez nos catégories réactifs, machines et services
             </p>
           </div>
 
@@ -1191,7 +1191,7 @@ export default function HomePage() {
                     <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
                   </div>
                   <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Catalogue complet :</strong> Accès direct aux produits, nouveautés, arrivages et promotions.
+                    <strong className="font-semibold text-gray-900">Catalogue complet :</strong> Accès direct aux réactifs, nouveautés, arrivages et promotions.
                   </span>
                 </li>
                 <li className="flex items-start gap-3 sm:gap-4 group">
@@ -1415,7 +1415,7 @@ export default function HomePage() {
                 Vous êtes fournisseur ?
               </h2>
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
-                Vendez vos produits, machines et services aux laboratoires partenaires et développez votre activité sur {BRAND_NAME}.
+                Vendez vos réactifs, machines et services aux laboratoires partenaires et développez votre activité sur {BRAND_NAME}.
               </p>
               <ul className="space-y-3 sm:space-y-4">
                 <li className="flex items-start gap-3 group">
@@ -1621,18 +1621,18 @@ export default function HomePage() {
               wilayaLabel={userLocation?.wilaya}
               source={locationSource}
               onRequestLocation={requestBrowserLocation}
-              catalogLabel="produits, machines et services"
+              catalogLabel="réactifs, machines et services"
             />
           )}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
-              Produits les plus populaires
+              Réactifs les plus populaires
             </h2>
             <Link
               href="/products"
               className="px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
             >
-              Voir tous les produits
+              Voir tous les réactifs
             </Link>
           </div>
           {isLoadingProducts ? (
@@ -1662,7 +1662,7 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : "Aucun produit disponible pour le moment"}
+                  : "Aucun réactif disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -2037,7 +2037,8 @@ export default function HomePage() {
               <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
                 <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
                 <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
-                <li><Link href="/products" className="hover:text-white transition-colors">Produits</Link></li>
+                <li><Link href="/allthings" className="hover:text-white transition-colors">Catalogue</Link></li>
+                <li><Link href="/products" className="hover:text-white transition-colors">Réactifs</Link></li>
                 <li><Link href="/machines" className="hover:text-white transition-colors">Machines</Link></li>
                 <li><Link href="/services" className="hover:text-white transition-colors">Services</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>

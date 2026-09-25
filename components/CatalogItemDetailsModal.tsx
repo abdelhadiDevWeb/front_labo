@@ -17,32 +17,9 @@ import { PublicCatalogItem, getSessionRole } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
-import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
+import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
-
-function isFicheTechniquePdfValue(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  return (
-    /\.pdf($|\?)/i.test(trimmed) ||
-    /uploads\/.*docs?\//i.test(trimmed) ||
-    /uploads\/pdf\//i.test(trimmed)
-  );
-}
-
-function getFicheTechniquePdfUrl(
-  uniqueData: Record<string, unknown> | null | undefined
-): string | null {
-  if (!uniqueData) return null;
-  for (const [key, value] of Object.entries(uniqueData)) {
-    if (isFicheTechniqueField(key) && isFicheTechniquePdfValue(value)) {
-      return getMediaUrl(String(value));
-    }
-  }
-  return null;
-}
 
 export default function CatalogItemDetailsModal({
   item,

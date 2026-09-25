@@ -341,7 +341,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                   Votre panier est vide
                 </p>
                 <p className="text-gray-400 text-sm mt-2">
-                  Ajoutez des produits pour commencer
+                  Ajoutez des articles pour commencer
                 </p>
               </div>
             ) : (

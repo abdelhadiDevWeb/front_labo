@@ -31,15 +31,27 @@ export const validateOnboardingRedirect = (path: string | undefined | null): str
 const CHARGILY_HOSTS = new Set([
   "pay.chargily.net",
   "pay.chargily.com",
+  "pay.chargily.dz",
   "test.pay.chargily.net",
+  "epay.chargily.com",
 ]);
+
+const isChargilyHostname = (hostname: string): boolean => {
+  const host = hostname.toLowerCase();
+  if (CHARGILY_HOSTS.has(host)) return true;
+  return (
+    host.endsWith(".chargily.net") ||
+    host.endsWith(".chargily.com") ||
+    host.endsWith(".chargily.dz")
+  );
+};
 
 export const validateCheckoutUrl = (url: string | undefined | null): string | null => {
   if (!url || typeof url !== "string") return null;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
-    if (!CHARGILY_HOSTS.has(parsed.hostname)) return null;
+    if (!isChargilyHostname(parsed.hostname)) return null;
     return parsed.toString();
   } catch {
     return null;

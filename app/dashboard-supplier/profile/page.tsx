@@ -25,6 +25,7 @@ import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
+import SupplierDeliveryEditor from "@/components/SupplierDeliveryEditor";
 
 interface ProfileFormData {
   firstName: string;
@@ -37,6 +38,8 @@ interface ProfileFormData {
   methode_payment: string[];
   coversAllWilayas: boolean;
   wilayas: string[];
+  deliveryNoteAll: string;
+  deliveryByWilaya: Record<string, string>;
 }
 
 interface PasswordFormData {
@@ -69,6 +72,8 @@ export default function SupplierProfilePage() {
     methode_payment: [],
     coversAllWilayas: false,
     wilayas: [],
+    deliveryNoteAll: "",
+    deliveryByWilaya: {},
   });
   
 
@@ -102,6 +107,8 @@ export default function SupplierProfilePage() {
             methode_payment: result.data.methode_payment || [],
             coversAllWilayas: !!result.data.coversAllWilayas,
             wilayas: result.data.wilayas || [],
+            deliveryNoteAll: result.data.deliveryNoteAll || "",
+            deliveryByWilaya: result.data.deliveryByWilaya || {},
           });
         }
 
@@ -604,6 +611,25 @@ export default function SupplierProfilePage() {
                 }
                 onSelectedCodesChange={(codes) =>
                   setProfileForm((prev) => ({ ...prev, wilayas: codes }))
+                }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+                Délais & infos de livraison
+              </label>
+              <p className="text-sm text-gray-500 mb-4">
+                Décrivez la livraison pour chaque wilaya. Vous pouvez aussi écrire un texte
+                unique et l&apos;appliquer à toutes.
+              </p>
+              <SupplierDeliveryEditor
+                deliveryNoteAll={profileForm.deliveryNoteAll}
+                deliveryByWilaya={profileForm.deliveryByWilaya}
+                onDeliveryNoteAllChange={(value) =>
+                  setProfileForm((prev) => ({ ...prev, deliveryNoteAll: value }))
+                }
+                onDeliveryByWilayaChange={(next) =>
+                  setProfileForm((prev) => ({ ...prev, deliveryByWilaya: next }))
                 }
               />
             </div>

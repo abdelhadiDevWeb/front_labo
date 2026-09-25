@@ -292,6 +292,8 @@ export interface ClientData {
   commune?: string;
   wilayas?: string[];
   coversAllWilayas?: boolean;
+  deliveryNoteAll?: string;
+  deliveryByWilaya?: Record<string, string>;
   rip_post?: string;
   rip_bank?: string;
   methode_payment?: string[];
@@ -1244,6 +1246,8 @@ export interface PublicProduct {
     wilaya?: string | null;
     wilayas?: string[];
     coversAllWilayas?: boolean;
+    deliveryNoteAll?: string;
+    deliveryByWilaya?: Record<string, string>;
   } | null;
   createdAt?: string;
   updatedAt?: string;
@@ -1285,6 +1289,7 @@ export const getSponsoredProducts = async (): Promise<
 export interface PublicPromotion {
   id: string;
   id_product: string;
+  id_product_free?: string | null;
   price_discount: number;
   normal_price: number;
   min_quantity: number;
@@ -1292,6 +1297,17 @@ export interface PublicPromotion {
   end_day: string;
   discountPercent: number;
   product?: {
+    id: string;
+    name: string;
+    price: number;
+    images: string[];
+    brand?: string;
+    category?: string;
+    productType?: string;
+    wilaya?: string;
+    supplierName?: string;
+  };
+  freeProduct?: {
     id: string;
     name: string;
     price: number;
@@ -1518,6 +1534,8 @@ export interface PublicCatalogItem {
     wilaya?: string | null;
     wilayas?: string[];
     coversAllWilayas?: boolean;
+    deliveryNoteAll?: string;
+    deliveryByWilaya?: Record<string, string>;
   } | null;
   createdAt?: string;
   updatedAt?: string;
@@ -1533,6 +1551,7 @@ export const getPublicMachines = async (filters?: {
   ApiResponse<{
     machines: PublicCatalogItem[];
     total: number;
+    totalCount?: number;
     clientWilayaCode?: string | null;
     nextCursor?: string | null;
     hasMore?: boolean;
@@ -1589,6 +1608,7 @@ export const getPublicServices = async (filters?: {
   ApiResponse<{
     services: PublicCatalogItem[];
     total: number;
+    totalCount?: number;
     clientWilayaCode?: string | null;
     nextCursor?: string | null;
     hasMore?: boolean;
@@ -1696,6 +1716,7 @@ export const getAllProducts = async (filters?: {
   ApiResponse<{
     products: PublicProduct[];
     total: number;
+    totalCount?: number;
     clientWilayaCode?: string | null;
     nextCursor?: string | null;
     hasMore?: boolean;
@@ -3434,6 +3455,7 @@ const response = await apiFetch(
 export interface Promotion {
   id: string;
   id_product: string;
+  id_product_free?: string | null;
   id_supplier: string;
   price_discount: number;
   normal_price: number;
@@ -3447,12 +3469,19 @@ export interface Promotion {
     sellingPrice: number;
     images?: string[];
   };
+  freeProduct?: {
+    id: string;
+    name: string;
+    sellingPrice: number;
+    images?: string[];
+  };
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface CreatePromotionData {
   id_product: string;
+  id_product_free?: string | null;
   price_discount: number;
   normal_price: number;
   min_quantity: number;
@@ -3462,6 +3491,7 @@ export interface CreatePromotionData {
 
 export interface UpdatePromotionData {
   id_product?: string;
+  id_product_free?: string | null;
   price_discount?: number;
   normal_price?: number;
   min_quantity?: number;

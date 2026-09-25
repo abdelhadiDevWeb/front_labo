@@ -60,7 +60,7 @@ export default function LoginAlert({ isOpen, onClose }: LoginAlertProps) {
           {/* Content */}
           <div className="p-6">
             <p className="text-gray-700 mb-6 leading-relaxed">
-              Vous devez vous connecter pour ajouter des produits à votre panier.
+              Vous devez vous connecter pour ajouter des articles à votre panier.
               Connectez-vous à votre compte client pour continuer vos achats.
             </p>
 

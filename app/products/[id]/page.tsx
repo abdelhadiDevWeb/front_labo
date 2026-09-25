@@ -25,6 +25,9 @@ import LoginAlert from "@/components/LoginAlert";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
+import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
 const getMediaUrl = (mediaPath: string) => {
   return buildMediaUrl(mediaPath) || "";
@@ -43,6 +46,8 @@ export default function ProductDetailPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const { location } = useUserLocation();
+  const visitorWilayaCode = resolveWilayaCode(location?.wilaya);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -70,7 +75,7 @@ export default function ProductDetailPage() {
               setSelectedImageIndex(-1);
             }
           } else {
-            setError(result.message || "Produit non trouvé");
+            setError(result.message || "Réactif non trouvé");
           }
         } catch (err) {
           setError("Une erreur est survenue");
@@ -111,17 +116,17 @@ export default function ProductDetailPage() {
         <div className="text-center max-w-md mx-auto px-4">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {error || "Produit non trouvé"}
+            {error || "Réactif non trouvé"}
           </h1>
           <p className="text-gray-600 mb-6">
-            Le produit que vous recherchez n'existe pas ou n'est plus disponible.
+            Le réactif que vous recherchez n&apos;existe pas ou n&apos;est plus disponible.
           </p>
           <Link
             href="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Retour aux produits</span>
+            <span>Retour aux réactifs</span>
           </Link>
         </div>
       </div>
@@ -145,7 +150,7 @@ export default function ProductDetailPage() {
             className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Retour aux produits</span>
+            <span>Retour aux réactifs</span>
           </Link>
         </div>
       </header>
@@ -166,7 +171,7 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-sm">
                     <Video className="w-4 h-4" />
-                    <span>Vidéo du produit</span>
+                    <span>Vidéo du réactif</span>
                   </div>
                   {product.images && product.images.length > 0 && (
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
@@ -446,6 +451,15 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               </div>
+              {product.supplier && (
+                <div className="mt-4">
+                  <SupplierDeliveryNotes
+                    deliveryNoteAll={product.supplier.deliveryNoteAll}
+                    deliveryByWilaya={product.supplier.deliveryByWilaya}
+                    highlightWilayaCode={visitorWilayaCode}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Quantity and Add to Cart */}

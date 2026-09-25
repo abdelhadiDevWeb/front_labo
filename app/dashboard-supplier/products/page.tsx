@@ -49,6 +49,7 @@ import {
 } from "@/lib/api";
 import { validateCheckoutUrl } from "@/lib/security";
 import { getMediaUrl } from "@/lib/media-url";
+import { isFicheTechniquePdfValue } from "@/lib/fiche-technique-url";
 import { isFicheTechniqueField } from "@/lib/catalog-form-fields";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
@@ -116,18 +117,6 @@ const getUniqueDataEntries = (data: Record<string, unknown>) =>
 const formatUniqueValue = (value: unknown): string => {
   if (typeof value === "number") return Number.isFinite(value) ? String(value) : "";
   return String(value);
-};
-
-/** True when unique_data value looks like an uploaded PDF path/URL */
-const isFicheTechniquePdfValue = (value: unknown): boolean => {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  return (
-    /\.pdf($|\?)/i.test(trimmed) ||
-    /uploads\/.*docs?\//i.test(trimmed) ||
-    /uploads\/pdf\//i.test(trimmed)
-  );
 };
 
 const getItemImages = (data: Record<string, unknown>): string[] =>

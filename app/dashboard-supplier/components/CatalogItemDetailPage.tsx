@@ -23,6 +23,7 @@ import {
   deleteService,
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import {
   editableFieldsForType,
   isFicheTechniqueField,
@@ -71,15 +72,6 @@ const getImages = (data: Record<string, unknown>): string[] => {
   }
   if (typeof raw === "string" && raw.trim()) return [raw.trim()];
   return [];
-};
-
-const getFicheTechnique = (data: Record<string, unknown>): string => {
-  for (const [key, value] of Object.entries(data)) {
-    if (isFicheTechniqueField(key) && typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-  return "";
 };
 
 export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
@@ -187,7 +179,7 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
     "sousCategory",
   ]);
   const images = getImages(uniqueData);
-  const ficheTechnique = getFicheTechnique(uniqueData);
+  const fichePdfUrl = getFicheTechniquePdfUrl(uniqueData);
 
   const displayEntries = Object.entries(uniqueData).filter(([key, value]) => {
     if (HIDDEN_KEYS.has(key)) return false;
@@ -375,9 +367,9 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
             </div>
           )}
 
-          {ficheTechnique && (
+          {fichePdfUrl && (
             <a
-              href={getMediaUrl(ficheTechnique) || "#"}
+              href={fichePdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:border-green-400 transition-colors"

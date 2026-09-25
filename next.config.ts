@@ -75,7 +75,14 @@ const buildContentSecurityPolicy = (): string => {
 
   connectSrc.add("https://pay.chargily.net");
   connectSrc.add("https://pay.chargily.com");
+  connectSrc.add("https://pay.chargily.dz");
+  connectSrc.add("http://pay.chargily.dz");
   connectSrc.add("https://test.pay.chargily.net");
+  frameSrc.add("https://pay.chargily.net");
+  frameSrc.add("https://pay.chargily.com");
+  frameSrc.add("https://pay.chargily.dz");
+  frameSrc.add("http://pay.chargily.dz");
+  frameSrc.add("https://test.pay.chargily.net");
 
   if (isDev) {
     connectSrc.add("ws:");
@@ -93,7 +100,7 @@ const buildContentSecurityPolicy = (): string => {
     `worker-src ${Array.from(workerSrc).join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://pay.chargily.net https://pay.chargily.com https://pay.chargily.dz http://pay.chargily.dz https://test.pay.chargily.net",
     "frame-ancestors 'none'",
   ];
 

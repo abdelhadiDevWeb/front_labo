@@ -24,9 +24,15 @@ type HeaderMenuLink = {
 /** Stable marketplace links — keep out of home/page.tsx so HMR cannot remount an old flat nav. */
 export const MARKETPLACE_MENU: HeaderMenuLink[] = [
   {
-    href: "/products",
-    label: "Tous les produits",
+    href: "/allthings",
+    label: "Tout le catalogue",
     icon: Package,
+    hoverClass: "hover:bg-slate-50 hover:text-slate-700",
+  },
+  {
+    href: "/products",
+    label: "Tous les réactifs",
+    icon: FlaskConical,
     hoverClass: "hover:bg-blue-50 hover:text-blue-600",
   },
   {

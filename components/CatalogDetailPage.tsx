@@ -28,22 +28,10 @@ import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
 import UniqueDataFields from "@/components/UniqueDataFields";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
-
-function getFicheTechniquePdfUrl(
-  data: Record<string, unknown> | null | undefined
-): string | null {
-  if (!data) return null;
-  for (const key of Object.keys(data)) {
-    if (!/fiche\s*technique/i.test(key) && key.toLowerCase() !== "fichetechnique") {
-      continue;
-    }
-    const value = data[key];
-    if (typeof value === "string" && value.trim()) {
-      return getMediaUrl(value.trim());
-    }
-  }
-  return null;
-}
+import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
+import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
 export default function CatalogDetailPage({ kind }: { kind: "machine" | "service" }) {
   const params = useParams();
@@ -56,6 +44,8 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   const [showPdf, setShowPdf] = useState(false);
   const { addToCart } = useCart();
   const { canSeePrice } = useCanSeeCatalogPrice();
+  const { location } = useUserLocation();
+  const visitorWilayaCode = resolveWilayaCode(location?.wilaya);
   const listHref = kind === "machine" ? "/machines" : "/services";
   const label = kind === "machine" ? "Machine" : "Service";
 
@@ -173,6 +163,14 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             </div>
             {item.supplier && <p className="text-gray-500">Fournisseur : {item.supplier.name}</p>}
           </div>
+
+          {item.supplier && (
+            <SupplierDeliveryNotes
+              deliveryNoteAll={item.supplier.deliveryNoteAll}
+              deliveryByWilaya={item.supplier.deliveryByWilaya}
+              highlightWilayaCode={visitorWilayaCode}
+            />
+          )}
 
           {kind === "machine" && (
             <button
