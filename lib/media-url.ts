@@ -14,6 +14,19 @@ const getTrustedMediaHosts = (): Set<string> => {
     }
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (siteUrl) {
+    try {
+      hosts.add(new URL(siteUrl).hostname);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Production marketplace host
+  hosts.add("dzlabmarket.com");
+  hosts.add("www.dzlabmarket.com");
+
   const extraHosts = process.env.NEXT_PUBLIC_TRUSTED_MEDIA_HOSTS?.split(",") ?? [];
   for (const host of extraHosts) {
     const trimmed = host.trim();
@@ -38,9 +51,45 @@ const isTrustedAbsoluteUrl = (value: string): boolean => {
 };
 
 /**
+ * Extract stable `uploads/...` key from Hostinger absolute paths, Windows paths,
+ * or already-relative DB values.
+ */
+export const toUploadsRelativePath = (
+  pathValue: string | null | undefined
+): string | null => {
+  if (!pathValue) return null;
+  const normalized = pathValue.replace(/\\/g, "/").trim();
+  if (!normalized) return null;
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  const lower = normalized.toLowerCase();
+  const marker = "/uploads/";
+  const idx = lower.indexOf(marker);
+  if (idx >= 0) return normalized.slice(idx + 1);
+
+  if (lower.startsWith("uploads/")) return normalized;
+
+  if (
+    /^(products|categories|sous-categories|profile|profile-images|payments|documents|excel|_defaults)\//i.test(
+      normalized
+    )
+  ) {
+    return `uploads/${normalized.replace(/^\/+/, "")}`;
+  }
+
+  return null;
+};
+
+/**
  * Build a media URL from a backend relative path.
  * All uploads are served exclusively via /api/files/*
  * (public catalog media allowed without auth; sensitive files require ACL).
+ *
+ * Works locally (`/api/files/...`) and on https://dzlabmarket.com — same-origin BFF.
+ * Also repairs legacy absolute Hostinger paths stored in MongoDB.
  */
 export const getMediaUrl = (path: string | null | undefined): string => {
   if (!path) return "";
@@ -52,8 +101,14 @@ export const getMediaUrl = (path: string | null | undefined): string => {
     return isTrustedAbsoluteUrl(value) ? value : "";
   }
 
-  const normalizedPath = value.startsWith("/") ? value.slice(1) : value;
+  const relative = toUploadsRelativePath(value) || value;
+  const normalizedPath = relative.startsWith("/") ? relative.slice(1) : relative;
   const filePath = normalizedPath.replace(/^uploads\//i, "");
+
+  if (!filePath || filePath.startsWith("home/")) {
+    // Still looks like a broken absolute server path — give up cleanly
+    return "";
+  }
 
   return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
 };
