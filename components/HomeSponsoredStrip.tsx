@@ -25,7 +25,9 @@ function shuffleArray<T>(items: T[]): T[] {
 }
 
 function Tile({ product }: { product: SponsoredPublicProduct }) {
-  const image = product.images?.[0] ? getMediaUrl(product.images[0]) : null;
+  const image = (product.sponsorImage || product.images?.[0])
+    ? getMediaUrl(product.sponsorImage || product.images[0])
+    : null;
   const priceLabel = formatCatalogPriceDa(product.price, 0);
   const detail = [product.brand, product.category].filter(Boolean).join(" · ");
 

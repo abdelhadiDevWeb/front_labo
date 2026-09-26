@@ -26,7 +26,9 @@ export default function SponsoredProductCard({
   className = "w-[300px] sm:w-[340px]",
   variant = "full",
 }: SponsoredProductCardProps) {
-  const image = product.images?.[0] ? getMediaUrl(product.images[0]) : null;
+  const image = (product.sponsorImage || product.images?.[0])
+    ? getMediaUrl(product.sponsorImage || product.images![0])
+    : null;
   const endDate = new Date(product.sponsorEndDate).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "short",

@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
+import { scrollPageToTop } from "@/lib/scroll-to-top";
 import {
   editableFieldsForType,
   isFicheTechniqueField,
@@ -225,13 +226,16 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
         setNewImages([]);
         setNewFiche(null);
         await loadItem();
+        scrollPageToTop();
         setTimeout(() => setUpdateSuccess(null), 3000);
       } else {
         setUpdateError(result.message || "Erreur lors de la mise à jour");
+        scrollPageToTop();
       }
     } catch (err) {
       console.error("Update catalog item error:", err);
       setUpdateError("Une erreur est survenue");
+      scrollPageToTop();
     } finally {
       setIsUpdating(false);
     }

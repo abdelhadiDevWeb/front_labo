@@ -89,7 +89,10 @@ export default function HomeSponsoredHero() {
     >
       <div className="relative h-full overflow-hidden bg-neutral-900" style={{ height: BANNER_H }}>
         {products.map((p, i) => {
-          const src = p.images?.[0] ? getMediaUrl(p.images[0]) : null;
+          const src = (p.sponsorImage || p.images?.[0])
+            ? getMediaUrl(p.sponsorImage || p.images![0])
+            : null;
+          const videoSrc = p.sponsorVideo ? getMediaUrl(p.sponsorVideo) : null;
           return (
             <div
               key={p.id}
@@ -98,7 +101,16 @@ export default function HomeSponsoredHero() {
               }`}
               aria-hidden={i !== index}
             >
-              {src ? (
+              {videoSrc && i === index ? (
+                <video
+                  src={videoSrc}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : src ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}

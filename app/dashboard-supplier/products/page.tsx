@@ -28,6 +28,8 @@ import {
   ExternalLink,
   FlaskConical,
   Layers,
+  Upload,
+  Video,
 } from "lucide-react";
 import {
   getSupplierProducts,
@@ -215,6 +217,11 @@ function ProductsPageContent() {
   const [resumingPaymentId, setResumingPaymentId] = useState<string | null>(null);
   const [sponsorSuccess, setSponsorSuccess] = useState<string | null>(null);
   const [sponsorError, setSponsorError] = useState<string | null>(null);
+  const [sponsorImageFile, setSponsorImageFile] = useState<File | null>(null);
+  const [sponsorVideoFile, setSponsorVideoFile] = useState<File | null>(null);
+  const [sponsorImagePath, setSponsorImagePath] = useState("");
+  const [sponsorVideoPath, setSponsorVideoPath] = useState("");
+  const [sponsorImagePreview, setSponsorImagePreview] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
   const [fichePdfViewer, setFichePdfViewer] = useState<{
@@ -379,6 +386,10 @@ function ProductsPageContent() {
     try {
       const result = await createSubscriptionSponsorProduct({
         id_product: selectedSubscriptionProductId,
+        imageFile: sponsorImageFile,
+        videoFile: sponsorVideoFile,
+        imagePath: sponsorImageFile ? null : sponsorImagePath || null,
+        videoPath: sponsorVideoFile ? null : sponsorVideoPath || null,
       });
 
       if (result.success) {
@@ -395,6 +406,7 @@ function ProductsPageContent() {
             : "Sponsoring activé via votre abonnement (sans paiement) !"
         );
         setShowSubscriptionSponsorModal(false);
+        resetSponsorMedia();
         if (result.data?.quota) {
           setSubscriptionQuota(result.data.quota);
         }
@@ -422,6 +434,10 @@ function ProductsPageContent() {
       const result = await createSponsorProduct({
         id_plan_sponsor: selectedPlanId,
         id_product: selectedProductId,
+        imageFile: sponsorImageFile,
+        videoFile: sponsorVideoFile,
+        imagePath: sponsorImageFile ? null : sponsorImagePath || null,
+        videoPath: sponsorVideoFile ? null : sponsorVideoPath || null,
       });
 
       if (result.success && result.data?.checkoutUrl) {
@@ -558,17 +574,176 @@ function ProductsPageContent() {
     });
   };
 
+  const resetSponsorMedia = () => {
+    setSponsorImageFile(null);
+    setSponsorVideoFile(null);
+    setSponsorImagePath("");
+    setSponsorVideoPath("");
+    setSponsorImagePreview(null);
+  };
+
+  const getProductImages = (product: Product | undefined): string[] => {
+    if (!product) return [];
+    if (Array.isArray(product.images) && product.images.length) return product.images.filter(Boolean);
+    const fromData = product.unique_data?.images;
+    return Array.isArray(fromData) ? (fromData as string[]).filter(Boolean) : [];
+  };
+
+  const getProductVideo = (product: Product | undefined): string | null => {
+    if (!product) return null;
+    if (product.video && String(product.video).trim()) return String(product.video);
+    const fromData = product.unique_data?.video;
+    return typeof fromData === "string" && fromData.trim() ? fromData : null;
+  };
+
   const openVipSponsorModal = () => {
     setSelectedPlanId(sponsorPlans[0]?.id || "");
     setSelectedProductId(productsAvailableForSponsor[0]?.id || "");
+    resetSponsorMedia();
     setSponsorError(null);
     setShowVipSponsorModal(true);
   };
 
   const openSubscriptionSponsorModal = () => {
     setSelectedSubscriptionProductId(productsAvailableForSponsor[0]?.id || "");
+    resetSponsorMedia();
     setSponsorError(null);
     setShowSubscriptionSponsorModal(true);
+  };
+
+  const renderSponsorMediaFields = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
+    const productImages = getProductImages(product);
+    const productVideo = getProductVideo(product);
+    const previewUrl = sponsorImageFile
+      ? sponsorImagePreview
+      : sponsorImagePath
+        ? getMediaUrl(sponsorImagePath)
+        : null;
+
+    return (
+      <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <p className="text-sm font-semibold text-gray-800">Média du sponsoring (optionnel)</p>
+        <p className="text-xs text-gray-500">
+          Uploadez une nouvelle image/vidéo, ou choisissez parmi celles du produit.
+        </p>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-2">Image</label>
+          {productImages.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
+              {productImages.map((img) => {
+                const selected = !sponsorImageFile && sponsorImagePath === img;
+                return (
+                  <button
+                    key={img}
+                    type="button"
+                    onClick={() => {
+                      setSponsorImageFile(null);
+                      setSponsorImagePreview(null);
+                      setSponsorImagePath(selected ? "" : img);
+                    }}
+                    className={`relative aspect-square overflow-hidden rounded-lg border-2 ${
+                      selected ? "border-purple-600 ring-2 ring-purple-200" : "border-gray-200"
+                    }`}
+                  >
+                    <img
+                      src={getMediaUrl(img)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <label className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600 cursor-pointer hover:bg-gray-50">
+            <Upload className="w-4 h-4" />
+            <span>{sponsorImageFile ? sponsorImageFile.name : "Uploader une nouvelle image"}</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSponsorImageFile(file);
+                setSponsorImagePath("");
+                setSponsorImagePreview(file ? URL.createObjectURL(file) : null);
+              }}
+            />
+          </label>
+          {previewUrl && (
+            <div className="mt-2 flex items-center gap-3">
+              <img src={previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover border" />
+              <button
+                type="button"
+                onClick={() => {
+                  setSponsorImageFile(null);
+                  setSponsorImagePath("");
+                  setSponsorImagePreview(null);
+                }}
+                className="text-xs font-semibold text-red-600 hover:text-red-700"
+              >
+                Retirer l&apos;image
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-2">Vidéo</label>
+          {productVideo && (
+            <button
+              type="button"
+              onClick={() => {
+                setSponsorVideoFile(null);
+                setSponsorVideoPath(
+                  !sponsorVideoFile && sponsorVideoPath === productVideo ? "" : productVideo
+                );
+              }}
+              className={`mb-3 w-full flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm text-left ${
+                !sponsorVideoFile && sponsorVideoPath === productVideo
+                  ? "border-purple-600 bg-purple-50 text-purple-900"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <Video className="w-4 h-4 shrink-0" />
+              <span className="truncate">
+                {!sponsorVideoFile && sponsorVideoPath === productVideo
+                  ? "Vidéo du produit sélectionnée"
+                  : "Utiliser la vidéo du produit"}
+              </span>
+            </button>
+          )}
+          <label className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600 cursor-pointer hover:bg-gray-50">
+            <Upload className="w-4 h-4" />
+            <span>{sponsorVideoFile ? sponsorVideoFile.name : "Uploader une nouvelle vidéo"}</span>
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSponsorVideoFile(file);
+                setSponsorVideoPath("");
+              }}
+            />
+          </label>
+          {(sponsorVideoFile || sponsorVideoPath) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSponsorVideoFile(null);
+                setSponsorVideoPath("");
+              }}
+              className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
+            >
+              Retirer la vidéo
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Categories available for the selected kind
@@ -1385,10 +1560,11 @@ function ProductsPageContent() {
 
                     {isExpanded && (
                       <div className="overflow-x-auto border-t border-gray-200">
-                        <table className="w-full min-w-[640px]">
+                        <table className="w-full min-w-[760px]">
                           <thead>
                             <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
                               <th className="py-2 px-3 font-semibold">Date</th>
+                              <th className="py-2 px-3 font-semibold">Média</th>
                               <th className="py-2 px-3 font-semibold">Durée</th>
                               <th className="py-2 px-3 font-semibold">Prix</th>
                               <th className="py-2 px-3 font-semibold">Période</th>
@@ -1405,6 +1581,39 @@ function ProductsPageContent() {
                                     {record.createdAt
                                       ? formatDate(record.createdAt)
                                       : "—"}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    <div className="flex items-center gap-2">
+                                      {record.image ? (
+                                        <a
+                                          href={getMediaUrl(record.image)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="shrink-0"
+                                          title="Voir l'image sponsor"
+                                        >
+                                          <img
+                                            src={getMediaUrl(record.image)}
+                                            alt=""
+                                            className="h-9 w-9 rounded-md object-cover border border-gray-200"
+                                          />
+                                        </a>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">—</span>
+                                      )}
+                                      {record.video ? (
+                                        <a
+                                          href={getMediaUrl(record.video)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline"
+                                          title="Voir la vidéo sponsor"
+                                        >
+                                          <Video className="w-3.5 h-3.5" />
+                                          Vidéo
+                                        </a>
+                                      ) : null}
+                                    </div>
                                   </td>
                                   <td className="py-2 px-3 text-gray-700">
                                     {record.time}{" "}
@@ -1475,7 +1684,10 @@ function ProductsPageContent() {
                   <h3 className="text-xl font-bold text-white">Sponsoring VIP</h3>
                 </div>
                 <button
-                  onClick={() => setShowVipSponsorModal(false)}
+                  onClick={() => {
+                    setShowVipSponsorModal(false);
+                    resetSponsorMedia();
+                  }}
                   className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
                 >
                   <X className="w-6 h-6" />
@@ -1489,7 +1701,10 @@ function ProductsPageContent() {
                   <select
                     required
                     value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedProductId(e.target.value);
+                      resetSponsorMedia();
+                    }}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
                   >
                     <option value="">Sélectionner un produit</option>
@@ -1513,6 +1728,7 @@ function ProductsPageContent() {
                     </p>
                   )}
                 </div>
+                {selectedProductId ? renderSponsorMediaFields(selectedProductId) : null}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Plan VIP <span className="text-red-500">*</span>
@@ -1539,7 +1755,10 @@ function ProductsPageContent() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowVipSponsorModal(false)}
+                    onClick={() => {
+                      setShowVipSponsorModal(false);
+                      resetSponsorMedia();
+                    }}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
                   >
                     Annuler
@@ -1579,7 +1798,10 @@ function ProductsPageContent() {
                   <h3 className="text-xl font-bold text-white">Sponsoring abonnement</h3>
                 </div>
                 <button
-                  onClick={() => setShowSubscriptionSponsorModal(false)}
+                  onClick={() => {
+                    setShowSubscriptionSponsorModal(false);
+                    resetSponsorMedia();
+                  }}
                   className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
                 >
                   <X className="w-6 h-6" />
@@ -1631,7 +1853,10 @@ function ProductsPageContent() {
                   <select
                     required
                     value={selectedSubscriptionProductId}
-                    onChange={(e) => setSelectedSubscriptionProductId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedSubscriptionProductId(e.target.value);
+                      resetSponsorMedia();
+                    }}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   >
                     <option value="">Sélectionner un produit</option>
@@ -1642,10 +1867,16 @@ function ProductsPageContent() {
                     ))}
                   </select>
                 </div>
+                {selectedSubscriptionProductId
+                  ? renderSponsorMediaFields(selectedSubscriptionProductId)
+                  : null}
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowSubscriptionSponsorModal(false)}
+                    onClick={() => {
+                      setShowSubscriptionSponsorModal(false);
+                      resetSponsorMedia();
+                    }}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
                   >
                     Annuler

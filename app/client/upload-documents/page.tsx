@@ -17,6 +17,7 @@ import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validatePdfFile } from "@/lib/file-validation";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { useOnboardingBackGuard } from "@/components/OnboardingBackGuard";
+import { uploadFormDataWithProgress } from "@/lib/upload-with-progress";
 
 function ClientUploadForm() {
   const router = useRouter();
@@ -27,6 +28,7 @@ function ClientUploadForm() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isCheckingDocs, setIsCheckingDocs] = useState(true);
   const [hasExistingDocs, setHasExistingDocs] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,12 +75,24 @@ function ClientUploadForm() {
     if (inputRef.current) inputRef.current.value = "";
   }, [isEditMode, hasExistingDocs]);
 
+  useEffect(() => {
+    if (!isLoading) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isLoading]);
+
   const clearFile = () => {
+    if (isLoading) return;
     setFile(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLoading) return;
     const selected = e.target.files?.[0] ?? null;
     e.target.value = "";
     if (!selected) {
@@ -96,11 +110,13 @@ function ClientUploadForm() {
   };
 
   const goToChoosePlan = () => {
+    if (isLoading) return;
     router.replace(choosePlanHref);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setError(null);
 
     if (!file) {
@@ -118,34 +134,34 @@ function ClientUploadForm() {
     }
 
     setIsLoading(true);
+    setUploadProgress(0);
     try {
       const formData = new FormData();
       formData.append("identity", file, file.name);
 
-      const response = await apiFetch(`${getApiUrl()}/client/documents`, {
-        method: "POST",
-        body: formData,
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache",
-        },
-      });
-      const result = await parseResponseJson<{
-        success: boolean;
+      const { ok, status, data: result } = await uploadFormDataWithProgress<{
+        success?: boolean;
         message?: string;
         data?: { redirectTo?: string; identity?: string };
-      }>(response);
+      }>(`${getApiUrl()}/client/documents`, formData, setUploadProgress);
 
-      if (response.status === 401 || response.status === 403) {
+      if (status === 401 || status === 403) {
         setError(result.message || "Session expirée. Veuillez vous reconnecter.");
+        setIsLoading(false);
+        setUploadProgress(0);
         return;
       }
-      if (!response.ok || !result.success) {
+      if (!ok || !result.success) {
         setError(result.message || "Une erreur est survenue lors de l'upload");
+        setIsLoading(false);
+        setUploadProgress(0);
         return;
       }
 
-      clearFile();
+      setUploadProgress(100);
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      await new Promise((r) => setTimeout(r, 400));
       router.replace(
         validateOnboardingRedirect(result.data?.redirectTo) || choosePlanHref
       );
@@ -155,12 +171,13 @@ function ClientUploadForm() {
           ? err.message
           : "Une erreur est survenue. Veuillez réessayer."
       );
-    } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleBack = () => {
+    if (isLoading) return;
     if (isEditMode || hasExistingDocs) {
       goToChoosePlan();
       return;
@@ -169,14 +186,54 @@ function ClientUploadForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8 ${
+        isLoading ? "pointer-events-none select-none" : ""
+      }`}
+      aria-busy={isLoading}
+    >
       {modal}
+
+      {isLoading && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-auto">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin shrink-0" />
+              <div>
+                <p className="font-bold text-gray-900">
+                  {uploadProgress >= 100
+                    ? "Terminé — redirection…"
+                    : uploadProgress >= 96
+                      ? "Traitement du document…"
+                      : "Téléchargement en cours…"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Ne fermez pas cette page et n&apos;interagissez pas pendant
+                  l&apos;envoi.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-600">Progression</span>
+              <span className="font-bold text-blue-700">{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-blue-100 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group"
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group disabled:opacity-40"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>{isEditMode || hasExistingDocs ? "Retour au choix du plan" : "Retour"}</span>
@@ -247,14 +304,21 @@ function ClientUploadForm() {
                       <button
                         type="button"
                         onClick={clearFile}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        disabled={isLoading}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40"
                         aria-label="Retirer le fichier"
                       >
                         <X className="w-5 h-5" />
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors px-4">
+                    <label
+                      className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl bg-gray-50 transition-colors px-4 ${
+                        isLoading
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer hover:bg-gray-100"
+                      }`}
+                    >
                       <Upload className="w-10 h-10 mb-3 text-gray-400" />
                       <p className="mb-2 text-sm text-gray-500 text-center">
                         <span className="font-semibold">
@@ -271,6 +335,7 @@ function ClientUploadForm() {
                         name="identity-new"
                         accept="application/pdf,.pdf"
                         className="sr-only"
+                        disabled={isLoading}
                         onChange={onFileChange}
                       />
                     </label>
@@ -282,7 +347,8 @@ function ClientUploadForm() {
                     <button
                       type="button"
                       onClick={goToChoosePlan}
-                      className="flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 border-blue-200 text-blue-700 bg-white hover:bg-blue-50"
+                      disabled={isLoading}
+                      className="flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 border-blue-200 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50"
                     >
                       Continuer sans modifier
                     </button>
@@ -293,7 +359,7 @@ function ClientUploadForm() {
                     className="flex-1 py-3 px-4 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading
-                      ? "Téléchargement en cours..."
+                      ? `Téléchargement… ${uploadProgress}%`
                       : file
                         ? hasExistingDocs
                           ? "Enregistrer et continuer"

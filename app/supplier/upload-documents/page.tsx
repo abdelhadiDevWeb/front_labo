@@ -17,6 +17,7 @@ import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validatePdfFile } from "@/lib/file-validation";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { useOnboardingBackGuard } from "@/components/OnboardingBackGuard";
+import { uploadFormDataWithProgress } from "@/lib/upload-with-progress";
 
 type DocField = "Tax_number" | "identity" | "commercial_register";
 
@@ -41,6 +42,7 @@ function SupplierUploadForm() {
   const [existing, setExisting] = useState<ExistingDocs | null>(null);
   const [isCheckingDocs, setIsCheckingDocs] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -81,7 +83,18 @@ function SupplierUploadForm() {
     }
   }, [isCheckingDocs, hasExistingDocs, isEditMode, router, choosePlanHref]);
 
+  useEffect(() => {
+    if (!isLoading) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isLoading]);
+
   const handleFileChange = async (field: DocField, file: File | null) => {
+    if (isLoading) return;
     if (!file) {
       setFiles((prev) => ({ ...prev, [field]: null }));
       return;
@@ -96,14 +109,17 @@ function SupplierUploadForm() {
   };
 
   const handleRemoveFile = (field: DocField) => {
+    if (isLoading) return;
     setFiles((prev) => ({ ...prev, [field]: null }));
   };
 
   const goToChoosePlan = () => {
+    if (isLoading) return;
     router.replace(choosePlanHref);
   };
 
   const handleBack = () => {
+    if (isLoading) return;
     if (isEditMode || hasExistingDocs) {
       goToChoosePlan();
       return;
@@ -117,6 +133,7 @@ function SupplierUploadForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setError(null);
     setSuccess(null);
 
@@ -149,6 +166,7 @@ function SupplierUploadForm() {
     }
 
     setIsLoading(true);
+    setUploadProgress(0);
 
     try {
       const formData = new FormData();
@@ -158,27 +176,30 @@ function SupplierUploadForm() {
         formData.append("commercial_register", files.commercial_register);
       }
 
-      const response = await apiFetch(`${getApiUrl()}/supplier/documents`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await parseResponseJson<{
-        success: boolean;
+      const { ok, status, data: result } = await uploadFormDataWithProgress<{
+        success?: boolean;
         message?: string;
         data?: { redirectTo?: string };
-      }>(response);
+      }>(`${getApiUrl()}/supplier/documents`, formData, setUploadProgress);
 
-      if (response.status === 401 || response.status === 403) {
+      if (status === 401 || status === 403) {
         setError(result.message || "Session expirée. Veuillez vous reconnecter.");
+        setIsLoading(false);
+        setUploadProgress(0);
         return;
       }
 
-      if (!response.ok || !result.success) {
+      if (!ok || !result.success) {
         setError(result.message || "Une erreur est survenue lors de l'upload");
+        setIsLoading(false);
+        setUploadProgress(0);
         return;
       }
 
+      // Keep overlay at 100% until navigation — do not unlock UI
+      setUploadProgress(100);
+      setSuccess("Documents téléchargés avec succès");
+      await new Promise((r) => setTimeout(r, 400));
       router.replace(
         validateOnboardingRedirect(result.data?.redirectTo) || choosePlanHref
       );
@@ -189,8 +210,8 @@ function SupplierUploadForm() {
           : "Une erreur est survenue. Veuillez réessayer."
       );
       console.error("Upload error:", err);
-    } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -224,8 +245,9 @@ function SupplierUploadForm() {
               </div>
               <button
                 type="button"
+                disabled={isLoading}
                 onClick={() => handleRemoveFile(field)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -243,7 +265,13 @@ function SupplierUploadForm() {
                   </p>
                 </div>
               </div>
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+              <label
+                className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 transition-colors ${
+                  isLoading
+                    ? "pointer-events-none opacity-50"
+                    : "cursor-pointer hover:bg-gray-100"
+                }`}
+              >
                 <Upload className="w-6 h-6 mb-1 text-gray-400" />
                 <p className="text-xs text-gray-500">
                   <span className="font-semibold">Remplacer ce PDF</span>
@@ -252,6 +280,7 @@ function SupplierUploadForm() {
                   type="file"
                   className="hidden"
                   accept="application/pdf"
+                  disabled={isLoading}
                   onChange={(e) =>
                     void handleFileChange(field, e.target.files?.[0] || null)
                   }
@@ -259,7 +288,13 @@ function SupplierUploadForm() {
               </label>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
+            <label
+              className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl bg-gray-50 transition-colors group ${
+                isLoading
+                  ? "pointer-events-none opacity-50"
+                  : "cursor-pointer hover:bg-gray-100"
+              }`}
+            >
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <Upload className="w-10 h-10 mb-3 text-gray-400 group-hover:text-blue-600 transition-colors" />
                 <p className="mb-2 text-sm text-gray-500">
@@ -272,6 +307,7 @@ function SupplierUploadForm() {
                 type="file"
                 className="hidden"
                 accept="application/pdf"
+                disabled={isLoading}
                 onChange={(e) =>
                   void handleFileChange(field, e.target.files?.[0] || null)
                 }
@@ -289,14 +325,54 @@ function SupplierUploadForm() {
     Boolean(files.commercial_register);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8 ${
+        isLoading ? "pointer-events-none select-none" : ""
+      }`}
+      aria-busy={isLoading}
+    >
       {modal}
+
+      {isLoading && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-auto">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin shrink-0" />
+              <div>
+                <p className="font-bold text-gray-900">
+                  {uploadProgress >= 100
+                    ? "Terminé — redirection…"
+                    : uploadProgress >= 96
+                      ? "Traitement des documents…"
+                      : "Téléchargement en cours…"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Ne fermez pas cette page et n&apos;interagissez pas pendant
+                  l&apos;envoi.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-600">Progression</span>
+              <span className="font-bold text-blue-700">{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-blue-100 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <button
             type="button"
             onClick={handleBack}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group"
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group disabled:opacity-40"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>
@@ -355,7 +431,7 @@ function SupplierUploadForm() {
                 </div>
               )}
 
-              {success && (
+              {success && !isLoading && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-green-700">{success}</p>
@@ -372,7 +448,8 @@ function SupplierUploadForm() {
                     <button
                       type="button"
                       onClick={goToChoosePlan}
-                      className="flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 border-blue-200 text-blue-700 bg-white hover:bg-blue-50"
+                      disabled={isLoading}
+                      className="flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 border-blue-200 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50"
                     >
                       Continuer sans modifier
                     </button>
@@ -387,7 +464,7 @@ function SupplierUploadForm() {
                     className="flex-1 flex justify-center py-3 px-4 rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading
-                      ? "Téléchargement en cours..."
+                      ? `Téléchargement… ${uploadProgress}%`
                       : hasExistingDocs && hasAnyNewFile
                         ? "Enregistrer et continuer"
                         : "Continuer vers le choix d'abonnement"}

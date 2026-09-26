@@ -53,6 +53,7 @@ import {
   createEndpointForType,
 } from "@/lib/catalog-form-fields";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
+import { scrollPageToTop } from "@/lib/scroll-to-top";
 
 type ExcelImportType = SingleCatalogType | null;
 
@@ -296,6 +297,12 @@ export default function AddProductPage() {
     void loadCategories();
     void loadXlsHistory();
   }, []);
+
+  useEffect(() => {
+    if (success || error) {
+      scrollPageToTop();
+    }
+  }, [success, error]);
 
   const excelCategoryType = excelTypeToCategoryType(excelImportType);
   const excelFilteredCategories = excelCategoryType

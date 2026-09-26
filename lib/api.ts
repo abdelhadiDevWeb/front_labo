@@ -1369,6 +1369,8 @@ export interface PublicProduct {
 
 export interface SponsoredPublicProduct extends PublicProduct {
   sponsorEndDate: string;
+  sponsorImage?: string | null;
+  sponsorVideo?: string | null;
 }
 
 export const getSponsoredProducts = async (): Promise<
@@ -3320,10 +3322,13 @@ export interface SponsorProductRecord {
   isActive?: boolean;
   chargily_checkout_id?: string;
   chargily_checkout_url?: string;
+  image?: string | null;
+  video?: string | null;
   product?: {
     id: string;
     name: string;
     images?: string[];
+    video?: string | null;
   };
   createdAt?: string;
   updatedAt?: string;
@@ -3382,15 +3387,24 @@ const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscriptio
 
 export const createSubscriptionSponsorProduct = async (data: {
   id_product: string;
+  imageFile?: File | null;
+  videoFile?: File | null;
+  imagePath?: string | null;
+  videoPath?: string | null;
 }): Promise<
   ApiResponse<{ sponsorProduct: SponsorProductRecord; quota: SubscriptionSponsorQuota }>
 > => {
   try {
-const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscription`, {
+    const formData = new FormData();
+    formData.append("id_product", data.id_product);
+    if (data.imagePath) formData.append("imagePath", data.imagePath);
+    if (data.videoPath) formData.append("videoPath", data.videoPath);
+    if (data.imageFile) formData.append("image", data.imageFile);
+    if (data.videoFile) formData.append("video", data.videoFile);
+
+    const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscription`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",},
-      body: JSON.stringify(data),
+      body: formData,
     });
 
     const result = await response.json().catch(() => ({}));
@@ -3470,15 +3484,25 @@ const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
 export const createSponsorProduct = async (data: {
   id_plan_sponsor: string;
   id_product: string;
+  imageFile?: File | null;
+  videoFile?: File | null;
+  imagePath?: string | null;
+  videoPath?: string | null;
 }): Promise<
   ApiResponse<{ sponsorProduct: SponsorProductRecord; checkoutUrl: string }>
 > => {
   try {
-const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
+    const formData = new FormData();
+    formData.append("id_plan_sponsor", data.id_plan_sponsor);
+    formData.append("id_product", data.id_product);
+    if (data.imagePath) formData.append("imagePath", data.imagePath);
+    if (data.videoPath) formData.append("videoPath", data.videoPath);
+    if (data.imageFile) formData.append("image", data.imageFile);
+    if (data.videoFile) formData.append("video", data.videoFile);
+
+    const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",},
-      body: JSON.stringify(data),
+      body: formData,
     });
 
     const result = await response.json().catch(() => ({}));

@@ -86,7 +86,7 @@ export const toUploadsRelativePath = (
   if (lower.startsWith("uploads/")) return normalized;
 
   if (
-    /^(products|categories|sous-categories|profile|profile-images|payments|documents|excel|_defaults)\//i.test(
+    /^(products|categories|sous-categories|profile|profile-images|payments|documents|excel|sponsors|_defaults)\//i.test(
       normalized
     )
   ) {

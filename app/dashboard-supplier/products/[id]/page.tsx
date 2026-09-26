@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { getSupplierProducts, Product, updateProduct, deleteProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { scrollPageToTop } from "@/lib/scroll-to-top";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 export default function ProductDetailPage() {
@@ -214,13 +215,16 @@ export default function ProductDetailPage() {
             setEditFormData(buildEditForm(updatedProduct));
           }
         }
+        scrollPageToTop();
         setTimeout(() => setUpdateSuccess(null), 3000);
       } else {
         setUpdateError(result.message || "Erreur lors de la mise à jour");
+        scrollPageToTop();
       }
     } catch (err) {
       console.error("Update error:", err);
       setUpdateError("Une erreur est survenue");
+      scrollPageToTop();
     } finally {
       setIsUpdating(false);
     }
