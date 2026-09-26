@@ -69,9 +69,9 @@ export const PUBLIC_SEO_PAGES: PublicSeoPage[] = [
   },
   {
     path: "/products",
-    title: `Réactifs — ${SITE_NAME}`,
+    title: `Produits — ${SITE_NAME}`,
     description:
-      "Parcourez le catalogue de réactifs pour laboratoires : consommables et équipements auprès de fournisseurs vérifiés.",
+      "Parcourez le catalogue de produits pour laboratoires : consommables et équipements auprès de fournisseurs vérifiés.",
     changeFrequency: "daily",
     priority: 0.9,
   },
@@ -79,15 +79,15 @@ export const PUBLIC_SEO_PAGES: PublicSeoPage[] = [
     path: "/allthings",
     title: `Tout le catalogue — ${SITE_NAME}`,
     description:
-      "Catalogue unifié : réactifs, machines et services pour laboratoires d'analyses auprès de fournisseurs vérifiés.",
+      "Catalogue unifié : produits, machines et services pour laboratoires d'analyses auprès de fournisseurs vérifiés.",
     changeFrequency: "daily",
     priority: 0.95,
   },
   {
     path: "/products/sponsored",
-    title: `Réactifs sponsorisés — ${SITE_NAME}`,
+    title: `Produits sponsorisés — ${SITE_NAME}`,
     description:
-      "Découvrez les réactifs mis en avant par les fournisseurs partenaires sur Dz Labmarket.",
+      "Découvrez les produits mis en avant par les fournisseurs partenaires sur Dz Labmarket.",
     changeFrequency: "daily",
     priority: 0.6,
   },

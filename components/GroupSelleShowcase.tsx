@@ -402,7 +402,7 @@ function GroupSellDetailsModal({
             <section>
               <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Package className="w-4 h-4 text-teal-600" />
-                Infos réactif
+                Infos produit
               </h4>
               <div className="grid sm:grid-cols-2 gap-2 text-sm mb-3">
                 <DetailRow
@@ -474,7 +474,7 @@ function GroupSellDetailsModal({
                   href={`/products/${product.id}`}
                   className="inline-flex mt-3 text-sm font-semibold text-teal-700 hover:underline"
                 >
-                  Voir la fiche réactif complète →
+                  Voir la fiche produit complète →
                 </Link>
               )}
             </section>

@@ -2104,7 +2104,7 @@ export default function AddProductPage() {
                     <span className="text-xs text-gray-500">
                       {formatHistoryDate(viewingHistory.created)}
                     </span>
-                  </div>
+    </div>
                   <h3 className="text-lg font-bold text-gray-900 truncate">
                     {viewingHistory.catgory_name || "Import Excel"}
                     {viewingHistory.sou_catgory_name

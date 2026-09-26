@@ -31,8 +31,8 @@ export const MARKETPLACE_MENU: HeaderMenuLink[] = [
   },
   {
     href: "/products",
-    label: "Tous les réactifs",
-    icon: FlaskConical,
+    label: "Tous les produits",
+    icon: Package,
     hoverClass: "hover:bg-blue-50 hover:text-blue-600",
   },
   {

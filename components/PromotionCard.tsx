@@ -149,7 +149,7 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
             href={`/products/${product.id}`}
             className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 hover:gap-2 transition-all"
           >
-            Voir le réactif
+            Voir le produit
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

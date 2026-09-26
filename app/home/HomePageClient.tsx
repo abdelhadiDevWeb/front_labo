@@ -250,7 +250,7 @@ export default function HomePage() {
           const outOfStock = productsRes.data.products.filter((p) => p.quantity === 0);
           setProducts([...inStock, ...outOfStock]);
         } else {
-          setProductsError(productsRes.message || "Aucun réactif trouvé");
+          setProductsError(productsRes.message || "Aucun produit trouvé");
           setProducts([]);
         }
 
@@ -266,7 +266,7 @@ export default function HomePage() {
           setServices([]);
         }
       } catch {
-        setProductsError("Erreur lors du chargement des réactifs");
+        setProductsError("Erreur lors du chargement des produits");
         setProducts([]);
         setMachines([]);
         setServices([]);
@@ -1040,7 +1040,7 @@ export default function HomePage() {
               Nos catégories
             </h2>
             <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-              Parcourez nos catégories réactifs, machines et services
+              Parcourez nos catégories produits, machines et services
             </p>
           </div>
 
@@ -1568,18 +1568,18 @@ export default function HomePage() {
               wilayaLabel={userLocation?.wilaya}
               source={locationSource}
               onRequestLocation={requestBrowserLocation}
-              catalogLabel="réactifs, machines et services"
+              catalogLabel="produits, machines et services"
             />
           )}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
-              Réactifs les plus populaires
+              Produits les plus populaires
             </h2>
             <Link
               href="/products"
               className="px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
             >
-              Voir tous les réactifs
+              Voir tous les produits
             </Link>
           </div>
           {isLoadingProducts ? (
@@ -1606,8 +1606,8 @@ export default function HomePage() {
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {requiresWilayaForCatalog && !visitorWilayaCode
-                  ? "Autorisez la localisation pour voir les réactifs de votre wilaya"
-                  : "Aucun réactif disponible dans votre wilaya pour le moment"}
+                  ? "Autorisez la localisation pour voir les produits de votre wilaya"
+                  : "Aucun produit disponible dans votre wilaya pour le moment"}
               </p>
             </div>
           ) : (
@@ -1953,7 +1953,7 @@ export default function HomePage() {
                 <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
                 <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
                 <li><Link href="/allthings" className="hover:text-white transition-colors">Catalogue</Link></li>
-                <li><Link href="/products" className="hover:text-white transition-colors">Réactifs</Link></li>
+                <li><Link href="/products" className="hover:text-white transition-colors">Produits</Link></li>
                 <li><Link href="/machines" className="hover:text-white transition-colors">Machines</Link></li>
                 <li><Link href="/services" className="hover:text-white transition-colors">Services</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>

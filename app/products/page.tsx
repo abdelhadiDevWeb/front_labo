@@ -146,7 +146,7 @@ export default function ProductsPage() {
         } else {
           setProducts([]);
           setTotalCount(0);
-          setError(result.message || "Erreur lors du chargement des réactifs");
+          setError(result.message || "Erreur lors du chargement des produits");
         }
       } catch {
         if (cancelled) return;
@@ -384,7 +384,7 @@ export default function ProductsPage() {
       } else {
         // Add to selection (max 5 products)
         if (prev.length >= 5) {
-          alert("Vous pouvez comparer un maximum de 5 réactifs à la fois");
+          alert("Vous pouvez comparer un maximum de 5 produits à la fois");
           return prev;
         }
         return [...prev, productId];
@@ -398,7 +398,7 @@ export default function ProductsPage() {
 
   const handleCompare = () => {
     if (selectedForComparison.length < 2) {
-      alert("Veuillez sélectionner au moins 2 réactifs pour comparer");
+      alert("Veuillez sélectionner au moins 2 produits pour comparer");
       return;
     }
     // Navigate to comparison page with selected product IDs
@@ -427,11 +427,11 @@ export default function ProductsPage() {
                 <Package className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Tous les réactifs</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Tous les produits</h1>
                 <p className="text-sm text-gray-600">
                   {totalCount == null
                     ? "…"
-                    : `${totalCount} réactif${totalCount > 1 ? "s" : ""} au total`}
+                    : `${totalCount} produit${totalCount > 1 ? "s" : ""} au total`}
                 </p>
               </div>
             </div>
@@ -443,7 +443,7 @@ export default function ProductsPage() {
               <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un réactif..."
+                placeholder="Rechercher un produit..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 sm:pl-12 pr-24 sm:pr-32 py-2.5 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm sm:text-base"
@@ -627,7 +627,7 @@ export default function ProductsPage() {
               {/* Active Filters Count */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                 <p className="text-sm text-gray-600">
-                  {productsToShow.length} réactif{productsToShow.length > 1 ? "s" : ""} trouvé
+                  {productsToShow.length} produit{productsToShow.length > 1 ? "s" : ""} trouvé
                   {productsToShow.length > 1 ? "s" : ""}
                   {priceSort === "asc"
                     ? " · du moins cher au plus cher"
@@ -657,7 +657,7 @@ export default function ProductsPage() {
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <Scale className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 <span className="font-semibold text-sm sm:text-base">
-                  {selectedForComparison.length} réactif{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""}
+                  {selectedForComparison.length} produit{selectedForComparison.length > 1 ? "s" : ""} sélectionné{selectedForComparison.length > 1 ? "s" : ""}
                 </span>
                 {selectedForComparison.length < 5 && (
                   <span className="text-xs sm:text-sm text-blue-100 hidden sm:inline">
@@ -701,8 +701,8 @@ export default function ProductsPage() {
                 </p>
                 <p className="text-sm text-gray-600">
                   {isGuest
-                    ? "Autorisez l'accès à votre position pour charger les réactifs de votre wilaya."
-                    : "Autorisez la localisation pour charger les réactifs disponibles dans votre wilaya."}
+                    ? "Autorisez l'accès à votre position pour charger les produits de votre wilaya."
+                    : "Autorisez la localisation pour charger les produits disponibles dans votre wilaya."}
                 </p>
               </div>
             </div>
@@ -719,7 +719,7 @@ export default function ProductsPage() {
           <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-sm text-green-800">
             <MapPin className="w-4 h-4 flex-shrink-0" />
             <span>
-              Réactifs triés par proximité
+              Produits triés par proximité
               {userLocation.wilaya ? ` (votre wilaya : ${userLocation.wilaya})` : ""}
               {locationSource === "profile" ? " · depuis votre profil" : " · depuis votre position"}
             </span>
@@ -729,7 +729,7 @@ export default function ProductsPage() {
 
         {userRole === "client" && !clientWilayaCode && locationStatus !== "loading" && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-            Complétez la localisation de votre profil ou autorisez la géolocalisation pour charger les réactifs de
+            Complétez la localisation de votre profil ou autorisez la géolocalisation pour charger les produits de
             votre wilaya.
           </div>
         )}
@@ -751,13 +751,13 @@ export default function ProductsPage() {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {products.length === 0 ? "Aucun réactif" : "Aucun réactif trouvé"}
+              {products.length === 0 ? "Aucun produit" : "Aucun produit trouvé"}
             </h3>
             <p className="text-gray-600">
               {products.length === 0
                 ? appliesWilayaFilter && clientWilayaCode
-                  ? "Aucun réactif disponible pour votre wilaya pour le moment"
-                  : "Aucun réactif disponible pour le moment"
+                  ? "Aucun produit disponible pour votre wilaya pour le moment"
+                  : "Aucun produit disponible pour le moment"
                 : "Essayez de modifier vos filtres de recherche"}
             </p>
           </div>
@@ -949,7 +949,7 @@ export default function ProductsPage() {
               <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
             )}
             {!hasMore && !isLoadingMore && (
-              <p className="text-sm text-gray-500">Tous les réactifs ont été chargés</p>
+              <p className="text-sm text-gray-500">Tous les produits ont été chargés</p>
             )}
           </div>
         )}

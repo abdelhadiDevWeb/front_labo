@@ -75,7 +75,7 @@ export default function ProductDetailPage() {
               setSelectedImageIndex(-1);
             }
           } else {
-            setError(result.message || "Réactif non trouvé");
+            setError(result.message || "Produit non trouvé");
           }
         } catch (err) {
           setError("Une erreur est survenue");
@@ -116,17 +116,17 @@ export default function ProductDetailPage() {
         <div className="text-center max-w-md mx-auto px-4">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {error || "Réactif non trouvé"}
+            {error || "Produit non trouvé"}
           </h1>
           <p className="text-gray-600 mb-6">
-            Le réactif que vous recherchez n&apos;existe pas ou n&apos;est plus disponible.
+            Le produit que vous recherchez n&apos;existe pas ou n&apos;est plus disponible.
           </p>
           <Link
             href="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Retour aux réactifs</span>
+            <span>Retour aux produits</span>
           </Link>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function ProductDetailPage() {
             className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Retour aux réactifs</span>
+            <span>Retour aux produits</span>
           </Link>
         </div>
       </header>
@@ -171,7 +171,7 @@ export default function ProductDetailPage() {
                   />
                   <div className="absolute top-3 left-3 bg-black/70 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-sm">
                     <Video className="w-4 h-4" />
-                    <span>Vidéo du réactif</span>
+                    <span>Vidéo du produit</span>
                   </div>
                   {product.images && product.images.length > 0 && (
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">

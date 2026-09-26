@@ -67,7 +67,7 @@ type UnifiedItem = {
 const PAGE_SIZE = 48;
 
 const KIND_LABEL: Record<ItemKind, string> = {
-  reactif: "Réactif",
+  reactif: "Produit",
   machine: "Machine",
   service: "Service",
 };
@@ -525,7 +525,7 @@ export default function AllThingsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher un réactif, une machine ou un service..."
+              placeholder="Rechercher un produit, une machine ou un service..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
@@ -552,7 +552,7 @@ export default function AllThingsPage() {
                 {(
                   [
                     { id: "all", label: "Tout", icon: LayoutGrid },
-                    { id: "reactif", label: "Réactifs", icon: Package },
+                    { id: "reactif", label: "Produits", icon: Package },
                     { id: "machine", label: "Machines", icon: Microscope },
                     { id: "service", label: "Services", icon: FlaskConical },
                   ] as const
@@ -687,7 +687,7 @@ export default function AllThingsPage() {
                 locationStatus={locationStatus}
                 wilayaLabel={userLocation?.wilaya}
                 onRequestLocation={requestBrowserLocation}
-                catalogLabel="réactifs, machines et services"
+                catalogLabel="produits, machines et services"
               />
             )}
 

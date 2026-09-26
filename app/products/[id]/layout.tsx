@@ -35,11 +35,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const name = await fetchProductName(id);
   const title = name
-    ? `${name} — Réactif`
-    : `Réactif laboratoire`;
+    ? `${name} — Produit`
+    : `Produit laboratoire`;
   const description = name
-    ? `${name} sur ${SITE_NAME} : fiche réactif, disponibilité et réservation auprès de fournisseurs vérifiés en Algérie.`
-    : `Fiche réactif laboratoire sur ${SITE_NAME} — comparez et réservez auprès de fournisseurs en Algérie.`;
+    ? `${name} sur ${SITE_NAME} : fiche produit, disponibilité et réservation auprès de fournisseurs vérifiés en Algérie.`
+    : `Fiche produit laboratoire sur ${SITE_NAME} — comparez et réservez auprès de fournisseurs en Algérie.`;
 
   return buildPageMetadata({
     title,

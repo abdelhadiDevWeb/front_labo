@@ -72,10 +72,10 @@ export default function PromotionsPage() {
             <div className="p-2 rounded-xl bg-white/20">
               <Percent className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Réactifs en promotion</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Produits en promotion</h1>
           </div>
           <p className="text-orange-100/90 text-sm sm:text-base max-w-2xl">
-            Tous les réactifs avec une offre promotionnelle active — quantité minimum, et produit offert gratuitement si applicable
+            Tous les produits avec une offre promotionnelle active — quantité minimum, et produit offert gratuitement si applicable
           </p>
           <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-sm">
             <Sparkles className="w-4 h-4 text-orange-200" />
@@ -95,7 +95,7 @@ export default function PromotionsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Rechercher un réactif en promotion..."
+            placeholder="Rechercher un produit en promotion..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-orange-500 outline-none"
@@ -123,7 +123,7 @@ export default function PromotionsPage() {
               href="/products"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
             >
-              Voir tous les réactifs
+              Voir tous les produits
             </Link>
           </div>
         )}
