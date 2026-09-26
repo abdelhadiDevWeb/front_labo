@@ -104,7 +104,7 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/pi/logo-dz-labomarket.png"
+                  src="/images/logo.jpeg"
                   alt={`${BRAND_NAME} Logo`}
                   width={280}
                   height={140}
@@ -282,7 +282,7 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <Image
                   style={{ borderRadius: "8px" }}
-                  src="/pi/logo-dz-labomarket.png"
+                  src="/images/logo.jpeg"
                   alt={`${BRAND_NAME} Logo`}
                   width={120}
                   height={120}

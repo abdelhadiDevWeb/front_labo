@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: "/pi/logo-dz-labomarket.png",
+        url: "/images/logo.jpeg",
         width: 500,
         height: 500,
         alt: `${SITE_NAME} logo`,
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
-    images: ["/pi/logo-dz-labomarket.png"],
+    images: ["/images/logo.jpeg"],
   },
   robots: {
     index: true,
@@ -85,14 +85,14 @@ export const metadata: Metadata = {
   // Circular PNGs (transparent corners) — Google prefers multiples of 48px
   icons: {
     icon: [
-      { url: "/favicon.png?v=5", type: "image/png", sizes: "48x48" },
-      { url: "/favicon-96.png?v=5", type: "image/png", sizes: "96x96" },
-      { url: "/icon-192.png?v=5", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png?v=5", type: "image/png", sizes: "512x512" },
-      { url: "/favicon-32.png?v=5", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.png?v=6", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96.png?v=6", type: "image/png", sizes: "96x96" },
+      { url: "/icon-192.png?v=6", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=6", type: "image/png", sizes: "512x512" },
+      { url: "/favicon-32.png?v=6", type: "image/png", sizes: "32x32" },
     ],
-    apple: [{ url: "/apple-icon.png?v=5", type: "image/png", sizes: "180x180" }],
-    shortcut: "/favicon.png?v=5",
+    apple: [{ url: "/apple-icon.png?v=6", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=6",
   },
   manifest: "/site.webmanifest",
   formatDetection: {
@@ -116,7 +116,7 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: SITE_NAME,
   url: siteUrl,
-  logo: `${siteUrl}/pi/logo-dz-labomarket.png`,
+  logo: `${siteUrl}/images/logo.jpeg`,
   description: SITE_DESCRIPTION,
   email: "dzmarketLab@gmail.com",
   telephone: "+213781079959",

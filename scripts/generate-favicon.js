@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs");
 
 const ROOT = path.join(__dirname, "..");
-const INPUT = path.join(ROOT, "public", "pi", "logo-dz-labomarket.png");
+const INPUT = path.join(ROOT, "public", "images", "logo.jpeg");
 
 async function makeCircleIcon(size, outPath) {
   const resized = await sharp(INPUT)

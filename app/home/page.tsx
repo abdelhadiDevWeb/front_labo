@@ -596,9 +596,9 @@ export default function HomePage() {
         "Comparez les offres des fournisseurs : prix, délais, services.",
     },
     {
-      title: "Commandez",
+      title: "Réservez",
       description:
-        "Commandez en un clic. Bon de commande et facture automatiques.",
+        "Réservez en un clic. Bon de réserve et facture automatiques.",
     },
     {
       title: "Suivez",
@@ -660,7 +660,7 @@ export default function HomePage() {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/pi/logo-dz-labomarket.png"
+                  src="/images/logo.jpeg"
                   alt={`${BRAND_NAME} Logo`}
                   width={280}
                   height={140}
@@ -965,7 +965,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-white/20 rounded-xl sm:rounded-2xl blur-2xl animate-pulse-glow"></div>
                 <div className="relative flex items-center justify-center transform hover:scale-105 transition-all duration-500 animate-bounce-slow">
                   <Image
-                    src="/pi/logo-dz-labomarket.png"
+                    src="/images/logo.jpeg"
                     alt={`${BRAND_NAME} Logo`}
                     width={280}
                     height={140}
@@ -2021,7 +2021,7 @@ export default function HomePage() {
                 style={{
                   borderRadius: "8px",
                 }}
-                  src="/pi/logo-dz-labomarket.png"
+                  src="/images/logo.jpeg"
                   alt={`${BRAND_NAME} Logo`}
                   width={120}
                   height={120}

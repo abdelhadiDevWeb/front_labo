@@ -20,7 +20,7 @@ export default function AppLoadingScreen({
   const shell = (
     <div className="flex flex-col items-center justify-center gap-5 px-4">
       <Image
-        src="/pi/logo-dz-labomarket.png"
+        src="/images/logo.jpeg"
         alt={`${BRAND_NAME} Logo`}
         width={200}
         height={80}
