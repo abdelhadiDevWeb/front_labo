@@ -84,7 +84,6 @@ export default function CategoriesPage() {
   const [sousCategoryName, setSousCategoryName] = useState("");
   const [sousCategoryImage, setSousCategoryImage] = useState<File | null>(null);
   const [sousCategoryImagePreview, setSousCategoryImagePreview] = useState<string | null>(null);
-  const [sousCategoryExcelFile, setSousCategoryExcelFile] = useState<File | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -125,7 +124,6 @@ export default function CategoriesPage() {
     setSousCategoryName("");
     setSousCategoryImage(null);
     setSousCategoryImagePreview(null);
-    setSousCategoryExcelFile(null);
     setSelectedCategory(null);
     setSelectedSousCategory(null);
   };
@@ -186,7 +184,6 @@ export default function CategoriesPage() {
     setSousCategoryName(sousCategory.name_sou_catgory);
     setSousCategoryImage(null);
     setSousCategoryImagePreview(getMediaUrl(sousCategory.image));
-    setSousCategoryExcelFile(null);
     setModalType("editSousCategory");
   };
 
@@ -402,26 +399,15 @@ export default function CategoriesPage() {
       setError("Le nom de la sous-catégorie est obligatoire (au moins 2 caractères).");
       return;
     }
-    if (!sousCategoryExcelFile) {
-      setError("Le fichier Excel est obligatoire. Ajoutez un fichier .xlsx ou .xls.");
-      return;
-    }
     setIsSubmitting(true);
     setError(null);
     try {
       const result = await createSousCategory(selectedCategory.id, {
         name_sou_catgory: sousCategoryName.trim(),
         image: sousCategoryImage,
-        excelFile: sousCategoryExcelFile,
       });
       if (result.success) {
-        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
-          ?.excelImport?.imported;
-        setSuccess(
-          imported
-            ? `Sous-catégorie créée — ${imported} élément(s) importé(s) depuis Excel`
-            : "Sous-catégorie créée avec succès"
-        );
+        setSuccess("Sous-catégorie créée avec succès");
         const parentId = selectedCategory.id;
         closeModal();
         await loadCategories();
@@ -442,26 +428,15 @@ export default function CategoriesPage() {
       setError("Le nom de la sous-catégorie est obligatoire (au moins 2 caractères).");
       return;
     }
-    if (!sousCategoryExcelFile && !selectedSousCategory.excelFile) {
-      setError("Le fichier Excel est obligatoire. Ajoutez un fichier .xlsx ou .xls.");
-      return;
-    }
     setIsSubmitting(true);
     setError(null);
     try {
       const result = await updateSousCategory(selectedSousCategory.id, {
         name_sou_catgory: sousCategoryName.trim(),
         image: sousCategoryImage || undefined,
-        excelFile: sousCategoryExcelFile || undefined,
       });
       if (result.success) {
-        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
-          ?.excelImport?.imported;
-        setSuccess(
-          imported
-            ? `Sous-catégorie mise à jour — ${imported} élément(s) importé(s) depuis Excel`
-            : "Sous-catégorie mise à jour"
-        );
+        setSuccess("Sous-catégorie mise à jour");
         closeModal();
         await loadCategories();
         setTimeout(() => setSuccess(null), 4000);
@@ -703,63 +678,6 @@ export default function CategoriesPage() {
                     />
                   )}
                 </div>
-                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <FileSpreadsheet className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800">
-                        Fichier Excel *
-                      </label>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {modalType === "editSousCategory"
-                          ? "Fichier obligatoire. Conservez le fichier actuel ou importez-en un nouveau"
-                          : "Fichier obligatoire. Importez un listing XLS lié à cette sous-catégorie"}
-                        {selectedCategory
-                          ? ` (${selectedCategory.name_catgory} → ${
-                              sousCategoryName.trim() || "sous-catégorie"
-                            })`
-                          : ""}
-                        .
-                      </p>
-                    </div>
-                  </div>
-                  {modalType === "editSousCategory" && (
-                    <CurrentExcelPanel
-                      excelFile={selectedSousCategory?.excelFile}
-                      excelFileName={selectedSousCategory?.excelFileName}
-                    />
-                  )}
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    required={
-                      modalType === "createSousCategory" ||
-                      (modalType === "editSousCategory" && !selectedSousCategory?.excelFile)
-                    }
-                    onChange={(e) =>
-                      pickExcelFile(
-                        e.target.files?.[0] || null,
-                        setSousCategoryExcelFile,
-                        e.target
-                      )
-                    }
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm"
-                  />
-                  {sousCategoryExcelFile && (
-                    <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
-                      <span className="truncate text-green-800 font-medium">
-                        Nouveau fichier : {sousCategoryExcelFile.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setSousCategoryExcelFile(null)}
-                        className="ml-2 rounded p-1 text-red-600 hover:bg-red-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
               </>
             )}
 
@@ -967,18 +885,6 @@ export default function CategoriesPage() {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-gray-900">{sc.name_sou_catgory}</p>
-                                {sc.excelFile && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      openCurrentExcel(sc.excelFile!, sc.excelFileName)
-                                    }
-                                    className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                  >
-                                    <FileSpreadsheet className="h-3 w-3" />
-                                    Ouvrir Excel
-                                  </button>
-                                )}
                                 <div className="mt-2 flex gap-2">
                                   <button
                                     onClick={() => openEditSousCategory(category, sc)}

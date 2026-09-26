@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   Package,
   Upload,
@@ -18,8 +20,26 @@ import {
   Wrench,
   ArrowLeft,
   Layers,
+  History,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  Trash2,
 } from "lucide-react";
-import { apiFetch, getPublicCategories, Category } from "@/lib/api";
+import {
+  apiFetch,
+  getPublicCategories,
+  getSupplierHistoryXls,
+  getHistoryXlsItems,
+  deleteHistoryXlsItems,
+  deleteProduct,
+  deleteMachine,
+  deleteService,
+  Category,
+  HistoryXlsRecord,
+  HistoryXlsItem,
+} from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import {
@@ -43,7 +63,35 @@ const excelTypeToCategoryType = (type: ExcelImportType): CategoryKind | null => 
   return catalogTypeToCategoryKind(type);
 };
 
+const historyTypeLabel = (type: HistoryXlsRecord["type"]) =>
+  type === "product" ? "Produit" : type === "machine" ? "Machine" : "Service";
+
+const historyTypeBadge = (type: HistoryXlsRecord["type"]) =>
+  type === "product"
+    ? "bg-green-100 text-green-700"
+    : type === "machine"
+      ? "bg-blue-100 text-blue-700"
+      : "bg-amber-100 text-amber-800";
+
+const itemDetailPath = (type: HistoryXlsRecord["type"], id: string) =>
+  type === "product"
+    ? `/dashboard-supplier/products/${id}`
+    : type === "machine"
+      ? `/dashboard-supplier/machines/${id}`
+      : `/dashboard-supplier/services/${id}`;
+
+const pickItemName = (item: HistoryXlsItem): string => {
+  if (item.name && String(item.name).trim()) return String(item.name).trim();
+  const d = item.unique_data || {};
+  for (const key of ["Désignation", "designation", "name", "nom", "Nom"]) {
+    const v = d[key];
+    if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+  }
+  return "Sans nom";
+};
+
 export default function AddProductPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"single" | "excel">("single");
   const [excelImportType, setExcelImportType] = useState<ExcelImportType>(null);
   const [excelTypeLabo, setExcelTypeLabo] = useState<LaboTypeValue | "">("");
@@ -59,6 +107,22 @@ export default function AddProductPage() {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  // XLS history
+  const [xlsHistory, setXlsHistory] = useState<HistoryXlsRecord[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [viewingHistory, setViewingHistory] = useState<HistoryXlsRecord | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryXlsItem[]>([]);
+  const [isLoadingHistoryItems, setIsLoadingHistoryItems] = useState(false);
+  const [historyItemsError, setHistoryItemsError] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<HistoryXlsItem | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
+  const [deleteItemError, setDeleteItemError] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // One-by-one form state
   const [singleType, setSingleType] = useState<SingleCatalogType | null>(null);
@@ -91,7 +155,127 @@ export default function AddProductPage() {
     setSingleSousCategoryId("");
   };
 
+  const loadXlsHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const result = await getSupplierHistoryXls();
+      if (result.success && result.data?.history) {
+        setXlsHistory(result.data.history);
+      }
+    } catch (err) {
+      console.error("Load XLS history error:", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const openHistoryItems = async (row: HistoryXlsRecord) => {
+    setViewingHistory(row);
+    setHistoryItems([]);
+    setHistoryItemsError(null);
+    setIsLoadingHistoryItems(true);
+    try {
+      const result = await getHistoryXlsItems(row.id);
+      if (result.success && result.data) {
+        setHistoryItems(result.data.items || []);
+      } else {
+        setHistoryItemsError(result.message || "Impossible de charger les éléments");
+      }
+    } catch (err) {
+      console.error("Load history items error:", err);
+      setHistoryItemsError("Une erreur est survenue");
+    } finally {
+      setIsLoadingHistoryItems(false);
+    }
+  };
+
+  const closeHistoryItems = () => {
+    setViewingHistory(null);
+    setHistoryItems([]);
+    setHistoryItemsError(null);
+    setItemToDelete(null);
+    setDeleteItemError(null);
+    setConfirmDeleteAll(false);
+    setDeleteAllError(null);
+  };
+
+  const confirmDeleteAllHistoryItems = async () => {
+    if (!viewingHistory) return;
+    setIsDeletingAll(true);
+    setDeleteAllError(null);
+    try {
+      const result = await deleteHistoryXlsItems(viewingHistory.id);
+      if (!result.success) {
+        setDeleteAllError(result.message || "Erreur lors de la suppression");
+        return;
+      }
+      const deletedId = viewingHistory.id;
+      setXlsHistory((prev) => prev.filter((h) => h.id !== deletedId));
+      setConfirmDeleteAll(false);
+      closeHistoryItems();
+      setSuccess(
+        `${result.data?.deleted ?? 0} élément(s) de cet import ont été supprimés`
+      );
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      console.error("Delete all history items error:", err);
+      setDeleteAllError("Une erreur est survenue");
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
+  const confirmDeleteHistoryItem = async () => {
+    if (!viewingHistory || !itemToDelete) return;
+    setIsDeletingItem(true);
+    setDeleteItemError(null);
+    try {
+      const id = String(itemToDelete.id);
+      const result =
+        viewingHistory.type === "product"
+          ? await deleteProduct(id)
+          : viewingHistory.type === "machine"
+            ? await deleteMachine(id)
+            : await deleteService(id);
+
+      if (!result.success) {
+        setDeleteItemError(result.message || "Erreur lors de la suppression");
+        return;
+      }
+
+      setHistoryItems((prev) => prev.filter((i) => String(i.id) !== id));
+      setXlsHistory((prev) =>
+        prev.map((h) =>
+          h.id === viewingHistory.id
+            ? { ...h, itemsCount: Math.max(0, h.itemsCount - 1) }
+            : h
+        )
+      );
+      setViewingHistory((prev) =>
+        prev ? { ...prev, itemsCount: Math.max(0, prev.itemsCount - 1) } : prev
+      );
+      setItemToDelete(null);
+    } catch (err) {
+      console.error("Delete history item error:", err);
+      setDeleteItemError("Une erreur est survenue");
+    } finally {
+      setIsDeletingItem(false);
+    }
+  };
+
+  const formatHistoryDate = (value: string) => {
+    try {
+      return new Date(value).toLocaleString("fr-DZ", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch {
+      return value;
+    }
+  };
+
   useEffect(() => {
+    setMounted(true);
     const loadCategories = async () => {
       setIsLoadingCategories(true);
       try {
@@ -109,7 +293,8 @@ export default function AddProductPage() {
       }
     };
 
-    loadCategories();
+    void loadCategories();
+    void loadXlsHistory();
   }, []);
 
   const excelCategoryType = excelTypeToCategoryType(excelImportType);
@@ -631,6 +816,7 @@ export default function AddProductPage() {
         } else {
           setUploadErrors([]);
         }
+        void loadXlsHistory();
       } else {
         setError(result.message || "Erreur lors de l'upload du fichier");
         setUploadErrors(result.errors || result.errorDetails || []);
@@ -699,6 +885,94 @@ export default function AddProductPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Historique XLS */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 p-4 sm:p-5 text-left hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <History className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Historique XLS</h2>
+              <p className="text-sm text-gray-500">
+                {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel de votre compte
+              </p>
+            </div>
+          </div>
+          {historyOpen ? (
+            <ChevronUp className="w-5 h-5 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400" />
+          )}
+        </button>
+
+        {historyOpen && (
+          <div className="border-t border-gray-100 p-4 sm:p-5">
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Chargement de l&apos;historique…</span>
+              </div>
+            ) : xlsHistory.length === 0 ? (
+              <div className="text-center py-8">
+                <FileSpreadsheet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">Aucun import Excel</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Vos imports depuis l&apos;onglet Excel apparaîtront ici
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {xlsHistory.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/80 p-3 sm:p-4"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${historyTypeBadge(row.type)}`}
+                        >
+                          {historyTypeLabel(row.type)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatHistoryDate(row.created)}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {row.catgory_name || "Catégorie"}
+                        {row.sou_catgory_name ? ` → ${row.sou_catgory_name}` : ""}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {row.itemsCount} élément{row.itemsCount > 1 ? "s" : ""} créé
+                        {row.itemsCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openHistoryItems(row)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shrink-0"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Voir les{" "}
+                      {row.type === "product"
+                        ? "produits"
+                        : row.type === "machine"
+                          ? "machines"
+                          : "services"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tab Selector - Modern Design */}
@@ -1802,6 +2076,320 @@ export default function AddProductPage() {
           </div>
         </div>
       )}
+
+      {mounted &&
+        viewingHistory &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={closeHistoryItems}
+            />
+            <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-200 max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${historyTypeBadge(viewingHistory.type)}`}
+                    >
+                      {historyTypeLabel(viewingHistory.type)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {formatHistoryDate(viewingHistory.created)}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 truncate">
+                    {viewingHistory.catgory_name || "Import Excel"}
+                    {viewingHistory.sou_catgory_name
+                      ? ` → ${viewingHistory.sou_catgory_name}`
+                      : ""}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {isLoadingHistoryItems
+                      ? "Chargement…"
+                      : `${historyItems.length} ${
+                          viewingHistory.type === "product"
+                            ? "produit(s)"
+                            : viewingHistory.type === "machine"
+                              ? "machine(s)"
+                              : "service(s)"
+                        }`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!isLoadingHistoryItems && historyItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteAllError(null);
+                        setConfirmDeleteAll(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Tout supprimer
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeHistoryItems}
+                    className="rounded-lg p-2 hover:bg-gray-100"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                {isLoadingHistoryItems ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Chargement des éléments…</span>
+                  </div>
+                ) : historyItemsError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    {historyItemsError}
+                  </div>
+                ) : historyItems.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Package className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                    <p>Aucun élément lié à cet import</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {historyItems.map((item) => {
+                      const img =
+                        Array.isArray(item.images) && item.images[0]
+                          ? getMediaUrl(String(item.images[0]))
+                          : null;
+                      return (
+                        <li
+                          key={String(item.id)}
+                          className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3"
+                        >
+                          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                            {img ? (
+                              <img
+                                src={img}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center">
+                                <Package className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-gray-900">
+                              {pickItemName(item)}
+                            </p>
+                            {item.brand ? (
+                              <p className="truncate text-xs text-gray-500">
+                                {String(item.brand)}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  itemDetailPath(viewingHistory.type, String(item.id))
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                              title="Modifier"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteItemError(null);
+                                setItemToDelete(item);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Supprimer
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        itemToDelete &&
+        viewingHistory &&
+        createPortal(
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                if (!isDeletingItem) {
+                  setItemToDelete(null);
+                  setDeleteItemError(null);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Confirmer la suppression
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Voulez-vous vraiment supprimer{" "}
+                    <span className="font-semibold text-gray-900">
+                      « {pickItemName(itemToDelete)} »
+                    </span>
+                    ? Cette action est irréversible.
+                  </p>
+                </div>
+              </div>
+
+              {deleteItemError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {deleteItemError}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={isDeletingItem}
+                  onClick={() => {
+                    setItemToDelete(null);
+                    setDeleteItemError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingItem}
+                  onClick={() => void confirmDeleteHistoryItem()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeletingItem ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Suppression…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Supprimer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        confirmDeleteAll &&
+        viewingHistory &&
+        createPortal(
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                if (!isDeletingAll) {
+                  setConfirmDeleteAll(false);
+                  setDeleteAllError(null);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Supprimer tout l&apos;import
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Voulez-vous vraiment supprimer{" "}
+                    <span className="font-semibold text-gray-900">
+                      les {historyItems.length}{" "}
+                      {viewingHistory.type === "product"
+                        ? "produit(s)"
+                        : viewingHistory.type === "machine"
+                          ? "machine(s)"
+                          : "service(s)"}
+                    </span>{" "}
+                    liés à cet import Excel
+                    {viewingHistory.catgory_name
+                      ? ` (${viewingHistory.catgory_name}${
+                          viewingHistory.sou_catgory_name
+                            ? ` → ${viewingHistory.sou_catgory_name}`
+                            : ""
+                        })`
+                      : ""}
+                    ? Cette action est irréversible.
+                  </p>
+                </div>
+              </div>
+
+              {deleteAllError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {deleteAllError}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={() => {
+                    setConfirmDeleteAll(false);
+                    setDeleteAllError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={() => void confirmDeleteAllHistoryItems()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeletingAll ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Suppression…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Tout supprimer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

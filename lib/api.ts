@@ -838,6 +838,120 @@ const response = await apiFetch(`${getApiBaseUrl()}/products`, {
   }
 };
 
+export interface HistoryXlsRecord {
+  id: string;
+  type: "product" | "machine" | "service";
+  catgory: string | null;
+  catgory_name: string | null;
+  sou_catgory: string | null;
+  sou_catgory_name: string | null;
+  itemsCount: number;
+  created: string;
+}
+
+export const getSupplierHistoryXls = async (params?: {
+  type?: "product" | "machine" | "service";
+}): Promise<ApiResponse<{ history: HistoryXlsRecord[]; total: number }>> => {
+  try {
+    const query = params?.type ? `?type=${encodeURIComponent(params.type)}` : "";
+    const response = await apiFetch(`${getApiBaseUrl()}/history-xls${query}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch XLS history",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Get history XLS error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export interface HistoryXlsItem {
+  id: string;
+  name?: string;
+  unique_data?: Record<string, unknown>;
+  brand?: string;
+  images?: string[];
+  id_xls?: string | null;
+  id_catgory?: string | null;
+  id_sous_catgory?: string | null;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export const getHistoryXlsItems = async (
+  historyId: string
+): Promise<
+  ApiResponse<{ history: HistoryXlsRecord; items: HistoryXlsItem[]; total: number }>
+> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/history-xls/${encodeURIComponent(historyId)}/items`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch history items",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Get history XLS items error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deleteHistoryXlsItems = async (
+  historyId: string
+): Promise<ApiResponse<{ deleted: number; historyId: string; type: string }>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/history-xls/${encodeURIComponent(historyId)}/items`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to delete history items",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Delete history XLS items error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
 export interface UniqueDataItem {
   id: string;
   unique_data: Record<string, unknown>;
@@ -4346,14 +4460,12 @@ export interface UpdateCategoryData {
 export interface CreateSousCategoryData {
   name_sou_catgory: string;
   image: File;
-  excelFile: File;
 }
 
 export interface UpdateSousCategoryData {
   name_sou_catgory?: string;
   id_catgory?: string;
   image?: File;
-  excelFile?: File;
 }
 
 export const getPublicCategories = async (): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
@@ -4492,7 +4604,6 @@ export const createSousCategory = async (
 const formData = new FormData();
     formData.append("name_sou_catgory", data.name_sou_catgory);
     formData.append("image", data.image);
-    formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}/sous-categories`, {
       method: "POST",
@@ -4519,7 +4630,6 @@ const formData = new FormData();
     if (data.name_sou_catgory) formData.append("name_sou_catgory", data.name_sou_catgory);
     if (data.id_catgory) formData.append("id_catgory", data.id_catgory);
     if (data.image) formData.append("image", data.image);
-    if (data.excelFile) formData.append("excelFile", data.excelFile);
 
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/sous-categories/${sousCategoryId}`, {
       method: "PUT",

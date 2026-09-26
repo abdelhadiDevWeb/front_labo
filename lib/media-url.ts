@@ -62,6 +62,19 @@ export const toUploadsRelativePath = (
   if (!normalized) return null;
 
   if (/^https?:\/\//i.test(normalized)) {
+    try {
+      const pathname = new URL(normalized).pathname.replace(/\\/g, "/");
+      const filesMatch = pathname.match(/\/(?:api\/)?files\/(.+)$/i);
+      if (filesMatch?.[1]) {
+        return `uploads/${decodeURIComponent(filesMatch[1]).replace(/^\/+/, "")}`;
+      }
+      const uploadsIdx = pathname.toLowerCase().indexOf("/uploads/");
+      if (uploadsIdx >= 0) {
+        return pathname.slice(uploadsIdx + 1);
+      }
+    } catch {
+      // ignore
+    }
     return normalized;
   }
 
@@ -89,7 +102,7 @@ export const toUploadsRelativePath = (
  * (public catalog media allowed without auth; sensitive files require ACL).
  *
  * Works locally (`/api/files/...`) and on https://dzlabmarket.com — same-origin BFF.
- * Also repairs legacy absolute Hostinger paths stored in MongoDB.
+ * Also repairs legacy absolute Hostinger paths and old `/uploads/...` URLs (410 on deploy).
  */
 export const getMediaUrl = (path: string | null | undefined): string => {
   if (!path) return "";
@@ -98,6 +111,32 @@ export const getMediaUrl = (path: string | null | undefined): string => {
   if (!value) return "";
 
   if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      const pathname = parsed.pathname.replace(/\\/g, "/");
+
+      // Already a files endpoint → keep as same-origin /api/files/...
+      const filesMatch = pathname.match(/\/(?:api\/)?files\/(.+)$/i);
+      if (filesMatch?.[1]) {
+        const filePath = decodeURIComponent(filesMatch[1]).replace(/^\/+/, "");
+        if (filePath && !filePath.startsWith("home/")) {
+          return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+        }
+      }
+
+      // Legacy direct /uploads/... (Express returns 410) → rewrite to /api/files/...
+      const uploadsMatch = pathname.match(/\/uploads\/(.+)$/i);
+      if (uploadsMatch?.[1]) {
+        const filePath = decodeURIComponent(uploadsMatch[1]).replace(/^\/+/, "");
+        if (filePath && !filePath.startsWith("home/")) {
+          return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+        }
+      }
+    } catch {
+      // fall through
+    }
+
+    // Non-upload absolute URL (e.g. CDN) — only allow trusted hosts
     return isTrustedAbsoluteUrl(value) ? value : "";
   }
 

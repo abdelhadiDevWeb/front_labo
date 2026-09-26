@@ -33,9 +33,11 @@ import {
   getSupplierProducts,
   getSupplierMachines,
   getSupplierServices,
+  getSupplierHistoryXls,
   getPublicCategories,
   Product,
   UniqueDataItem,
+  HistoryXlsRecord,
   Category,
   getSponsorPlans,
   getSupplierSponsorProducts,
@@ -186,6 +188,10 @@ function ProductsPageContent() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
+  const [xlsHistory, setXlsHistory] = useState<HistoryXlsRecord[]>([]);
+  const [isLoadingXlsHistory, setIsLoadingXlsHistory] = useState(true);
+  const [xlsHistoryOpen, setXlsHistoryOpen] = useState(true);
+  const [filterXlsType, setFilterXlsType] = useState<"all" | MarketplaceKind>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -261,12 +267,13 @@ function ProductsPageContent() {
     const init = async () => {
       try {
         setIsLoading(true);
-        const [productsResult, machinesResult, servicesResult, categoriesResult] =
+        const [productsResult, machinesResult, servicesResult, categoriesResult, historyResult] =
           await Promise.all([
             getSupplierProducts(),
             getSupplierMachines(),
             getSupplierServices(),
             getPublicCategories(),
+            getSupplierHistoryXls(),
           ]);
 
         const loadedProducts =
@@ -287,6 +294,11 @@ function ProductsPageContent() {
           setCatalogCategories(categoriesResult.data.categories);
         }
 
+        if (historyResult.success && historyResult.data?.history) {
+          setXlsHistory(historyResult.data.history);
+        }
+        setIsLoadingXlsHistory(false);
+
         if (!productsResult.success && !machinesResult.success && !servicesResult.success) {
           setError(
             productsResult.message ||
@@ -298,6 +310,7 @@ function ProductsPageContent() {
       } catch (err) {
         setError("Une erreur est survenue");
         console.error("Load marketplace error:", err);
+        setIsLoadingXlsHistory(false);
       } finally {
         setIsLoading(false);
       }
@@ -637,6 +650,22 @@ function ProductsPageContent() {
   const sectionsToShow: MarketplaceKind[] =
     filterKind === "all" ? ["product", "machine", "service"] : [filterKind];
 
+  const filteredXlsHistory =
+    filterXlsType === "all"
+      ? xlsHistory
+      : xlsHistory.filter((h) => h.type === filterXlsType);
+
+  const formatXlsDate = (value: string) => {
+    try {
+      return new Date(value).toLocaleString("fr-DZ", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch {
+      return value;
+    }
+  };
+
   const renderMarketplaceCard = (item: MarketplaceItem) => {
     const title = getItemTitle(item);
     const entries = getUniqueDataEntries(item.unique_data);
@@ -954,6 +983,108 @@ function ProductsPageContent() {
           })}
         </div>
       )}
+
+      {/* Historique XLS */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setXlsHistoryOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <History className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Historique XLS</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel
+              </p>
+            </div>
+          </div>
+          {xlsHistoryOpen ? (
+            <ChevronUp className="w-5 h-5 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400" />
+          )}
+        </button>
+
+        {xlsHistoryOpen && (
+          <div className="border-t border-gray-100 p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative sm:w-56">
+                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select
+                  value={filterXlsType}
+                  onChange={(e) =>
+                    setFilterXlsType(e.target.value as "all" | MarketplaceKind)
+                  }
+                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none appearance-none bg-white"
+                >
+                  <option value="all">Tous les types</option>
+                  <option value="product">Produits</option>
+                  <option value="machine">Machines</option>
+                  <option value="service">Services</option>
+                </select>
+              </div>
+            </div>
+
+            {isLoadingXlsHistory ? (
+              <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Chargement de l&apos;historique…</span>
+              </div>
+            ) : filteredXlsHistory.length === 0 ? (
+              <div className="text-center py-10">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">Aucun import Excel</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Les imports XLS depuis Ajouter apparaîtront ici
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-gray-600">
+                      <th className="px-4 py-3 font-semibold">Date</th>
+                      <th className="px-4 py-3 font-semibold">Type</th>
+                      <th className="px-4 py-3 font-semibold">Catégorie</th>
+                      <th className="px-4 py-3 font-semibold">Sous-catégorie</th>
+                      <th className="px-4 py-3 font-semibold text-right">Éléments</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredXlsHistory.map((row) => (
+                      <tr key={row.id} className="hover:bg-gray-50/80">
+                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                          {formatXlsDate(row.created)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kindBadgeClass(row.type)}`}
+                          >
+                            {kindLabel(row.type)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-800">
+                          {row.catgory_name || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {row.sou_catgory_name || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                          {row.itemsCount}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Sponsor Sections */}
       <div className="space-y-6">
@@ -1583,9 +1714,10 @@ function ProductsPageContent() {
               </div>
               <div className="flex-1 bg-gray-100 min-h-0">
                 <iframe
-                  src={fichePdfViewer.url}
+                  src={`${fichePdfViewer.url}#toolbar=1&navpanes=0`}
                   title={fichePdfViewer.title}
                   className="w-full h-full border-0"
+                  // Same-origin /api/files PDF — required for CSP frame-src 'self'
                 />
               </div>
             </div>

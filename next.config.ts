@@ -59,6 +59,7 @@ const buildContentSecurityPolicy = (): string => {
   if (apiOrigin) {
     connectSrc.add(apiOrigin);
     imgSrc.add(apiOrigin);
+    frameSrc.add(apiOrigin);
     // Socket.IO over the same API host
     connectSrc.add(apiOrigin.replace(/^http/, "ws"));
   }
