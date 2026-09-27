@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getSponsoredProducts, SponsoredPublicProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { catalogItemHref } from "@/lib/catalog-item";
 import CatalogPrice from "@/components/CatalogPrice";
 
 const BANNER_H = 200;
@@ -151,7 +152,7 @@ export default function HomeSponsoredHero() {
                 linkToLogin={false}
               />
               <Link
-                href={`/products/${product.id}`}
+                href={catalogItemHref(product.itemType, product.id)}
                 className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-neutral-900 hover:bg-neutral-100 transition-colors"
               >
                 Voir

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Image as ImageIcon } from "lucide-react";
 import { getSponsoredProducts, SponsoredPublicProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { catalogItemHref } from "@/lib/catalog-item";
 import { formatCatalogPriceDa } from "@/lib/catalog-price";
 
 const STRIP_H = 120;
@@ -33,7 +34,7 @@ function Tile({ product }: { product: SponsoredPublicProduct }) {
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={catalogItemHref(product.itemType, product.id)}
       className="group relative block h-full w-full overflow-hidden bg-white"
       style={{ height: STRIP_H }}
       aria-label={product.name}

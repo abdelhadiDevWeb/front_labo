@@ -2,8 +2,65 @@ import { getApiUrl } from "@/lib/api-config";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
+/**
+ * Public origin that serves `/api/files/*` directly (Express subdomain or a CDN
+ * in front of it), e.g. https://media.dzlabmarket.com. Unset → same-origin BFF.
+ */
+const getDirectMediaOrigin = (): string | null => {
+  const raw = process.env.NEXT_PUBLIC_MEDIA_URL?.trim();
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:" && !LOCAL_HOSTS.has(parsed.hostname)) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+};
+
+/** Must mirror PUBLIC_PREFIXES in backEnd_Labo Files.controller (no auth required). */
+const DIRECT_MEDIA_PREFIXES = [
+  "categories/",
+  "sous-categories/",
+  "products/images/",
+  "products/videos/",
+  "sponsors/images/",
+  "sponsors/videos/",
+  "profile/",
+  "profile-images/",
+];
+
+/**
+ * PDFs stay same-origin: they are framed in-page, and Express (helmet)
+ * forbids cross-origin framing.
+ */
+const DIRECT_MEDIA_EXTENSIONS =
+  /\.(jpe?g|png|gif|webp|avif|bmp|svg|mp4|webm|mov|m4v|ogg|ogv)$/i;
+
+const isDirectMediaPath = (filePath: string): boolean => {
+  const lower = filePath.toLowerCase();
+  return (
+    DIRECT_MEDIA_EXTENSIONS.test(lower) &&
+    DIRECT_MEDIA_PREFIXES.some((prefix) => lower.startsWith(prefix))
+  );
+};
+
+/** `filePath` is relative to uploads/, e.g. `products/images/a.jpg`. */
+const buildFilesUrl = (filePath: string): string => {
+  const directOrigin = getDirectMediaOrigin();
+  if (directOrigin && isDirectMediaPath(filePath)) {
+    return `${directOrigin}/api/files/${filePath}`;
+  }
+  return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
 const getTrustedMediaHosts = (): Set<string> => {
   const hosts = new Set(LOCAL_HOSTS);
+
+  const mediaOrigin = getDirectMediaOrigin();
+  if (mediaOrigin) {
+    hosts.add(new URL(mediaOrigin).hostname);
+  }
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (apiUrl) {
@@ -101,7 +158,8 @@ export const toUploadsRelativePath = (
  * All uploads are served exclusively via /api/files/*
  * (public catalog media allowed without auth; sensitive files require ACL).
  *
- * Works locally (`/api/files/...`) and on https://dzlabmarket.com — same-origin BFF.
+ * Public images/videos go straight to NEXT_PUBLIC_MEDIA_URL when set; everything
+ * else (and everything when unset) uses the same-origin BFF `/api/files/...`.
  * Also repairs legacy absolute Hostinger paths and old `/uploads/...` URLs (410 on deploy).
  */
 export const getMediaUrl = (path: string | null | undefined): string => {
@@ -115,12 +173,12 @@ export const getMediaUrl = (path: string | null | undefined): string => {
       const parsed = new URL(value);
       const pathname = parsed.pathname.replace(/\\/g, "/");
 
-      // Already a files endpoint → keep as same-origin /api/files/...
+      // Already a files endpoint → rebuild so it follows the current media origin
       const filesMatch = pathname.match(/\/(?:api\/)?files\/(.+)$/i);
       if (filesMatch?.[1]) {
         const filePath = decodeURIComponent(filesMatch[1]).replace(/^\/+/, "");
         if (filePath && !filePath.startsWith("home/")) {
-          return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+          return buildFilesUrl(filePath);
         }
       }
 
@@ -129,7 +187,7 @@ export const getMediaUrl = (path: string | null | undefined): string => {
       if (uploadsMatch?.[1]) {
         const filePath = decodeURIComponent(uploadsMatch[1]).replace(/^\/+/, "");
         if (filePath && !filePath.startsWith("home/")) {
-          return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+          return buildFilesUrl(filePath);
         }
       }
     } catch {
@@ -149,5 +207,5 @@ export const getMediaUrl = (path: string | null | undefined): string => {
     return "";
   }
 
-  return `${getApiUrl()}/files/${filePath}`.replace(/([^:]\/)\/+/g, "$1");
+  return buildFilesUrl(filePath);
 };

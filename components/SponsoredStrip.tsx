@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Image as ImageIcon } from "lucide-react";
 import { getSponsoredProducts, SponsoredPublicProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { catalogItemHref } from "@/lib/catalog-item";
 import { formatCatalogPriceDa } from "@/lib/catalog-price";
 
 function shuffleArray<T>(items: T[]): T[] {
@@ -22,7 +23,7 @@ function StripTile({ product }: { product: SponsoredPublicProduct }) {
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={catalogItemHref(product.itemType, product.id)}
       className="group relative block h-full w-full overflow-hidden bg-slate-200"
       style={{ height: 70 }}
       aria-label={product.name}

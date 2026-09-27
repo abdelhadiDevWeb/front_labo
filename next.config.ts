@@ -32,9 +32,21 @@ const resolveApiOrigin = (): string | null => {
   }
 };
 
+/** Direct public media origin (see lib/media-url.ts). */
+const resolveMediaOrigin = (): string | null => {
+  const mediaUrl = process.env.NEXT_PUBLIC_MEDIA_URL?.trim();
+  if (!mediaUrl) return null;
+  try {
+    return new URL(mediaUrl).origin;
+  } catch {
+    return null;
+  }
+};
+
 const buildContentSecurityPolicy = (): string => {
   const connectSrc = new Set<string>(["'self'"]);
   const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
+  const mediaSrc = new Set<string>(["'self'", "blob:"]);
   const scriptSrc = new Set<string>([
     "'self'",
     // Next.js App Router streams page data via inline <script> tags
@@ -62,6 +74,12 @@ const buildContentSecurityPolicy = (): string => {
     frameSrc.add(apiOrigin);
     // Socket.IO over the same API host
     connectSrc.add(apiOrigin.replace(/^http/, "ws"));
+  }
+
+  const mediaOrigin = resolveMediaOrigin();
+  if (mediaOrigin) {
+    imgSrc.add(mediaOrigin);
+    mediaSrc.add(mediaOrigin);
   }
 
   [
@@ -95,6 +113,7 @@ const buildContentSecurityPolicy = (): string => {
     `script-src ${Array.from(scriptSrc).join(" ")}`,
     `style-src ${Array.from(styleSrc).join(" ")}`,
     `img-src ${Array.from(imgSrc).join(" ")}`,
+    `media-src ${Array.from(mediaSrc).join(" ")}`,
     `connect-src ${Array.from(connectSrc).join(" ")}`,
     `font-src ${Array.from(fontSrc).join(" ")}`,
     `frame-src ${Array.from(frameSrc).join(" ")}`,

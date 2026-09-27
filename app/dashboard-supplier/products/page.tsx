@@ -30,6 +30,8 @@ import {
   Layers,
   Upload,
   Video,
+  Cpu,
+  Wrench,
 } from "lucide-react";
 import {
   getSupplierProducts,
@@ -188,7 +190,6 @@ const productToItem = (product: Product): MarketplaceItem => {
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [xlsHistory, setXlsHistory] = useState<HistoryXlsRecord[]>([]);
   const [isLoadingXlsHistory, setIsLoadingXlsHistory] = useState(true);
@@ -212,6 +213,7 @@ function ProductsPageContent() {
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedSubscriptionProductId, setSelectedSubscriptionProductId] = useState("");
+  const [sponsorItemKind, setSponsorItemKind] = useState<MarketplaceKind>("product");
   const [isCreatingSponsor, setIsCreatingSponsor] = useState(false);
   const [isCreatingSubscriptionSponsor, setIsCreatingSubscriptionSponsor] = useState(false);
   const [resumingPaymentId, setResumingPaymentId] = useState<string | null>(null);
@@ -290,7 +292,6 @@ function ProductsPageContent() {
         const loadedServices =
           servicesResult.success && servicesResult.data ? servicesResult.data.services || [] : [];
 
-        setProducts(loadedProducts);
         setMarketplaceItems([
           ...loadedProducts.map(productToItem),
           ...loadedMachines.map((m) => uniqueDataToItem(m, "machine")),
@@ -328,7 +329,7 @@ function ProductsPageContent() {
       if (sponsorParam === "success" && ref) {
         const verifyResult = await verifySponsorProductPayment(ref);
         if (verifyResult.success && verifyResult.data?.paid) {
-          setSponsorSuccess("Paiement confirmé ! Votre produit est maintenant sponsorisé.");
+          setSponsorSuccess("Paiement confirmé ! Votre sponsoring est maintenant actif.");
         } else {
           setSponsorSuccess("Paiement réussi ! Confirmation en cours...");
         }
@@ -386,6 +387,7 @@ function ProductsPageContent() {
     try {
       const result = await createSubscriptionSponsorProduct({
         id_product: selectedSubscriptionProductId,
+        itemType: sponsorItemKind,
         imageFile: sponsorImageFile,
         videoFile: sponsorVideoFile,
         imagePath: sponsorImageFile ? null : sponsorImagePath || null,
@@ -434,6 +436,7 @@ function ProductsPageContent() {
       const result = await createSponsorProduct({
         id_plan_sponsor: selectedPlanId,
         id_product: selectedProductId,
+        itemType: sponsorItemKind,
         imageFile: sponsorImageFile,
         videoFile: sponsorVideoFile,
         imagePath: sponsorImageFile ? null : sponsorImagePath || null,
@@ -525,29 +528,46 @@ function ProductsPageContent() {
     [pendingSponsorProducts]
   );
 
-  const productsAvailableForSponsor = useMemo(
+  const itemsAvailableForSponsor = useMemo(
     () =>
-      products.filter(
-        (product) => !activeProductIdSet.has(product.id) && !pendingProductIdSet.has(product.id)
+      marketplaceItems.filter(
+        (item) => !activeProductIdSet.has(item.id) && !pendingProductIdSet.has(item.id)
       ),
-    [products, activeProductIdSet, pendingProductIdSet]
+    [marketplaceItems, activeProductIdSet, pendingProductIdSet]
   );
+
+  const sponsorItemsForKind = useMemo(
+    () => itemsAvailableForSponsor.filter((item) => item.kind === sponsorItemKind),
+    [itemsAvailableForSponsor, sponsorItemKind]
+  );
+
+  const sponsorKindTotal = marketplaceItems.filter((item) => item.kind === sponsorItemKind).length;
 
   const sponsorHistoryByProduct = useMemo(() => {
     const grouped = new Map<
       string,
-      { productId: string; productName: string; productImage?: string; history: SponsorProductRecord[] }
+      {
+        groupKey: string;
+        itemType: MarketplaceKind;
+        productName: string;
+        productImage?: string;
+        history: SponsorProductRecord[];
+      }
     >();
 
     for (const record of sponsorProducts) {
-      const productId = record.id_product;
-      const existing = grouped.get(productId);
+      const itemType: MarketplaceKind = record.itemType || "product";
+      const groupKey = `${itemType}:${record.id_product}`;
+      const existing = grouped.get(groupKey);
       if (existing) {
         existing.history.push(record);
       } else {
-        grouped.set(productId, {
-          productId,
-          productName: record.product?.name || "Produit",
+        grouped.set(groupKey, {
+          groupKey,
+          itemType,
+          productName:
+            record.product?.name ||
+            (itemType === "machine" ? "Machine" : itemType === "service" ? "Service" : "Produit"),
           productImage: record.product?.images?.[0],
           history: [record],
         });
@@ -582,39 +602,48 @@ function ProductsPageContent() {
     setSponsorImagePreview(null);
   };
 
-  const getProductImages = (product: Product | undefined): string[] => {
-    if (!product) return [];
-    if (Array.isArray(product.images) && product.images.length) return product.images.filter(Boolean);
-    const fromData = product.unique_data?.images;
-    return Array.isArray(fromData) ? (fromData as string[]).filter(Boolean) : [];
-  };
+  const firstAvailableSponsorId = (kind: MarketplaceKind) =>
+    itemsAvailableForSponsor.find((item) => item.kind === kind)?.id || "";
 
-  const getProductVideo = (product: Product | undefined): string | null => {
-    if (!product) return null;
-    if (product.video && String(product.video).trim()) return String(product.video);
-    const fromData = product.unique_data?.video;
-    return typeof fromData === "string" && fromData.trim() ? fromData : null;
-  };
+  const pickInitialSponsorKind = (): MarketplaceKind =>
+    (["product", "machine", "service"] as MarketplaceKind[]).find((kind) =>
+      itemsAvailableForSponsor.some((item) => item.kind === kind)
+    ) || "product";
 
   const openVipSponsorModal = () => {
+    const kind = pickInitialSponsorKind();
+    setSponsorItemKind(kind);
     setSelectedPlanId(sponsorPlans[0]?.id || "");
-    setSelectedProductId(productsAvailableForSponsor[0]?.id || "");
+    setSelectedProductId(firstAvailableSponsorId(kind));
     resetSponsorMedia();
     setSponsorError(null);
     setShowVipSponsorModal(true);
   };
 
   const openSubscriptionSponsorModal = () => {
-    setSelectedSubscriptionProductId(productsAvailableForSponsor[0]?.id || "");
+    const kind = pickInitialSponsorKind();
+    setSponsorItemKind(kind);
+    setSelectedSubscriptionProductId(firstAvailableSponsorId(kind));
     resetSponsorMedia();
     setSponsorError(null);
     setShowSubscriptionSponsorModal(true);
   };
 
-  const renderSponsorMediaFields = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
-    const productImages = getProductImages(product);
-    const productVideo = getProductVideo(product);
+  const handleSponsorKindChange = (kind: MarketplaceKind, modal: "vip" | "subscription") => {
+    setSponsorItemKind(kind);
+    if (modal === "vip") setSelectedProductId(firstAvailableSponsorId(kind));
+    else setSelectedSubscriptionProductId(firstAvailableSponsorId(kind));
+    resetSponsorMedia();
+  };
+
+  const kindOfLabel = (kind: MarketplaceKind) =>
+    kind === "machine" ? "de la machine" : kind === "service" ? "du service" : "du produit";
+
+  const renderSponsorMediaFields = (itemId: string) => {
+    const item = marketplaceItems.find((i) => i.id === itemId && i.kind === sponsorItemKind);
+    const productImages = item?.images ?? [];
+    const productVideo = item?.video || null;
+    const ofKind = kindOfLabel(sponsorItemKind);
     const previewUrl = sponsorImageFile
       ? sponsorImagePreview
       : sponsorImagePath
@@ -625,7 +654,7 @@ function ProductsPageContent() {
       <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
         <p className="text-sm font-semibold text-gray-800">Média du sponsoring (optionnel)</p>
         <p className="text-xs text-gray-500">
-          Uploadez une nouvelle image/vidéo, ou choisissez parmi celles du produit.
+          Uploadez une nouvelle image/vidéo, ou choisissez parmi celles {ofKind}.
         </p>
 
         <div>
@@ -710,8 +739,8 @@ function ProductsPageContent() {
               <Video className="w-4 h-4 shrink-0" />
               <span className="truncate">
                 {!sponsorVideoFile && sponsorVideoPath === productVideo
-                  ? "Vidéo du produit sélectionnée"
-                  : "Utiliser la vidéo du produit"}
+                  ? `Vidéo ${ofKind} sélectionnée`
+                  : `Utiliser la vidéo ${ofKind}`}
               </span>
             </button>
           )}
@@ -841,13 +870,103 @@ function ProductsPageContent() {
     }
   };
 
+  const renderSponsorItemPicker = (modal: "vip" | "subscription") => {
+    const isVip = modal === "vip";
+    const selectedId = isVip ? selectedProductId : selectedSubscriptionProductId;
+    const setSelectedId = isVip ? setSelectedProductId : setSelectedSubscriptionProductId;
+    const selectedClass = isVip
+      ? "border-purple-600 bg-purple-50 text-purple-900 ring-2 ring-purple-200"
+      : "border-blue-600 bg-blue-50 text-blue-900 ring-2 ring-blue-200";
+    const focusClass = isVip ? "focus:ring-purple-500" : "focus:ring-blue-500";
+    const kindName = kindLabel(sponsorItemKind);
+    const kindArticle =
+      sponsorItemKind === "machine" ? "une machine" : sponsorItemKind === "service" ? "un service" : "un produit";
+    const kindPlural =
+      sponsorItemKind === "machine" ? "machines" : sponsorItemKind === "service" ? "services" : "produits";
+    const excludedCount = sponsorKindTotal - sponsorItemsForKind.length;
+
+    return (
+      <>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Que voulez-vous sponsoriser ? <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {(["product", "machine", "service"] as MarketplaceKind[]).map((kind) => {
+              const Icon = kind === "product" ? FlaskConical : kind === "machine" ? Cpu : Wrench;
+              const available = itemsAvailableForSponsor.filter((i) => i.kind === kind).length;
+              const selected = sponsorItemKind === kind;
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => handleSponsorKindChange(kind, modal)}
+                  className={`flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-sm font-semibold transition-all ${
+                    selected
+                      ? selectedClass
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {kind === "product" ? "Produit" : kind === "machine" ? "Machine" : "Service"}
+                  <span className="text-[11px] font-normal text-gray-500">
+                    {available} disponible{available > 1 ? "s" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            {kindName} à sponsoriser <span className="text-red-500">*</span>
+          </label>
+          <select
+            required
+            value={selectedId}
+            onChange={(e) => {
+              setSelectedId(e.target.value);
+              resetSponsorMedia();
+            }}
+            className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 ${focusClass} outline-none`}
+          >
+            <option value="">Sélectionner {kindArticle}</option>
+            {sponsorItemsForKind.map((item) => (
+              <option key={item.id} value={item.id}>
+                {getItemTitle(item)}
+              </option>
+            ))}
+          </select>
+          {sponsorKindTotal === 0 ? (
+            <p className="text-xs text-amber-700 mt-2">
+              Vous n&apos;avez aucun{sponsorItemKind === "machine" ? "e" : ""} {kindName.toLowerCase()} dans
+              votre MarketPlace.
+            </p>
+          ) : sponsorItemsForKind.length === 0 ? (
+            <p className="text-xs text-amber-700 mt-2">
+              Tous vos {kindPlural} ont un sponsoring actif ou en attente. Attendez la fin de la période
+              en cours.
+            </p>
+          ) : excludedCount > 0 ? (
+            <p className="text-xs text-gray-500 mt-2">
+              {excludedCount} {kindName.toLowerCase()}
+              {excludedCount > 1 ? "s" : ""} exclu{sponsorItemKind === "machine" ? "e" : ""}
+              {excludedCount > 1 ? "s" : ""} (sponsoring actif ou en attente)
+            </p>
+          ) : null}
+        </div>
+
+        {selectedId ? renderSponsorMediaFields(selectedId) : null}
+      </>
+    );
+  };
+
   const renderMarketplaceCard = (item: MarketplaceItem) => {
     const title = getItemTitle(item);
     const entries = getUniqueDataEntries(item.unique_data);
-    const activeSponsor =
-      item.kind === "product" ? getActiveSponsorForProduct(item.id) : undefined;
-    const pendingSponsor =
-      item.kind === "product" ? getPendingSponsorForProduct(item.id) : undefined;
+    const activeSponsor = getActiveSponsorForProduct(item.id);
+    const pendingSponsor = getPendingSponsorForProduct(item.id);
     const itemKey = `${item.kind}-${item.id}`;
     const mainImage =
       item.images && item.images.length > 0 ? getMediaUrl(item.images[0]) : null;
@@ -1286,14 +1405,14 @@ function ProductsPageContent() {
                 Sponsoring abonnement
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Utilisez les sponsors inclus dans votre abonnement actif (sans paiement)
+                Utilisez les sponsors inclus dans votre abonnement actif (sans paiement) pour vos
+                produits, machines ou services
               </p>
             </div>
             <button
               onClick={openSubscriptionSponsorModal}
               disabled={
-                products.length === 0 ||
-                productsAvailableForSponsor.length === 0 ||
+                itemsAvailableForSponsor.length === 0 ||
                 !subscriptionQuota?.canCreateSubscriptionSponsor
               }
               className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1378,16 +1497,13 @@ function ProductsPageContent() {
                 Sponsoring VIP
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Mettez en avant vos produits avec un pack VIP et payez en ligne via Chargily
+                Mettez en avant vos produits, machines ou services avec un pack VIP et payez en ligne
+                via Chargily
               </p>
             </div>
             <button
               onClick={openVipSponsorModal}
-              disabled={
-                products.length === 0 ||
-                sponsorPlans.length === 0 ||
-                productsAvailableForSponsor.length === 0
-              }
+              disabled={sponsorPlans.length === 0 || itemsAvailableForSponsor.length === 0}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
@@ -1408,8 +1524,13 @@ function ProductsPageContent() {
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-lg border border-amber-100"
                 >
                   <div className="text-sm">
-                    <p className="font-medium text-gray-900">
-                      {record.product?.name || "Produit"}
+                    <p className="font-medium text-gray-900 flex items-center gap-2">
+                      {record.product?.name || kindLabel(record.itemType || "product")}
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${kindBadgeClass(record.itemType || "product")}`}
+                      >
+                        {kindLabel(record.itemType || "product")}
+                      </span>
                     </p>
                     <p className="text-gray-600">
                       {record.price.toLocaleString("fr-FR")} DA · {record.time}{" "}
@@ -1443,7 +1564,7 @@ function ProductsPageContent() {
 
         {activeProductIds.length > 0 && (
           <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-900">
-            {activeProductIds.length} produit{activeProductIds.length > 1 ? "s" : ""} avec sponsoring actif —
+            {activeProductIds.length} élément{activeProductIds.length > 1 ? "s" : ""} avec sponsoring actif —
             impossible d&apos;en créer un nouveau tant que la période n&apos;est pas terminée.
           </div>
         )}
@@ -1480,7 +1601,7 @@ function ProductsPageContent() {
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <History className="w-5 h-5 text-purple-600" />
-            Historique par produit
+            Historique par élément
           </h3>
           {isLoadingSponsor ? (
             <div className="flex justify-center py-8">
@@ -1489,19 +1610,19 @@ function ProductsPageContent() {
           ) : sponsorHistoryByProduct.length > 0 ? (
             <div className="space-y-3">
               {sponsorHistoryByProduct.map((group) => {
-                const isExpanded = expandedHistoryIds.has(group.productId);
+                const isExpanded = expandedHistoryIds.has(group.groupKey);
                 const activeRecord = group.history.find((r) => r.isActive);
                 const pendingRecord = group.history.find((r) => !r.payment_status);
                 const historyCount = group.history.length;
 
                 return (
                   <div
-                    key={group.productId}
+                    key={group.groupKey}
                     className="border border-gray-200 rounded-xl overflow-hidden"
                   >
                     <button
                       type="button"
-                      onClick={() => toggleHistoryExpand(group.productId)}
+                      onClick={() => toggleHistoryExpand(group.groupKey)}
                       className="w-full flex items-center justify-between gap-3 p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -1517,7 +1638,14 @@ function ProductsPageContent() {
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">{group.productName}</p>
+                          <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
+                            <span className="truncate">{group.productName}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${kindBadgeClass(group.itemType)}`}
+                            >
+                              {kindLabel(group.itemType)}
+                            </span>
+                          </p>
                           <p className="text-xs text-gray-500">
                             {historyCount} sponsoring{historyCount > 1 ? "s" : ""}
                             {activeRecord
@@ -1667,7 +1795,9 @@ function ProductsPageContent() {
               })}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">Aucun historique de sponsoring pour vos produits.</p>
+            <p className="text-gray-500 text-sm">
+              Aucun historique de sponsoring pour vos produits, machines ou services.
+            </p>
           )}
         </div>
         </div>
@@ -1694,41 +1824,7 @@ function ProductsPageContent() {
                 </button>
               </div>
               <form onSubmit={handleCreateSponsor} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Produit à sponsoriser <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={selectedProductId}
-                    onChange={(e) => {
-                      setSelectedProductId(e.target.value);
-                      resetSponsorMedia();
-                    }}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                  >
-                    <option value="">Sélectionner un produit</option>
-                    {productsAvailableForSponsor.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                  {productsAvailableForSponsor.length === 0 && (
-                    <p className="text-xs text-amber-700 mt-2">
-                      Tous vos produits ont un sponsoring actif ou en attente. Attendez la fin de la période
-                      en cours.
-                    </p>
-                  )}
-                  {products.length > productsAvailableForSponsor.length && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      {products.length - productsAvailableForSponsor.length} produit
-                      {products.length - productsAvailableForSponsor.length > 1 ? "s" : ""} exclu
-                      {products.length - productsAvailableForSponsor.length > 1 ? "s" : ""} (sponsoring actif)
-                    </p>
-                  )}
-                </div>
-                {selectedProductId ? renderSponsorMediaFields(selectedProductId) : null}
+                {renderSponsorItemPicker("vip")}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Plan VIP <span className="text-red-500">*</span>
@@ -1769,7 +1865,7 @@ function ProductsPageContent() {
                       isCreatingSponsor ||
                       !selectedPlanId ||
                       !selectedProductId ||
-                      productsAvailableForSponsor.length === 0
+                      sponsorItemsForKind.length === 0
                     }
                     className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
@@ -1846,30 +1942,7 @@ function ProductsPageContent() {
                     )}
                   </div>
                 )}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Produit à sponsoriser <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={selectedSubscriptionProductId}
-                    onChange={(e) => {
-                      setSelectedSubscriptionProductId(e.target.value);
-                      resetSponsorMedia();
-                    }}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="">Sélectionner un produit</option>
-                    {productsAvailableForSponsor.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {selectedSubscriptionProductId
-                  ? renderSponsorMediaFields(selectedSubscriptionProductId)
-                  : null}
+                {renderSponsorItemPicker("subscription")}
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
@@ -1886,7 +1959,7 @@ function ProductsPageContent() {
                     disabled={
                       isCreatingSubscriptionSponsor ||
                       !selectedSubscriptionProductId ||
-                      productsAvailableForSponsor.length === 0 ||
+                      sponsorItemsForKind.length === 0 ||
                       !subscriptionQuota?.canCreateSubscriptionSponsor
                     }
                     className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PublicPromotion } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { catalogItemHref } from "@/lib/catalog-item";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 
 type PromotionCardProps = {
@@ -34,6 +35,14 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
 
   if (!product) return null;
 
+  const productHref = catalogItemHref(promotion.itemType, product.id);
+  const viewLabel =
+    promotion.itemType === "machine"
+      ? "Voir la machine"
+      : promotion.itemType === "service"
+        ? "Voir le service"
+        : "Voir le produit";
+
   return (
     <div
       className={`group relative bg-white rounded-2xl border border-orange-100 shadow-lg hover:shadow-xl hover:border-orange-300 transition-all duration-300 overflow-hidden flex flex-col ${className}`}
@@ -42,7 +51,7 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
         -{promotion.discountPercent}%
       </div>
 
-      <Link href={`/products/${product.id}`} className="block">
+      <Link href={productHref} className="block">
         <div className="relative h-40 bg-gradient-to-br from-orange-50 to-amber-50 overflow-hidden">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -111,7 +120,7 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
 
         {freeProduct && (
           <Link
-            href={`/products/${freeProduct.id}`}
+            href={catalogItemHref(promotion.itemType, freeProduct.id)}
             className="mt-auto flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-2.5 hover:bg-emerald-100 transition-colors"
           >
             <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white border border-emerald-100">
@@ -146,10 +155,10 @@ export default function PromotionCard({ promotion, className = "" }: PromotionCa
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           <span className="text-xs text-gray-500">Offre limitée</span>
           <Link
-            href={`/products/${product.id}`}
+            href={productHref}
             className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 hover:gap-2 transition-all"
           >
-            Voir le produit
+            {viewLabel}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

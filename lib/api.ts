@@ -40,13 +40,26 @@ const isTransientNetworkError = (err: unknown): boolean => {
   );
 };
 
-/** Retry transient catalog failures (cold start / 502 / 429) — common on first page load. */
+/** Set from Retry-After on any 429 — retrying before then only burns the remaining budget. */
+let rateLimitedUntil = 0;
+
+const noteRateLimit = (response: Response): void => {
+  if (response.status !== 429) return;
+  const seconds = Number.parseInt(response.headers.get("retry-after") || "", 10);
+  const waitSeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 30;
+  rateLimitedUntil = Date.now() + waitSeconds * 1000;
+};
+
+const isRateLimited = (): boolean => Date.now() < rateLimitedUntil;
+
+/** Retry transient catalog failures (cold start / 502) — common on first page load. */
 const withCatalogRetry = async <T extends { success: boolean }>(
   run: () => Promise<T>,
   attempts = 3
 ): Promise<T> => {
   let last = await run();
   for (let i = 1; i < attempts && !last.success; i++) {
+    if (isRateLimited()) break;
     // Do not hammer retries during page unload / abort
     if (
       typeof document !== "undefined" &&
@@ -150,6 +163,8 @@ export const apiFetch = async (
     }
     throw err;
   }
+
+  noteRateLimit(response);
 
   if (response.status !== 401 || typeof window === "undefined") {
     return response;
@@ -1368,6 +1383,7 @@ export interface PublicProduct {
 }
 
 export interface SponsoredPublicProduct extends PublicProduct {
+  itemType?: CatalogItemType;
   sponsorEndDate: string;
   sponsorImage?: string | null;
   sponsorVideo?: string | null;
@@ -1404,6 +1420,7 @@ export const getSponsoredProducts = async (): Promise<
 
 export interface PublicPromotion {
   id: string;
+  itemType?: CatalogItemType;
   id_product: string;
   id_product_free?: string | null;
   price_discount: number;
@@ -1520,7 +1537,8 @@ export const getPublicGroupSelles = async (): Promise<
     const response = await apiFetch(`${getApiBaseUrl()}/group-selles/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
+      // Always revalidate, but let the browser keep a copy so unchanged polls get a 304.
+      cache: "no-cache",
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -3306,11 +3324,14 @@ export interface SponsorPlan {
   price: number;
 }
 
+export type CatalogItemType = "product" | "machine" | "service";
+
 export interface SponsorProductRecord {
   id: string;
   id_plan_sponsor?: string;
   id_abonnement?: string;
   id_product: string;
+  itemType?: CatalogItemType;
   id_supplier: string;
   source?: "vip" | "subscription";
   start_time: string;
@@ -3387,6 +3408,7 @@ const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products/subscriptio
 
 export const createSubscriptionSponsorProduct = async (data: {
   id_product: string;
+  itemType?: CatalogItemType;
   imageFile?: File | null;
   videoFile?: File | null;
   imagePath?: string | null;
@@ -3397,6 +3419,7 @@ export const createSubscriptionSponsorProduct = async (data: {
   try {
     const formData = new FormData();
     formData.append("id_product", data.id_product);
+    formData.append("itemType", data.itemType || "product");
     if (data.imagePath) formData.append("imagePath", data.imagePath);
     if (data.videoPath) formData.append("videoPath", data.videoPath);
     if (data.imageFile) formData.append("image", data.imageFile);
@@ -3484,6 +3507,7 @@ const response = await apiFetch(`${getApiBaseUrl()}/sponsor-products`, {
 export const createSponsorProduct = async (data: {
   id_plan_sponsor: string;
   id_product: string;
+  itemType?: CatalogItemType;
   imageFile?: File | null;
   videoFile?: File | null;
   imagePath?: string | null;
@@ -3495,6 +3519,7 @@ export const createSponsorProduct = async (data: {
     const formData = new FormData();
     formData.append("id_plan_sponsor", data.id_plan_sponsor);
     formData.append("id_product", data.id_product);
+    formData.append("itemType", data.itemType || "product");
     if (data.imagePath) formData.append("imagePath", data.imagePath);
     if (data.videoPath) formData.append("videoPath", data.videoPath);
     if (data.imageFile) formData.append("image", data.imageFile);
@@ -3592,6 +3617,7 @@ const response = await apiFetch(
 // Promotion interfaces (supplier discounts)
 export interface Promotion {
   id: string;
+  itemType?: CatalogItemType;
   id_product: string;
   id_product_free?: string | null;
   id_supplier: string;
@@ -3618,6 +3644,7 @@ export interface Promotion {
 }
 
 export interface CreatePromotionData {
+  itemType?: CatalogItemType;
   id_product: string;
   id_product_free?: string | null;
   price_discount: number;
@@ -3628,6 +3655,7 @@ export interface CreatePromotionData {
 }
 
 export interface UpdatePromotionData {
+  itemType?: CatalogItemType;
   id_product?: string;
   id_product_free?: string | null;
   price_discount?: number;

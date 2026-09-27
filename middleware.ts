@@ -27,7 +27,6 @@ const NOINDEX_PREFIXES = [
   "/forgot-password",
   "/verify-reset-code",
   "/reset-password",
-  "/api",
 ];
 
 const matchesPrefix = (pathname: string, prefixes: string[]) =>
@@ -76,6 +75,7 @@ export const config = {
     "/forgot-password",
     "/verify-reset-code",
     "/reset-password",
-    "/api/:path*",
+    // Not /api: running middleware there makes Next buffer every request body
+    // (uploads included) in memory. The API proxy sets X-Robots-Tag itself.
   ],
 };

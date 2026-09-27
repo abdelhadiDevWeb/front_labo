@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SponsoredPublicProduct } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
+import { catalogItemHref } from "@/lib/catalog-item";
 import CatalogPrice from "@/components/CatalogPrice";
 
 type SponsoredProductCardProps = {
@@ -34,11 +35,18 @@ export default function SponsoredProductCard({
     month: "short",
     year: "numeric",
   });
+  const href = catalogItemHref(product.itemType, product.id);
+  const typeLabel =
+    product.itemType === "machine"
+      ? "Machine"
+      : product.itemType === "service"
+        ? "Service"
+        : product.productType;
 
   if (variant === "strip") {
     return (
       <Link
-        href={`/products/${product.id}`}
+        href={href}
         className={`group relative block h-[250px] overflow-hidden bg-slate-200 ${className}`}
         aria-label={product.name}
       >
@@ -68,7 +76,7 @@ export default function SponsoredProductCard({
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={href}
       className={`group flex-shrink-0 overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-lg transition-all duration-300 hover:border-purple-200 hover:shadow-2xl ${className}`}
     >
       <div className="relative h-44 overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
@@ -108,7 +116,7 @@ export default function SponsoredProductCard({
                 : "bg-purple-100 text-purple-700"
             }`}
           >
-            {product.productType}
+            {typeLabel}
           </span>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -668,34 +668,113 @@ function GroupSellCard({
   );
 }
 
+const POLL_INTERVAL_MS = 60_000;
+/** Nothing on sale: new announcements are rare, check less often. */
+const EMPTY_POLL_INTERVAL_MS = 5 * 60_000;
+const MAX_BACKOFF_MS = 10 * 60_000;
+/** Spread refreshes so every open tab does not hit the API in the same second. */
+const END_REFRESH_SPREAD_MS = 3_000;
+
+const withJitter = (ms: number): number => Math.round(ms * (0.9 + Math.random() * 0.2));
+
+const nextPollDelay = (list: GroupSelleItem[] | null, failures: number): number => {
+  if (list === null) {
+    return withJitter(Math.min(MAX_BACKOFF_MS, POLL_INTERVAL_MS * 2 ** failures));
+  }
+  const base = list.length > 0 ? POLL_INTERVAL_MS : EMPTY_POLL_INTERVAL_MS;
+  const soonestEnd = Math.min(
+    ...list.map((g) => new Date(g.end_time).getTime()).filter(Number.isFinite)
+  );
+  const untilEnd = soonestEnd - Date.now();
+  // Refresh right after a sale ends instead of showing it until the next poll.
+  if (untilEnd > 0 && untilEnd < base) {
+    return untilEnd + 1_000 + Math.random() * END_REFRESH_SPREAD_MS;
+  }
+  return withJitter(base);
+};
+
 export default function GroupSelleShowcase() {
   const [items, setItems] = useState<GroupSelleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [detailsItem, setDetailsItem] = useState<GroupSelleItem | null>(null);
-
-  const load = async () => {
-    try {
-      const result = await getPublicGroupSelles();
-      if (result.success && result.data?.groupSelles) {
-        const next = result.data.groupSelles;
-        setItems(next);
-        setDetailsItem((current) => {
-          if (!current) return null;
-          return next.find((g) => g.id === current.id) || null;
-        });
-      } else {
-        setItems([]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const refreshRef = useRef<() => void>(() => {});
 
   useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    let reloadQueued = false;
+    let failures = 0;
+    let dueAt = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
+
+    // Hidden tabs never poll; the pending refresh runs as soon as the tab is visible again.
+    const arm = () => {
+      clearTimer();
+      if (document.visibilityState === "hidden") return;
+      timer = setTimeout(() => void load(), Math.max(0, dueAt - Date.now()));
+    };
+
+    const load = async () => {
+      if (inFlight) {
+        // e.g. user joined mid-poll: the running request may predate the join.
+        reloadQueued = true;
+        return;
+      }
+      inFlight = true;
+      clearTimer();
+      let list: GroupSelleItem[] | null = null;
+      try {
+        const result = await getPublicGroupSelles();
+        if (result.success) list = result.data?.groupSelles ?? [];
+      } finally {
+        inFlight = false;
+      }
+      if (cancelled) return;
+
+      if (list) {
+        failures = 0;
+        const next = list;
+        setItems(next);
+        setDetailsItem((current) =>
+          current ? next.find((g) => g.id === current.id) || null : null
+        );
+      } else {
+        // Keep what is on screen and back off (also covers 429 rate limiting).
+        failures += 1;
+      }
+      setIsLoading(false);
+      if (reloadQueued) {
+        reloadQueued = false;
+        void load();
+        return;
+      }
+      dueAt = Date.now() + nextPollDelay(list, failures);
+      arm();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") clearTimer();
+      else arm();
+    };
+
+    refreshRef.current = () => void load();
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void load();
-    const id = setInterval(() => void load(), 30000);
-    return () => clearInterval(id);
+
+    return () => {
+      cancelled = true;
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      refreshRef.current = () => {};
+    };
   }, []);
+
+  const refresh = () => refreshRef.current();
 
   if (isLoading || items.length === 0) {
     return null;
@@ -727,7 +806,7 @@ export default function GroupSelleShowcase() {
             <GroupSellCard
               key={item.id}
               item={item}
-              onJoined={() => void load()}
+              onJoined={refresh}
               onSeeDetails={() => setDetailsItem(item)}
             />
           ))}
@@ -738,7 +817,7 @@ export default function GroupSelleShowcase() {
         <GroupSellDetailsModal
           item={detailsItem}
           onClose={() => setDetailsItem(null)}
-          onJoined={() => void load()}
+          onJoined={refresh}
         />
       )}
     </section>

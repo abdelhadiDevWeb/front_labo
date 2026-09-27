@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { buildPageMetadata, SITE_NAME } from "@/lib/seo";
 import { resolveEnvApiUrl } from "@/lib/api-url";
+import { bffInternalHeaders } from "@/lib/bff-server-headers";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -13,7 +14,10 @@ async function fetchProductName(id: string): Promise<string | null> {
   try {
     const res = await fetch(
       `${apiBase.replace(/\/$/, "")}/products/public/${id}`,
-      { next: { revalidate: 1800 }, headers: { Accept: "application/json" } }
+      {
+        next: { revalidate: 1800 },
+        headers: { Accept: "application/json", ...bffInternalHeaders() },
+      }
     );
     if (!res.ok) return null;
     const json = (await res.json()) as {

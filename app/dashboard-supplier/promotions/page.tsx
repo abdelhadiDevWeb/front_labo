@@ -15,19 +15,96 @@ import {
   CheckCircle,
   AlertCircle,
   ShoppingBag,
+  FlaskConical,
+  Cpu,
+  Wrench,
 } from "lucide-react";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import {
   getSupplierProducts,
+  getSupplierMachines,
+  getSupplierServices,
   getSupplierPromotions,
   createPromotion,
   updatePromotion,
   deletePromotion,
-  Product,
+  CatalogItemType,
   Promotion,
+  UniqueDataItem,
 } from "@/lib/api";
 
+type PromoItem = {
+  id: string;
+  kind: CatalogItemType;
+  name: string;
+  price: number;
+};
+
+const KIND_OPTIONS: {
+  kind: CatalogItemType;
+  label: string;
+  article: string;
+  Icon: typeof FlaskConical;
+}[] = [
+  { kind: "product", label: "Produit", article: "un produit", Icon: FlaskConical },
+  { kind: "machine", label: "Machine", article: "une machine", Icon: Cpu },
+  { kind: "service", label: "Service", article: "un service", Icon: Wrench },
+];
+
+const kindOption = (kind: CatalogItemType) =>
+  KIND_OPTIONS.find((o) => o.kind === kind) ?? KIND_OPTIONS[0];
+
+const kindBadgeClass = (kind: CatalogItemType) =>
+  kind === "product"
+    ? "bg-green-100 text-green-700"
+    : kind === "machine"
+      ? "bg-blue-100 text-blue-700"
+      : "bg-amber-100 text-amber-800";
+
+const NAME_KEYS = ["name", "Désignation", "designation", "nom"];
+const SELLING_PRICE_KEYS = ["sellingPrice", "Prix TTC", "prixTTC", "prix vente"];
+const PURCHASE_PRICE_KEYS = ["purchasePrice", "Prix HT", "prixHT", "prix d'achat"];
+
+function pickValue(data: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    const value = data[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  const lower = new Map(Object.entries(data).map(([k, v]) => [k.toLowerCase().trim(), v]));
+  for (const key of keys) {
+    const value = lower.get(key.toLowerCase().trim());
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
+}
+
+function toPrice(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace(",", ".").replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function catalogToPromoItem(item: UniqueDataItem, kind: CatalogItemType): PromoItem {
+  const d = item.unique_data || {};
+  const name = pickValue(d, NAME_KEYS);
+  const selling = toPrice(pickValue(d, SELLING_PRICE_KEYS));
+  return {
+    id: String(item.id),
+    kind,
+    name: name ? String(name).trim() : kindOption(kind).label,
+    price: selling || toPrice(pickValue(d, PURCHASE_PRICE_KEYS)),
+  };
+}
+
+function formatPrice(price: number) {
+  return price > 0 ? `${price.toFixed(2)} DA` : "prix non défini";
+}
+
 type PromotionFormState = {
+  itemType: CatalogItemType;
   id_product: string;
   id_product_free: string;
   normal_price: string;
@@ -38,6 +115,7 @@ type PromotionFormState = {
 };
 
 const emptyForm: PromotionFormState = {
+  itemType: "product",
   id_product: "",
   id_product_free: "",
   price_discount: "",
@@ -88,24 +166,58 @@ function discountPercent(normal: number, discount: number) {
 function PromotionFormFields({
   form,
   setForm,
-  products,
+  items,
+  onKindChange,
   onProductSelect,
   isUpdate,
 }: {
   form: PromotionFormState;
   setForm: Dispatch<SetStateAction<PromotionFormState>>;
-  products: Product[];
+  items: PromoItem[];
+  onKindChange: (kind: CatalogItemType, isUpdate?: boolean) => void;
   onProductSelect: (productId: string, isUpdate?: boolean) => void;
   isUpdate?: boolean;
 }) {
   const normalNum = parseFloat(normalizeDecimalInput(form.normal_price));
   const discountNum = parseFloat(normalizeDecimalInput(form.price_discount));
+  const option = kindOption(form.itemType);
+  const itemsOfKind = items.filter((item) => item.kind === form.itemType);
+  const selectedItem = itemsOfKind.find((item) => item.id === form.id_product);
+  const normalPriceLocked = Boolean(selectedItem && selectedItem.price > 0);
 
   return (
     <>
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Produit <span className="text-red-500">*</span>
+          Type de promotion <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {KIND_OPTIONS.map(({ kind, label, Icon }) => {
+            const selected = form.itemType === kind;
+            const count = items.filter((item) => item.kind === kind).length;
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => onKindChange(kind, isUpdate)}
+                className={`flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-sm font-semibold transition-all ${
+                  selected
+                    ? "border-green-600 bg-green-50 text-green-900 ring-2 ring-green-200"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {label}
+                <span className="text-[11px] font-normal text-gray-500">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          {option.label} <span className="text-red-500">*</span>
         </label>
         <select
           required
@@ -113,13 +225,19 @@ function PromotionFormFields({
           onChange={(e) => onProductSelect(e.target.value, isUpdate)}
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
         >
-          <option value="">Sélectionner un produit</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} — {product.sellingPrice.toFixed(2)} DA
+          <option value="">Sélectionner {option.article}</option>
+          {itemsOfKind.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} — {formatPrice(item.price)}
             </option>
           ))}
         </select>
+        {itemsOfKind.length === 0 && (
+          <p className="text-xs text-amber-700 mt-2">
+            Vous n&apos;avez aucun{form.itemType === "machine" ? "e" : ""} {option.label.toLowerCase()} dans
+            votre MarketPlace.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -131,12 +249,33 @@ function PromotionFormFields({
             type="text"
             inputMode="decimal"
             required
-            readOnly
-            placeholder="Sélectionnez un produit"
+            readOnly={normalPriceLocked || !selectedItem}
+            autoComplete="off"
+            placeholder={selectedItem ? "Ex: 2000" : `Sélectionnez ${option.article}`}
             value={form.normal_price}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-700 outline-none cursor-default"
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^\d.,]/g, "");
+              if (DECIMAL_INPUT.test(value) || value === "") {
+                setForm((prev) => ({ ...prev, normal_price: value }));
+              }
+            }}
+            className={`w-full px-4 py-3 border-2 rounded-xl outline-none ${
+              normalPriceLocked || !selectedItem
+                ? "border-gray-200 bg-gray-50 text-gray-700 cursor-default"
+                : "border-green-200 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            }`}
           />
-          <p className="text-xs text-gray-500 mt-1">Prix de vente actuel du produit</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {selectedItem && !normalPriceLocked
+              ? `Aucun prix défini pour ce ${option.label.toLowerCase()} — saisissez le prix normal`
+              : `Prix de vente actuel ${
+                  form.itemType === "machine"
+                    ? "de la machine"
+                    : form.itemType === "service"
+                      ? "du service"
+                      : "du produit"
+                }`}
+          </p>
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -196,7 +335,7 @@ function PromotionFormFields({
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Produit offert gratuitement{" "}
+          {option.label} offert{form.itemType === "machine" ? "e" : ""} gratuitement{" "}
           <span className="text-gray-400 font-normal">(optionnel)</span>
         </label>
         <select
@@ -206,18 +345,18 @@ function PromotionFormFields({
           }
           className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/40"
         >
-          <option value="">Aucun — pas de produit gratuit</option>
-          {products
-            .filter((p) => p.id !== form.id_product)
-            .map((product) => (
-              <option key={product.id} value={product.id}>
-                {product.name} — {product.sellingPrice.toFixed(2)} DA
+          <option value="">Aucun — rien d&apos;offert</option>
+          {itemsOfKind
+            .filter((item) => item.id !== form.id_product)
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} — {formatPrice(item.price)}
               </option>
             ))}
         </select>
         <p className="text-xs text-gray-500 mt-1">
-          Si renseigné, le client reçoit ce produit gratuitement lorsqu&apos;il achète le produit
-          en promotion (quantité minimum respectée).
+          Si renseigné, le client reçoit cet élément gratuitement lorsqu&apos;il achète celui en
+          promotion (quantité minimum respectée).
         </p>
       </div>
 
@@ -252,7 +391,7 @@ function PromotionFormFields({
 }
 
 export default function PromotionsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [items, setItems] = useState<PromoItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -276,13 +415,28 @@ export default function PromotionsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [productsResult, promotionsResult] = await Promise.all([
+      const [productsResult, machinesResult, servicesResult, promotionsResult] = await Promise.all([
         getSupplierProducts(),
+        getSupplierMachines(),
+        getSupplierServices(),
         getSupplierPromotions(),
       ]);
-      if (productsResult.success && productsResult.data) {
-        setProducts(productsResult.data.products || []);
-      }
+      const products =
+        productsResult.success && productsResult.data ? productsResult.data.products || [] : [];
+      const machines =
+        machinesResult.success && machinesResult.data ? machinesResult.data.machines || [] : [];
+      const services =
+        servicesResult.success && servicesResult.data ? servicesResult.data.services || [] : [];
+      setItems([
+        ...products.map((product) => ({
+          id: product.id,
+          kind: "product" as const,
+          name: product.name,
+          price: product.sellingPrice,
+        })),
+        ...machines.map((machine) => catalogToPromoItem(machine, "machine")),
+        ...services.map((service) => catalogToPromoItem(service, "service")),
+      ]);
       if (promotionsResult.success && promotionsResult.data) {
         setPromotions(promotionsResult.data.promotions);
       } else if (!promotionsResult.success) {
@@ -295,31 +449,38 @@ export default function PromotionsPage() {
     }
   };
 
-  const handleProductSelect = (productId: string, isUpdate = false) => {
-    const product = products.find((p) => p.id === productId);
-    if (!product) return;
+  const handleKindChange = (kind: CatalogItemType, isUpdate = false) => {
+    const setForm = isUpdate ? setUpdateForm : setCreateForm;
+    setForm((prev) =>
+      prev.itemType === kind
+        ? prev
+        : {
+            ...prev,
+            itemType: kind,
+            id_product: "",
+            id_product_free: "",
+            normal_price: "",
+            price_discount: "",
+          }
+    );
+  };
 
-    if (isUpdate) {
-      setUpdateForm((prev) => ({
+  const handleProductSelect = (productId: string, isUpdate = false) => {
+    const setForm = isUpdate ? setUpdateForm : setCreateForm;
+    setForm((prev) => {
+      const item = items.find((i) => i.id === productId && i.kind === prev.itemType);
+      if (!item) {
+        return { ...prev, id_product: "", normal_price: "" };
+      }
+      return {
         ...prev,
         id_product: productId,
-        // Keep existing promo price if already set; only sync normal price from product
-        normal_price: String(product.sellingPrice),
-        id_product_free:
-          prev.id_product_free === productId ? "" : prev.id_product_free,
-      }));
-    } else {
-      setCreateForm((prev) => ({
-        ...prev,
-        id_product: productId,
-        normal_price: String(product.sellingPrice),
-        // Leave promo price empty so the supplier types the amount they want
-        price_discount: prev.id_product === productId ? prev.price_discount : "",
-        // Clear free gift if it was the same product
-        id_product_free:
-          prev.id_product_free === productId ? "" : prev.id_product_free,
-      }));
-    }
+        normal_price: item.price > 0 ? String(item.price) : "",
+        // Update keeps the existing promo price; create starts empty so the supplier types it
+        price_discount: isUpdate || prev.id_product === productId ? prev.price_discount : "",
+        id_product_free: prev.id_product_free === productId ? "" : prev.id_product_free,
+      };
+    });
   };
 
   const filteredPromotions = promotions.filter((promotion) => {
@@ -327,6 +488,7 @@ export default function PromotionsPage() {
     if (!q) return true;
     return (
       promotion.product?.name.toLowerCase().includes(q) ||
+      kindOption(promotion.itemType || "product").label.toLowerCase().includes(q) ||
       promotion.id.toLowerCase().includes(q) ||
       promotion.normal_price.toString().includes(q) ||
       promotion.price_discount.toString().includes(q)
@@ -355,6 +517,7 @@ export default function PromotionsPage() {
       }
 
       const result = await createPromotion({
+        itemType: createForm.itemType,
         id_product: createForm.id_product,
         id_product_free: createForm.id_product_free || null,
         start_day: createForm.start_day,
@@ -382,6 +545,7 @@ export default function PromotionsPage() {
   const handleOpenUpdate = (promotion: Promotion) => {
     setSelectedPromotion(promotion);
     setUpdateForm({
+      itemType: promotion.itemType || "product",
       id_product: promotion.id_product,
       id_product_free: promotion.id_product_free || "",
       price_discount: String(promotion.price_discount),
@@ -417,6 +581,7 @@ export default function PromotionsPage() {
       }
 
       const result = await updatePromotion(selectedPromotion.id, {
+        itemType: updateForm.itemType,
         id_product: updateForm.id_product,
         id_product_free: updateForm.id_product_free || null,
         start_day: updateForm.start_day,
@@ -479,14 +644,18 @@ export default function PromotionsPage() {
             <Percent className="w-8 h-8 text-green-600" />
             Promotions
           </h1>
-          <p className="text-gray-600 mt-1">Créez des remises sur vos produits par quantité et période</p>
+          <p className="text-gray-600 mt-1">
+            Créez des remises sur vos produits, machines ou services par quantité et période
+          </p>
         </div>
         <button
           onClick={() => {
-            setCreateForm(emptyForm);
+            const firstKind =
+              KIND_OPTIONS.find((o) => items.some((item) => item.kind === o.kind))?.kind ?? "product";
+            setCreateForm({ ...emptyForm, itemType: firstKind });
             setShowCreateModal(true);
           }}
-          disabled={products.length === 0}
+          disabled={items.length === 0}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50"
         >
           <Plus className="w-5 h-5" />
@@ -524,7 +693,7 @@ export default function PromotionsPage() {
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
-                  <th className="py-3 px-3 font-semibold">Produit</th>
+                  <th className="py-3 px-3 font-semibold">Élément</th>
                   <th className="py-3 px-3 font-semibold">Offert gratuit</th>
                   <th className="py-3 px-3 font-semibold">Prix normal</th>
                   <th className="py-3 px-3 font-semibold">Prix promo</th>
@@ -540,7 +709,14 @@ export default function PromotionsPage() {
                   return (
                     <tr key={promotion.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-3 font-medium text-gray-900">
-                        {promotion.product?.name || promotion.id_product}
+                        <div className="flex items-center gap-2">
+                          <span>{promotion.product?.name || promotion.id_product}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${kindBadgeClass(promotion.itemType || "product")}`}
+                          >
+                            {kindOption(promotion.itemType || "product").label}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-sm text-amber-800">
                         {promotion.freeProduct?.name || (
@@ -625,7 +801,8 @@ export default function PromotionsPage() {
               <PromotionFormFields
                 form={createForm}
                 setForm={setCreateForm}
-                products={products}
+                items={items}
+                onKindChange={handleKindChange}
                 onProductSelect={handleProductSelect}
               />
               <div className="flex gap-3 pt-2">
@@ -659,7 +836,8 @@ export default function PromotionsPage() {
               <PromotionFormFields
                 form={updateForm}
                 setForm={setUpdateForm}
-                products={products}
+                items={items}
+                onKindChange={handleKindChange}
                 onProductSelect={handleProductSelect}
                 isUpdate
               />

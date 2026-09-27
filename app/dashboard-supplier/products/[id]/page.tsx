@@ -20,8 +20,10 @@ import {
   Loader2,
   AlertCircle,
   Play,
+  FlaskConical,
 } from "lucide-react";
 import { getSupplierProducts, Product, updateProduct, deleteProduct } from "@/lib/api";
+import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { getMediaUrl } from "@/lib/media-url";
 import { scrollPageToTop } from "@/lib/scroll-to-top";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
@@ -53,7 +55,7 @@ export default function ProductDetailPage() {
     id_sous_catgory: "" as string,
     deliveryTime: "",
     brand: "",
-    productType: "Labo médical" as "Labo médical" | "labo d'ana pathologies",
+    productType: "Labo médical" as LaboTypeValue,
     images: [] as File[],
     video: null as File | null,
   });
@@ -394,7 +396,8 @@ export default function ProductDetailPage() {
                         : "bg-purple-100 text-purple-700"
                     }`}
                   >
-                    {product.productType}
+                    {LABO_TYPE_OPTIONS.find((o) => o.value === product.productType)?.label ||
+                      product.productType}
                   </span>
                 </div>
                 {product.quantity === 0 && (
@@ -557,16 +560,39 @@ export default function ProductDetailPage() {
                     />
                     <p className="mt-1 text-xs text-gray-500">La sous-catégorie ne peut pas être modifiée</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type de produit</label>
-                    <select
-                      value={editFormData.productType}
-                      onChange={(e) => setEditFormData({ ...editFormData, productType: e.target.value as "Labo médical" | "labo d'ana pathologies" })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black bg-white"
-                    >
-                      <option value="Labo médical">Labo médical</option>
-                      <option value="labo d'ana pathologies">labo d'ana pathologies</option>
-                    </select>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Type de laboratoire <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-sm text-gray-500">Ce produit est destiné à quel type de laboratoire ?</p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {LABO_TYPE_OPTIONS.map((opt) => {
+                        const selected = editFormData.productType === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setEditFormData({ ...editFormData, productType: opt.value })}
+                            className={`text-left p-4 rounded-xl border-2 transition-all ${
+                              selected
+                                ? "border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-sm"
+                                : "border-teal-200 bg-gradient-to-br from-teal-50/60 to-cyan-50/60 hover:border-teal-400"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <FlaskConical
+                                className={`h-5 w-5 mt-0.5 shrink-0 ${
+                                  selected ? "text-teal-600" : "text-gray-400"
+                                }`}
+                              />
+                              <p className="font-semibold text-gray-900 text-sm leading-snug">
+                                {opt.label}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

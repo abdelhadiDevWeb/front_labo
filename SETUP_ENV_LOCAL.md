@@ -117,6 +117,29 @@ client/
 
 ---
 
+## 🚀 Production (Hostinger) — performance & rate limiting
+
+```env
+# Same value as BFF_SHARED_SECRET in backEnd_Labo — passes the real visitor IP
+# to Express for rate limiting. Server-side only (never prefix with NEXT_PUBLIC_).
+BFF_SHARED_SECRET=<openssl rand -hex 32>
+
+# Reverse proxies in front of Next that append to X-Forwarded-For (default 1)
+# TRUSTED_PROXY_HOPS=1
+
+# Optional: public origin that serves /api/files/* directly (Express subdomain
+# or a CDN in front of it). Public images/videos then skip the Next.js proxy.
+# PDFs and private files (documents, payments, excel) keep using /api.
+# Must be https. Rebuild Next after changing (NEXT_PUBLIC_* is inlined at build).
+# NEXT_PUBLIC_MEDIA_URL=https://media.dzlabmarket.com
+
+# /api proxy: max wait (ms) for Express to start answering once the request is
+# fully sent, then 504. Upload time is not counted. Default 30000.
+# API_PROXY_TIMEOUT_MS=30000
+```
+
+---
+
 ## 🎯 Quick Copy-Paste
 
 **Create file:** `client/.env.local`

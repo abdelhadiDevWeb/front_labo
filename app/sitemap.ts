@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl, PUBLIC_SEO_PAGES } from "@/lib/seo";
 import { resolveEnvApiUrl } from "@/lib/api-url";
+import { bffInternalHeaders } from "@/lib/bff-server-headers";
 
 type IdRow = { id: string; updatedAt?: string };
 
@@ -48,7 +49,7 @@ async function fetchPublicIds(apiPath: string): Promise<IdRow[]> {
 
     const res = await fetch(url.toString(), {
       next: { revalidate: 3600 },
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...bffInternalHeaders() },
     });
     if (!res.ok) return [];
     return collectIds(await res.json());
