@@ -12,7 +12,6 @@ export const escapeHtml = (value: unknown): string => {
 const ALLOWED_ONBOARDING_REDIRECTS = new Set([
   "/client/upload-documents",
   "/supplier/upload-documents",
-  "/client/choose-subscription",
   "/supplier/choose-subscription",
 ]);
 

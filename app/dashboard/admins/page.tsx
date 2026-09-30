@@ -192,18 +192,18 @@ export default function AdminsPage() {
         {filteredAdmins.map((admin) => (
           <div
               key={admin._id}
-            className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <Shield className="w-6 h-6 text-purple-600" />
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 sm:p-3 bg-purple-100 rounded-xl shrink-0">
+                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-                <div>
-                    <h3 className="text-xl font-bold text-gray-900">
+                <div className="min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 break-words">
                       {admin.firstName} {admin.lastName}
                     </h3>
-                  <p className="text-sm text-gray-500">{admin.email}</p>
+                  <p className="text-sm text-gray-500 break-all">{admin.email}</p>
                   <span
                     className={`mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                       admin.role === "sou-admin"
@@ -215,7 +215,7 @@ export default function AdminsPage() {
                   </span>
                 </div>
               </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       admin.status
@@ -233,9 +233,9 @@ export default function AdminsPage() {
                 <Phone className="w-4 h-4 text-gray-400" />
                 {admin.phone}
               </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  {admin.address}
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span className="break-words">{admin.address}</span>
                 </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Key className="w-4 h-4 text-gray-400" />

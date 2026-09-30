@@ -596,7 +596,7 @@ export default function StatisticsPage() {
           return (
             <div
               key={stat.title}
-              className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
+              className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`${stat.color} p-3 rounded-xl`}>
@@ -619,15 +619,15 @@ export default function StatisticsPage() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Monthly Revenue - Bar Chart (full admin) */}
         {!isLimited && monthlyRevenueBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={monthlyRevenueBarConfig} options={barChartOptions} />
             </div>
           </div>
@@ -635,12 +635,12 @@ export default function StatisticsPage() {
 
         {/* Monthly Orders - Line Chart */}
         {monthlyOrdersLineConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Activity className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Commandes Mensuelles</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Line data={monthlyOrdersLineConfig} options={lineChartOptions} />
             </div>
           </div>
@@ -648,12 +648,12 @@ export default function StatisticsPage() {
 
         {/* Orders by Status - Pie Chart */}
         {ordersByStatusPieConfig && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingCart className="w-5 h-5 text-red-600" />
               <h3 className="text-lg font-bold text-gray-900">Commandes par Statut</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Pie data={ordersByStatusPieConfig} options={chartOptions} />
             </div>
                 </div>
@@ -661,12 +661,12 @@ export default function StatisticsPage() {
 
         {/* Users by Role - Doughnut Chart */}
         {usersByRoleDoughnutConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-bold text-gray-900">Utilisateurs par Rôle</h3>
               </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Doughnut data={usersByRoleDoughnutConfig} options={chartOptions} />
           </div>
         </div>
@@ -674,12 +674,12 @@ export default function StatisticsPage() {
 
         {/* Users by Role - Bar Chart */}
         {usersByRoleBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-bold text-gray-900">Répartition des Utilisateurs par Rôle</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={usersByRoleBarConfig} options={barChartOptions} />
             </div>
           </div>
@@ -687,7 +687,7 @@ export default function StatisticsPage() {
 
         {/* Subscription Revenue by Type - Bar Chart */}
         {!isLimited && subscriptionRevenueConfig?.byType && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-orange-600" />
               <div className="flex-1">
@@ -695,7 +695,7 @@ export default function StatisticsPage() {
                 <p className="text-sm text-gray-500">Total: {subscriptionRevenueConfig.total.toFixed(2)} DA ({subscriptionRevenueConfig.count} abonnements actifs)</p>
               </div>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={subscriptionRevenueConfig.byType} options={barChartOptions} />
           </div>
         </div>
@@ -703,12 +703,12 @@ export default function StatisticsPage() {
 
         {/* Products by Category - Bar Chart */}
         {productsByCategoryBarConfig && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-orange-600" />
               <h3 className="text-lg font-bold text-gray-900">Produits par Catégorie</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={productsByCategoryBarConfig} options={barChartOptions} />
             </div>
                 </div>
@@ -716,12 +716,12 @@ export default function StatisticsPage() {
 
         {/* Daily Revenue - Scatter Plot */}
         {!isLimited && dailyRevenueScatterConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Quotidiens (30 derniers jours)</h3>
               </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Scatter data={dailyRevenueScatterConfig} options={scatterChartOptions} />
           </div>
         </div>
@@ -732,12 +732,12 @@ export default function StatisticsPage() {
       <div className="grid grid-cols-1 gap-6">
         {/* Top Suppliers - Bar Chart */}
         {!isLimited && topSuppliersBarConfig && (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Top 10 Fournisseurs par Revenus</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={topSuppliersBarConfig} options={barChartOptions} />
             </div>
               </div>
@@ -745,12 +745,12 @@ export default function StatisticsPage() {
 
         {/* Top Products - Bar Chart */}
         {!isLimited && topProductsBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-pink-600" />
               <h3 className="text-lg font-bold text-gray-900">Top 10 Produits par Quantité Vendue</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={topProductsBarConfig} options={barChartOptions} />
         </div>
           </div>
@@ -758,12 +758,12 @@ export default function StatisticsPage() {
 
         {/* Monthly Subscription Revenue - Bar Chart */}
         {!isLimited && subscriptionRevenueConfig?.monthly && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels des Abonnements</h3>
             </div>
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               <Bar data={subscriptionRevenueConfig.monthly} options={barChartOptions} />
             </div>
           </div>

@@ -194,7 +194,7 @@ export default function OrdersPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="w-full sm:w-auto pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
             >
               <option value="all">Tous les statuts ({totalCount})</option>
               <option value="en cours">En cours ({statusCounts["en cours"] || 0})</option>
@@ -229,7 +229,44 @@ export default function OrdersPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="md:hidden divide-y divide-gray-100">
+              {orders.map((order) => (
+                <button
+                  key={order.id}
+                  type="button"
+                  onClick={() => handleViewOrder(order)}
+                  className="w-full text-left p-4 space-y-2 active:bg-gray-50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-900">{order.orderNumber}</p>
+                      <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                      {statusLabels[order.status] || order.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="min-w-0">
+                      <p className="text-gray-500">Client</p>
+                      <p className="truncate font-medium text-gray-900">{order.customer}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-gray-500">Fournisseur</p>
+                      <p className="truncate font-medium text-gray-900">{order.supplier}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between gap-3">
+                    <p className="min-w-0 truncate text-xs text-gray-500">
+                      {order.productCount} {order.productCount > 1 ? "produits" : "produit"} ·{" "}
+                      {order.products.map((p) => p.name).join(", ")}
+                    </p>
+                    <p className="shrink-0 text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -315,8 +352,8 @@ export default function OrdersPage() {
             </div>
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-700">
+              <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-sm text-gray-700 text-center sm:text-left">
                   Page {currentPage} sur {totalPages} ({totalCount} commandes)
                 </div>
                 <div className="flex items-center gap-2">

@@ -577,7 +577,7 @@ export default function HomePage() {
     {
       title: "Réservez",
       description:
-        "Réservez en un clic. Bon de réserve et facture automatiques.",
+        "Réservez en un clic. Bon de réserve automatique.",
     },
     {
       title: "Suivez",
@@ -1449,11 +1449,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Outils de gestion et de suivi intégrés (commandes, livraisons, stocks, factures)</span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Facturation et traçabilité automatisées (bons de commande, avoirs, historique)</span>
+                  <span className="transition-all group-hover:text-blue-200">Outils de gestion et de suivi intégrés (commandes, livraisons, stocks)</span>
                 </li>
                 <li className="flex items-start gap-3 group">
                   <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />

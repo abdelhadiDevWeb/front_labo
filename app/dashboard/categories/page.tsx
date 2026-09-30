@@ -811,9 +811,9 @@ export default function CategoriesPage() {
                             onClick={() =>
                               openCurrentExcel(category.excelFile!, category.excelFileName)
                             }
-                            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                            className="mt-2 inline-flex max-w-full items-center gap-1.5 text-left text-xs font-semibold text-blue-600 hover:text-blue-700 break-all"
                           >
-                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                            <FileSpreadsheet className="h-3.5 w-3.5 shrink-0" />
                             Ouvrir Excel
                             {category.excelFileName ? ` (${category.excelFileName})` : ""}
                           </button>

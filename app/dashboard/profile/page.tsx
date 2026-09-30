@@ -263,11 +263,11 @@ export default function ProfilePage() {
       {/* Profile Card */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-8 text-white">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="relative">
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-5 sm:p-8 text-white">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="relative shrink-0">
               {profile.profileImage ? (
-                <div className="w-32 h-32 rounded-full border-4 border-white/30 overflow-hidden bg-white/20">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white/30 overflow-hidden bg-white/20">
                   <Image
                     src={getImageUrl(profile.profileImage) || ""}
                     alt={`${profile.firstName} ${profile.lastName}`}
@@ -277,8 +277,8 @@ export default function ProfilePage() {
                   />
                 </div>
               ) : (
-                <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30">
-                  <User className="w-16 h-16 text-white" />
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30">
+                  <User className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
                 </div>
               )}
               <button
@@ -301,9 +301,9 @@ export default function ProfilePage() {
                 className="hidden"
               />
             </div>
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl font-bold mb-1">{`${profile.firstName} ${profile.lastName}`}</h3>
-              <p className="text-blue-100 mb-2">{profile.email}</p>
+            <div className="min-w-0 text-center sm:text-left">
+              <h3 className="text-xl sm:text-2xl font-bold mb-1 break-words">{`${profile.firstName} ${profile.lastName}`}</h3>
+              <p className="text-blue-100 mb-2 break-all">{profile.email}</p>
               <span className="inline-block px-4 py-1 bg-white/20 rounded-full text-sm font-semibold">
                 Administrateur
               </span>

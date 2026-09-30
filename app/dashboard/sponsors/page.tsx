@@ -207,7 +207,7 @@ export default function SponsorsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -226,7 +226,46 @@ export default function SponsorsPage() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
         ) : filteredSponsors.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          <div className="md:hidden space-y-3">
+            {filteredSponsors.map((sponsor) => (
+              <div key={sponsor.id} className="rounded-xl border border-gray-200 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm text-gray-900">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    {formatDuration(sponsor.time)}
+                  </span>
+                  <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    {sponsor.price.toLocaleString("fr-FR")} DA
+                  </span>
+                </div>
+                <p className="text-[11px] font-mono text-gray-500 break-all">{sponsor.id}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleOpenUpdate(sponsor)}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => handleDelete(sponsor.id)}
+                    disabled={deletingId === sponsor.id}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    {deletingId === sponsor.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-500">
@@ -282,6 +321,7 @@ export default function SponsorsPage() {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <div className="text-center py-12">
             <Megaphone className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -308,7 +348,7 @@ export default function SponsorsPage() {
         showCreateModal &&
         createPortal(
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto">
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-lg">
@@ -379,7 +419,7 @@ export default function SponsorsPage() {
         selectedSponsor &&
         createPortal(
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto">
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-lg">

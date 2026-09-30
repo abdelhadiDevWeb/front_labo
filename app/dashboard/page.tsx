@@ -157,8 +157,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-5 sm:p-8 text-white shadow-xl">
+        <h2 className="text-xl sm:text-3xl font-bold mb-2">
           {isLimited ? "Tableau de bord" : "Bienvenue dans le Dashboard"}
         </h2>
         <p className="text-blue-100">
@@ -168,17 +168,17 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isLimited ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-4 sm:gap-6`}>
+      <div className={`grid grid-cols-2 ${isLimited ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-3 sm:gap-6`}>
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           const cardContent = (
             <div
-              className={`bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 ${"href" in stat ? "cursor-pointer" : ""}`}
+              className={`h-full bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 ${"href" in stat ? "cursor-pointer" : ""}`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} p-3 rounded-xl`}>
-                  <Icon className="w-6 h-6 text-white" />
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+                <div className={`${stat.color} p-2 sm:p-3 rounded-xl`}>
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 {isLimited && "subtitle" in stat && (
                   <span className="text-gray-600 text-xs font-medium text-right max-w-[50%]">
@@ -201,8 +201,8 @@ export default function DashboardPage() {
                   <span className="text-gray-600 text-xs font-medium">{stat.change}</span>
                 )}
               </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">{stat.name}</h3>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
+              <h3 className="text-gray-500 text-xs sm:text-sm font-medium mb-1">{stat.name}</h3>
+              <p className="text-lg sm:text-3xl font-bold text-gray-900 break-words">{stat.value}</p>
             </div>
           );
 
@@ -237,8 +237,8 @@ export default function DashboardPage() {
         </div>
       ) : (
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Commandes Récentes</h3>
+        <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between gap-3">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Commandes Récentes</h3>
           <Link
             href="/dashboard/orders"
             className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
@@ -252,7 +252,31 @@ export default function DashboardPage() {
             <p className="text-gray-500">Aucune commande récente</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="md:hidden divide-y divide-gray-100">
+            {statistics.recentOrders.map((order) => (
+              <div key={order.id} className="p-4 space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-gray-900">#{order.id.slice(-8)}</p>
+                  <span
+                    className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${statusColors[order.status] || "bg-gray-100 text-gray-800"}`}
+                  >
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                </div>
+                <p className="truncate text-xs text-gray-600">
+                  {order.customer} → {order.supplier}
+                </p>
+                <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+                  <span>
+                    {order.productCount} {order.productCount > 1 ? "produits" : "produit"} · {formatDate(order.date)}
+                  </span>
+                  <span className="text-sm font-bold text-gray-900">{formatCurrency(order.amount)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -312,6 +336,7 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
       )}

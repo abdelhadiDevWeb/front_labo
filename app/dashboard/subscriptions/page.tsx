@@ -26,6 +26,7 @@ import {
   HandCoins,
   Trash2,
   AlertTriangle,
+  Package,
 } from "lucide-react";
 import {
   getUsersForSubscription,
@@ -48,10 +49,12 @@ import {
   CreateSubscriptionTypeData,
   UpdateSubscriptionTypeData,
   getSessionRole,
+  updateUserStatus,
 } from "@/lib/api";
 import { getBaseUrl } from "@/lib/api-config";
 import { useRouter } from "next/navigation";
 import { isSouAdminRole } from "@/lib/admin-access";
+import SubscriptionRequestsPanel from "@/components/admin/SubscriptionRequestsPanel";
 
 export default function SubscriptionsPage() {
   const router = useRouter();
@@ -91,7 +94,9 @@ export default function SubscriptionsPage() {
     start: "",
   });
 
-  const [createTypeFormData, setCreateTypeFormData] = useState<CreateSubscriptionTypeData>({
+  const [createTypeFormData, setCreateTypeFormData] = useState<
+    Omit<CreateSubscriptionTypeData, "max_products">
+  >({
     name: "",
     description: "",
     time: 1,
@@ -109,7 +114,7 @@ export default function SubscriptionsPage() {
     sponsorDurationHours: 48,
   });
 
-  const emptyCreateTypeForm = (): CreateSubscriptionTypeData => ({
+  const emptyCreateTypeForm = (): Omit<CreateSubscriptionTypeData, "max_products"> => ({
     name: "",
     description: "",
     time: 1,
@@ -117,6 +122,16 @@ export default function SubscriptionsPage() {
     sponsorsPerMonth: 0,
     sponsorDurationHours: 48,
   });
+
+  // Kept as text so the admin must type a value (an implicit 0 would block suppliers).
+  const [createMaxProducts, setCreateMaxProducts] = useState("");
+  const [updateMaxProducts, setUpdateMaxProducts] = useState("");
+
+  const parseMaxProducts = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    return parseInt(trimmed, 10);
+  };
 
   // Helper function to safely get time value
   const getUpdateTimeValue = (): number => {
@@ -357,18 +372,27 @@ export default function SubscriptionsPage() {
         return;
       }
 
+      const maxProducts = parseMaxProducts(createMaxProducts);
+      if (maxProducts === null) {
+        setError("Indiquez le nombre maximum de produits (0 ou plus).");
+        setIsCreatingType(false);
+        return;
+      }
+
       // Convert months to days if needed
       const timeInDays = durationUnit === "months" ? durationMonths * 30 : createTypeFormData.time;
-      const formDataToSend = {
+      const formDataToSend: CreateSubscriptionTypeData = {
         ...createTypeFormData,
         time: timeInDays,
         sponsorDurationHours: sponsors > 0 ? hours : 0,
+        max_products: maxProducts,
       };
 
       const result = await createSubscriptionType(formDataToSend);
       if (result.success && result.data) {
         setSuccess("Type d'abonnement créé avec succès!");
         setCreateTypeFormData(emptyCreateTypeForm());
+        setCreateMaxProducts("");
         setDurationMonths(1);
         setDurationUnit("months");
         setShowCreateTypeModal(false);
@@ -404,12 +428,20 @@ export default function SubscriptionsPage() {
         return;
       }
 
+      const maxProducts = parseMaxProducts(updateMaxProducts);
+      if (maxProducts === null) {
+        setError("Indiquez le nombre maximum de produits (0 ou plus).");
+        setIsUpdatingType(false);
+        return;
+      }
+
       // Convert months to days if needed
       const timeInDays = updateDurationUnit === "months" ? updateDurationMonths * 30 : getUpdateTimeValue();
-      const formDataToSend = {
+      const formDataToSend: UpdateSubscriptionTypeData = {
         ...updateTypeFormData,
         time: timeInDays,
         sponsorDurationHours: sponsors > 0 ? hours : 0,
+        max_products: maxProducts,
       };
 
       const result = await updateSubscriptionType(selectedType.id, formDataToSend);
@@ -469,6 +501,7 @@ export default function SubscriptionsPage() {
       sponsorsPerMonth: type.sponsorsPerMonth ?? 0,
       sponsorDurationHours: type.sponsorDurationHours ?? 48,
     };
+    setUpdateMaxProducts(type.max_products != null ? String(type.max_products) : "");
     if (isRoughlyMonths && months > 0) {
       setUpdateDurationUnit("months");
       setUpdateDurationMonths(months);
@@ -650,6 +683,29 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const handleActivateLabAccount = async (user: SubscriptionUser) => {
+    setIsActivating(user._id);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const result = await updateUserStatus(user._id, true);
+      if (result.success) {
+        setSuccess(`Compte de ${user.firstName} ${user.lastName} activé !`);
+        await loadData();
+        await notifyPendingUsersUpdated();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(result.message || "Erreur lors de l'activation du compte");
+      }
+    } catch (err) {
+      console.error("Activate lab account error:", err);
+      setError("Une erreur est survenue lors de l'activation du compte");
+    } finally {
+      setIsActivating(null);
+    }
+  };
+
   const renderChosenSubscription = (user: SubscriptionUser) => {
     if (!user.chosenSubscription) return null;
 
@@ -816,9 +872,9 @@ export default function SubscriptionsPage() {
           Du {new Date(subscription.start).toLocaleDateString("fr-FR")} au{" "}
           {new Date(subscription.end).toLocaleDateString("fr-FR")}
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Mail className="w-4 h-4" />
-          {subscription.id_user?.email || "N/A"}
+        <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+          <Mail className="w-4 h-4 shrink-0" />
+          <span className="break-all">{subscription.id_user?.email || "N/A"}</span>
         </div>
         {(subscription.sponsorsAllocated ?? subscription.sponsorsPerMonth ?? 0) > 0 ? (
           <div className="rounded-lg border border-purple-100 bg-purple-50/80 px-2.5 py-2 space-y-1.5">
@@ -952,9 +1008,16 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
+      <SubscriptionRequestsPanel
+        onChanged={async () => {
+          await loadData();
+          await notifyPendingUsersUpdated();
+        }}
+      />
+
       {/* Section 1: Users with status false - Divided into Clients and Suppliers */}
       <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-bold text-gray-900">Utilisateurs en attente d'abonnement</h3>
@@ -1002,7 +1065,7 @@ export default function SubscriptionsPage() {
                           <h4 className="font-semibold text-gray-900">
                             {user.firstName} {user.lastName}
                           </h4>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <p className="text-sm text-gray-500 break-all">{user.email}</p>
                         </div>
                       </div>
                     </div>
@@ -1012,43 +1075,6 @@ export default function SubscriptionsPage() {
                         {user.phone}
                       </div>
                     </div>
-                    {/* Check for expired subscriptions */}
-                    {(() => {
-                      const expiredSubs = getUserExpiredSubscriptions(user._id);
-                      const lastExpired = getLastExpiredSubscription(user._id);
-                      if (expiredSubs.length > 0 && lastExpired) {
-                        return (
-                          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <p className="text-xs text-amber-800 mb-2">
-                              <strong>⚠️ Abonnement expiré:</strong> Cet utilisateur a {expiredSubs.length} abonnement(s) expiré(s).
-                              {lastExpired && (
-                                <span className="block mt-1">
-                                  Dernier: {lastExpired.type} (expiré le {new Date(lastExpired.end).toLocaleDateString("fr-FR")})
-                                </span>
-                              )}
-                            </p>
-                            <button
-                              onClick={() => handleRenewSubscription(user)}
-                              disabled={isRenewing === user._id}
-                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isRenewing === user._id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Renouvellement...
-                                </>
-                              ) : (
-                                <>
-                                  <Clock className="w-4 h-4" />
-                                  Renouveler l'abonnement
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
                     <button
                       onClick={() => handleOpenPapersModal(user)}
                       className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -1056,8 +1082,23 @@ export default function SubscriptionsPage() {
                       <FileText className="w-4 h-4" />
                       Voir les papiers
                     </button>
-                    {renderChosenSubscription(user)}
-                    {renderSubscriptionButtons(user)}
+                    <button
+                      onClick={() => handleActivateLabAccount(user)}
+                      disabled={isActivating === user._id}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isActivating === user._id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Activation...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Activer le compte
+                        </>
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1095,7 +1136,7 @@ export default function SubscriptionsPage() {
                           <h4 className="font-semibold text-gray-900">
                             {user.firstName} {user.lastName}
                           </h4>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <p className="text-sm text-gray-500 break-all">{user.email}</p>
                         </div>
                       </div>
                     </div>
@@ -1165,7 +1206,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Section 2: All Subscriptions */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold text-gray-900">Tous les abonnements</h3>
@@ -1218,10 +1259,10 @@ export default function SubscriptionsPage() {
             </div>
 
       {/* Section 3: Subscription Types Management */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">Types d'abonnement</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Types d'abonnement</h3>
             <p className="text-sm text-gray-500 mt-1">Gérer les types d'abonnement disponibles</p>
           </div>
           <button
@@ -1229,7 +1270,7 @@ export default function SubscriptionsPage() {
               setShowCreateTypeModal(true);
               setCreateTypeFormData(emptyCreateTypeForm());
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Ajouter un type
@@ -1296,6 +1337,17 @@ export default function SubscriptionsPage() {
                       <DollarSign className="w-4 h-4" />
                       Prix: {type.price.toLocaleString("fr-FR")} DA
                     </div>
+                    {type.max_products != null ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Package className="w-4 h-4" />
+                        Produits max&nbsp;: {type.max_products}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-amber-700 font-medium">
+                        <Package className="w-4 h-4" />
+                        Produits max&nbsp;: non défini (modifiez le type)
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Megaphone className="w-4 h-4" />
                       Sponsors inclus&nbsp;: {type.sponsorsPerMonth ?? 0}
@@ -1943,6 +1995,32 @@ export default function SubscriptionsPage() {
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 space-y-3">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                        <Package className="w-4 h-4 text-emerald-600" />
+                        Produits max
+                      </h4>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Nombre maximum d&apos;annonces <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          required
+                          value={createMaxProducts}
+                          onChange={(e) => setCreateMaxProducts(e.target.value)}
+                          className="w-full px-4 py-3.5 text-base border border-emerald-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none shadow-sm"
+                          placeholder="Ex: 50"
+                        />
+                      </div>
+                      <p className="text-xs text-emerald-800/80 leading-relaxed">
+                        Nombre total de produits, machines et services qu&apos;un fournisseur peut publier avec cet
+                        abonnement. 0 = aucune annonce autorisée.
+                      </p>
+                    </div>
+
                     <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-indigo-50 p-5 space-y-3">
                       <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
                         <Megaphone className="w-4 h-4 text-purple-600" />
@@ -2012,6 +2090,10 @@ export default function SubscriptionsPage() {
                   <span className="inline-flex items-center gap-2 text-blue-800">
                     <DollarSign className="w-4 h-4" />
                     {createTypeFormData.price.toLocaleString("fr-FR")} DA
+                  </span>
+                  <span className="inline-flex items-center gap-2 text-emerald-800">
+                    <Package className="w-4 h-4" />
+                    {createMaxProducts.trim() !== "" ? createMaxProducts : "?"} produit(s) max
                   </span>
                   <span className="inline-flex items-center gap-2 text-purple-800">
                     <Megaphone className="w-4 h-4" />
@@ -2107,6 +2189,25 @@ export default function SubscriptionsPage() {
                   rows={3}
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none resize-none"
                 />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  Produits max <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={updateMaxProducts}
+                  onChange={(e) => setUpdateMaxProducts(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  placeholder="Ex: 50"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Nombre total de produits, machines et services qu&apos;un fournisseur peut publier. 0 = aucune
+                  annonce autorisée.
+                </p>
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">

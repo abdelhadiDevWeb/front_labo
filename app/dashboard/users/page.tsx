@@ -26,6 +26,46 @@ import {
 } from "@/lib/api";
 import { isSouAdminRole } from "@/lib/admin-access";
 
+const ACTION_TONES = {
+  amber: "border-amber-200 bg-amber-50 text-amber-600 hover:border-amber-500 hover:bg-amber-500 hover:text-white focus-visible:ring-amber-400",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white focus-visible:ring-emerald-400",
+  red: "border-red-200 bg-red-50 text-red-600 hover:border-red-600 hover:bg-red-600 hover:text-white focus-visible:ring-red-400",
+} as const;
+
+function ActionIconButton({
+  label,
+  tone,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  tone: keyof typeof ACTION_TONES;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border shadow-sm transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-inherit ${ACTION_TONES[tone]}`}
+      >
+        {children}
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -178,22 +218,65 @@ export default function UsersPage() {
     }
   };
 
-  const renderActionButtons = (user: AdminUser) => {
-    if (!canMutateUsers) {
-      return <span className="text-xs text-gray-400">Lecture seule</span>;
+  const renderListingQuota = (user: AdminUser) => {
+    const quota = user.listingQuota;
+    if (!quota) return <span className="text-sm text-gray-400">—</span>;
+
+    if (!quota.hasActiveSubscription) {
+      return (
+        <div className="text-sm">
+          <div className="text-gray-900">{quota.used} publiée(s)</div>
+          <div className="text-xs font-medium text-red-600">Sans abonnement actif</div>
+        </div>
+      );
     }
 
+    if (quota.max === null) {
+      return (
+        <div className="text-sm">
+          <div className="text-gray-900">{quota.used} publiée(s)</div>
+          <div className="text-xs text-amber-600">Limite non définie</div>
+        </div>
+      );
+    }
+
+    const remaining = quota.remaining ?? 0;
+    const percent = quota.max > 0 ? Math.min(100, Math.round((quota.used / quota.max) * 100)) : 100;
+    const tone =
+      remaining === 0 ? "red" : quota.max > 0 && remaining / quota.max <= 0.2 ? "amber" : "emerald";
+    const toneText = { red: "text-red-600", amber: "text-amber-600", emerald: "text-emerald-600" }[tone];
+    const toneBar = { red: "bg-red-500", amber: "bg-amber-500", emerald: "bg-emerald-500" }[tone];
+
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        <button
+      <div className="text-sm min-w-[120px]">
+        <div className="font-semibold text-gray-900">
+          {quota.used} / {quota.max}
+        </div>
+        <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
+          <div className={`h-1.5 rounded-full ${toneBar}`} style={{ width: `${percent}%` }} />
+        </div>
+        <div className={`mt-1 text-xs font-medium ${toneText}`}>
+          Reste {remaining}
+          {quota.used > quota.max ? ` (dépassé de ${quota.used - quota.max})` : ""}
+        </div>
+      </div>
+    );
+  };
+
+  const renderActionButtons = (user: AdminUser) => {
+    if (!canMutateUsers) {
+      return <span className="block text-center text-xs text-gray-400">Lecture seule</span>;
+    }
+
+    const statusLabel = user.status ? "Bloquer le compte" : "Débloquer le compte";
+
+    return (
+      <div className="flex items-center justify-center gap-2">
+        <ActionIconButton
+          label={statusLabel}
           onClick={() => handleToggleStatus(user.id, user.status)}
           disabled={updatingStatus === user.id || isDeleting}
-          className={`p-2 rounded-lg transition-all inline-flex items-center gap-1 ${
-            user.status
-              ? "text-red-600 hover:text-red-900 hover:bg-red-50"
-              : "text-green-600 hover:text-green-900 hover:bg-green-50"
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={user.status ? "Bloquer le compte" : "Débloquer le compte"}
+          tone={user.status ? "amber" : "emerald"}
         >
           {updatingStatus === user.id ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -202,17 +285,89 @@ export default function UsersPage() {
           ) : (
             <CheckCircle className="w-4 h-4" />
           )}
-          <span>{user.status ? "Bloquer" : "Débloquer"}</span>
-        </button>
-        <button
+        </ActionIconButton>
+        <ActionIconButton
+          label="Supprimer définitivement"
           onClick={() => openDeleteModal(user)}
           disabled={isDeleting}
-          className="p-2 rounded-lg transition-all inline-flex items-center gap-1 text-red-700 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Supprimer définitivement"
+          tone="red"
         >
           <Trash2 className="w-4 h-4" />
-          <span>Supprimer</span>
-        </button>
+        </ActionIconButton>
+      </div>
+    );
+  };
+
+  const renderUserCard = (user: AdminUser) => {
+    const isSupplier = user.role === "supplier";
+    return (
+      <div key={user.id} className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold bg-gradient-to-br ${
+              isSupplier ? "from-green-500 to-emerald-500" : "from-blue-500 to-cyan-500"
+            }`}
+          >
+            {user.firstName.charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
+            {user.email ? <p className="truncate text-xs text-gray-500">{user.email}</p> : null}
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-600">
+              <Phone className="w-3.5 h-3.5 text-gray-400" />
+              {user.phone || "—"}
+            </p>
+          </div>
+          <span
+            className={`shrink-0 px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+              user.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            }`}
+          >
+            {user.status ? "Actif" : "Bloqué"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg bg-gray-50 px-3 py-2">
+            <p className="text-gray-500">Commandes</p>
+            <p className="font-semibold text-gray-900">{user.ordersCount}</p>
+          </div>
+          <div className="rounded-lg bg-gray-50 px-3 py-2">
+            <p className="text-gray-500">Inscription</p>
+            <p className="font-semibold text-gray-900">{formatDate(user.createdAt)}</p>
+          </div>
+        </div>
+
+        {isSupplier ? (
+          <div className="space-y-2">
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="mb-1 text-xs text-gray-500">Annonces</p>
+              {renderListingQuota(user)}
+            </div>
+            {canMutateUsers ? (
+              <button
+                onClick={() => handleToggleCertife(user.id, !!user.certife)}
+                disabled={updatingCertife === user.id}
+                className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                  user.certife
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-700"
+                }`}
+              >
+                {updatingCertife === user.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                {user.certife ? "Certifie" : "Non certifie"}
+              </button>
+            ) : (
+              <p className="text-xs text-gray-600">{user.certife ? "Certifie" : "Non certifie"}</p>
+            )}
+          </div>
+        ) : null}
+
+        <div className="flex justify-end">{renderActionButtons(user)}</div>
       </div>
     );
   };
@@ -273,7 +428,11 @@ export default function UsersPage() {
                 <p className="text-gray-500">Aucun client trouvé</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden divide-y divide-gray-100">
+                {users.filter((u) => u.role === "client").map(renderUserCard)}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -295,7 +454,7 @@ export default function UsersPage() {
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date d&apos;inscription
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -348,6 +507,7 @@ export default function UsersPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
 
@@ -364,7 +524,11 @@ export default function UsersPage() {
                 <p className="text-gray-500">Aucun fournisseur trouvé</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden divide-y divide-gray-100">
+                {users.filter((u) => u.role === "supplier").map(renderUserCard)}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -384,9 +548,12 @@ export default function UsersPage() {
                         Commandes
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date d&apos;inscription
+                        Annonces
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date d&apos;inscription
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -454,6 +621,7 @@ export default function UsersPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.ordersCount}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">{renderListingQuota(user)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(user.createdAt)}
                           </td>
@@ -465,6 +633,7 @@ export default function UsersPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </div>

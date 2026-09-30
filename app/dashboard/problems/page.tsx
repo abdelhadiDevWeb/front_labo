@@ -138,7 +138,7 @@ export default function ProblemsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Problèmes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Problèmes</h1>
           <p className="text-gray-600 mt-1">Gérer les messages de support des utilisateurs</p>
         </div>
         {unreadCount > 0 && (
@@ -191,7 +191,41 @@ export default function ProblemsPage() {
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="md:hidden divide-y divide-gray-100">
+                {problems.map((problem) => (
+                  <button
+                    key={problem._id}
+                    type="button"
+                    onClick={() => handleProblemClick(problem)}
+                    className={`w-full text-left p-4 space-y-1.5 active:bg-gray-50 ${
+                      !problem.is_read ? "bg-blue-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 truncate text-sm font-semibold text-gray-900">{problem.email}</p>
+                      <span
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          problem.is_read ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {problem.is_read ? "Lu" : "Non lu"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 line-clamp-2">{problem.message}</p>
+                    <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" />
+                        {problem.phone}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {formatDate(problem.createdAt)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>

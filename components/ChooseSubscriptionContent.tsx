@@ -5,23 +5,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
-  CreditCard,
-  HandCoins,
   Loader2,
   CheckCircle,
   AlertCircle,
   Calendar,
-  Megaphone,
   Sparkles,
-  Clock,
 } from "lucide-react";
 import {
   getPublicSubscriptionPlans,
   registerHandToHandAbonnement,
+  submitCcpReceiptAbonnement,
   verifyAbonnementPayment,
   SubscriptionType,
 } from "@/lib/api";
 import RegistrationPendingModal from "@/components/RegistrationPendingModal";
+import PaymentMethodPicker from "@/components/subscription/PaymentMethodPicker";
+import {
+  PlanMaxProductsInfo,
+  PlanSponsorInfo,
+  formatPlanDuration,
+} from "@/components/subscription/PlanFeatures";
 
 interface ChooseSubscriptionContentProps {
   role: "supplier" | "client";
@@ -33,7 +36,7 @@ interface ChooseSubscriptionContentProps {
 }
 
 export default function ChooseSubscriptionContent({
-  role: _role,
+  role,
   backHref,
   dashboardHref,
   pageTitle,
@@ -131,56 +134,20 @@ export default function ChooseSubscriptionContent({
     }
   };
 
-  const formatDuration = (days: number) => {
-    if (days >= 30 && days % 30 === 0) {
-      const months = days / 30;
-      return `${months} mois`;
+  const handleCcpReceipt = async (receipt: File) => {
+    if (!selectedPlan) return;
+    setIsProcessing(true);
+    setError(null);
+
+    const result = await submitCcpReceiptAbonnement(selectedPlan.id, receipt);
+    setIsProcessing(false);
+
+    if (result.success) {
+      setPendingPlanName(selectedPlan.name);
+      setShowPendingModal(true);
+    } else {
+      setError(result.message || "Une erreur est survenue");
     }
-    return `${days} jour${days > 1 ? "s" : ""}`;
-  };
-
-  const formatSponsorHours = (hours: number) => {
-    if (hours >= 24 && hours % 24 === 0) {
-      const days = hours / 24;
-      return `${hours} h (${days} jour${days > 1 ? "s" : ""})`;
-    }
-    return `${hours} heure${hours > 1 ? "s" : ""}`;
-  };
-
-  const renderSponsorInfo = (plan: SubscriptionType) => {
-    const sponsorsCount = plan.sponsorsPerMonth ?? 0;
-    const durationHours =
-      plan.sponsorDurationHours && plan.sponsorDurationHours >= 1
-        ? plan.sponsorDurationHours
-        : sponsorsCount > 0
-          ? 48
-          : 0;
-
-    if (sponsorsCount <= 0) {
-      return (
-        <div className="flex items-start gap-2 text-gray-500 text-sm">
-          <Megaphone className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-          <span>Aucun sponsoring inclus</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2.5 space-y-2">
-        <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
-          <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>
-            {sponsorsCount} sponsor{sponsorsCount > 1 ? "s" : ""} inclus
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
-          <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>
-            Temps de chaque sponsor&nbsp;: {formatSponsorHours(durationHours)}
-          </span>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -238,9 +205,10 @@ export default function ChooseSubscriptionContent({
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center gap-2 text-gray-700 text-sm">
                       <Calendar className="w-4 h-4 text-blue-500" />
-                      <span>Durée de l&apos;abonnement&nbsp;: {formatDuration(plan.time)}</span>
+                      <span>Durée de l&apos;abonnement&nbsp;: {formatPlanDuration(plan.time)}</span>
                     </div>
-                    {renderSponsorInfo(plan)}
+                    <PlanMaxProductsInfo plan={plan} role={role} />
+                    <PlanSponsorInfo plan={plan} />
                   </div>
                   <div className="mt-auto">
                     <p className="text-3xl font-bold text-blue-600 mb-4">
@@ -283,10 +251,11 @@ export default function ChooseSubscriptionContent({
                     {selectedPlan.price.toLocaleString("fr-DZ")} DZD
                   </p>
                   <p className="text-gray-500 text-sm mt-1">
-                    Durée de l&apos;abonnement&nbsp;: {formatDuration(selectedPlan.time)}
+                    Durée de l&apos;abonnement&nbsp;: {formatPlanDuration(selectedPlan.time)}
                   </p>
-                  <div className="mt-4 text-left max-w-sm mx-auto">
-                    {renderSponsorInfo(selectedPlan)}
+                  <div className="mt-4 text-left max-w-sm mx-auto space-y-2">
+                    <PlanMaxProductsInfo plan={selectedPlan} role={role} />
+                    <PlanSponsorInfo plan={selectedPlan} />
                   </div>
                 </div>
 
@@ -294,51 +263,11 @@ export default function ChooseSubscriptionContent({
                   Comment souhaitez-vous régler votre abonnement ?
                 </p>
 
-                <div className="space-y-4">
-                  {/* Online payment — coming soon */}
-                  <div
-                    aria-disabled="true"
-                    className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50/40 p-5 opacity-90 cursor-not-allowed select-none"
-                  >
-                    <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-200/30 blur-2xl" />
-                    <div className="pointer-events-none absolute -bottom-8 -left-4 h-20 w-20 rounded-full bg-slate-200/40 blur-2xl" />
-
-                    <div className="relative flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                        <CreditCard className="h-6 w-6" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <p className="font-semibold text-slate-700">
-                            Paiement en ligne (Chargily)
-                          </p>
-                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800">
-                            <Clock className="h-3 w-3" />
-                            Coming soon
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-500 leading-relaxed">
-                          Le paiement en ligne arrive bientôt. Utilisez pour
-                          l&apos;instant le paiement en main propre.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleHandToHand}
-                    disabled={isProcessing}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 shadow-md shadow-blue-600/20"
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <HandCoins className="w-5 h-5" />
-                    )}
-                    Paiement en main propre
-                  </button>
-                </div>
+                <PaymentMethodPicker
+                  isProcessing={isProcessing}
+                  onHandToHand={handleHandToHand}
+                  onCcpSubmit={handleCcpReceipt}
+                />
               </div>
             </div>
           )

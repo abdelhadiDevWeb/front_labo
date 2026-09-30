@@ -1254,7 +1254,7 @@ export interface NotificationData {
     email: string;
   };
   idReceiver: string;
-  type: "order_status" | "new_order" | "system";
+  type: "order_status" | "new_order" | "system" | "subscription";
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -2225,6 +2225,8 @@ export interface AdminUser {
   certife?: boolean;
   laboType?: string;
   ordersCount: number;
+  /** Suppliers only; null for other roles. */
+  listingQuota?: ListingQuota | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3040,6 +3042,8 @@ export interface SubscriptionType {
   sponsorsPerMonth?: number;
   /** Duration of each included free sponsor, in hours */
   sponsorDurationHours?: number;
+  /** Max listings (products + machines + services). null = not set (legacy type, no limit). */
+  max_products?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3051,6 +3055,7 @@ export interface CreateSubscriptionTypeData {
   price: number;
   sponsorsPerMonth?: number;
   sponsorDurationHours?: number;
+  max_products: number;
 }
 
 export interface UpdateSubscriptionTypeData {
@@ -3060,7 +3065,77 @@ export interface UpdateSubscriptionTypeData {
   price?: number;
   sponsorsPerMonth?: number;
   sponsorDurationHours?: number;
+  max_products?: number;
 }
+
+/** Supplier listing quota from the active subscription. `max`/`remaining` null = no limit. */
+export interface ListingQuota {
+  hasActiveSubscription: boolean;
+  subscriptionType: string | null;
+  max: number | null;
+  used: number;
+  remaining: number | null;
+}
+
+export interface ListingQuotaStatus {
+  quota: ListingQuota;
+  canAdd: boolean;
+  message: string | null;
+}
+
+export interface ExcelListingQuotaCheck {
+  rows: number;
+  canImport: boolean;
+  quota: ListingQuota;
+  message: string | null;
+}
+
+/** Supplier: live count of listings vs. the active subscription's max_products. */
+export const getMyListingQuota = async (): Promise<ApiResponse<ListingQuotaStatus>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/supplier/listing-quota`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Impossible de vérifier votre quota d'annonces",
+      };
+    }
+    return data;
+  } catch (error) {
+    devError("Get listing quota error:", error);
+    return { success: false, message: "Network error. Please check your connection." };
+  }
+};
+
+/** Supplier: count the Excel rows and compare with the remaining quota (nothing is imported). */
+export const checkExcelListingQuota = async (
+  file: File
+): Promise<ApiResponse<ExcelListingQuotaCheck>> => {
+  try {
+    const formData = new FormData();
+    formData.append("excelFile", file);
+    const response = await apiFetch(`${getApiBaseUrl()}/supplier/listing-quota/excel-check`, {
+      method: "POST",
+      headers: {},
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Impossible de vérifier le fichier Excel",
+      };
+    }
+    return data;
+  } catch (error) {
+    devError("Check Excel listing quota error:", error);
+    return { success: false, message: "Network error. Please check your connection." };
+  }
+};
 
 // Get all subscription types
 export const getAllSubscriptionTypes = async (): Promise<ApiResponse<{ subscriptionTypes: SubscriptionType[] }>> => {
@@ -4822,3 +4897,171 @@ const response = await apiFetch(`${getApiBaseUrl()}/abonnements/payments/${payme
     };
   }
 };
+
+export type SubscriptionPaymentMethod = "online" | "hand_to_hand" | "ccp_baridi";
+
+/** Manual payment request (hand-to-hand / CCP receipt) for a new plan or an upgrade. */
+export interface SubscriptionRequest {
+  id: string;
+  typeId: string | null;
+  typeName: string;
+  typeTime: number;
+  price: number;
+  sponsorsPerMonth: number;
+  sponsorDurationHours: number;
+  max_products: number | null;
+  payment_method: SubscriptionPaymentMethod;
+  is_upgrade: boolean;
+  status: "pending" | "approved" | "rejected";
+  reject_reason: string | null;
+  receipt: string | null;
+  createdAt: string;
+  reviewed_at: string | null;
+}
+
+export interface AdminSubscriptionRequest extends SubscriptionRequest {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: string;
+  } | null;
+  previousSubscription: {
+    id: string;
+    type: string;
+    max_products: number | null;
+    start: string;
+    end: string;
+    status: boolean;
+  } | null;
+  listingQuota: ListingQuota | null;
+  /** Max after approval (new plan max + what the supplier still has), pending upgrades only */
+  projectedMax: number | null;
+}
+
+const postSubscriptionForm = async <T,>(
+  path: string,
+  formData: FormData,
+  fallbackMessage: string
+): Promise<ApiResponse<T>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}${path}`, {
+      method: "POST",
+      headers: {},
+      body: formData,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || fallbackMessage };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Registration step 3: choose a plan and send the CCP / BaridiMob receipt. */
+export const submitCcpReceiptAbonnement = (
+  typeId: string,
+  receipt: File
+): Promise<ApiResponse<{ paymentId: string; planName: string }>> => {
+  const formData = new FormData();
+  formData.append("typeId", typeId);
+  formData.append("receipt", receipt);
+  return postSubscriptionForm("/abonnements/ccp-receipt", formData, "Échec de l'envoi du reçu");
+};
+
+/** Supplier with a running subscription: request a plan upgrade. */
+export const requestSubscriptionUpgrade = (
+  typeId: string,
+  paymentMethod: Exclude<SubscriptionPaymentMethod, "online">,
+  receipt?: File | null
+): Promise<ApiResponse<{ request: SubscriptionRequest }>> => {
+  const formData = new FormData();
+  formData.append("typeId", typeId);
+  formData.append("payment_method", paymentMethod);
+  if (paymentMethod === "ccp_baridi" && receipt) {
+    formData.append("receipt", receipt);
+  }
+  return postSubscriptionForm("/abonnements/upgrade", formData, "Échec de l'envoi de la demande");
+};
+
+export const getMySubscriptionRequest = async (): Promise<
+  ApiResponse<{ request: SubscriptionRequest | null }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/abonnements/requests/me`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Impossible de charger votre demande" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getSubscriptionRequests = async (
+  status: "pending" | "processed" | "all" = "pending"
+): Promise<ApiResponse<{ requests: AdminSubscriptionRequest[] }>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/admin/subscription-requests?status=${status}`,
+      { method: "GET", headers: { "Content-Type": "application/json" } }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Impossible de charger les demandes" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+const reviewSubscriptionRequest = async (
+  paymentId: string,
+  action: "approve" | "reject",
+  body: Record<string, unknown>
+): Promise<ApiResponse<{ request: SubscriptionRequest }>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/admin/subscription-requests/${paymentId}/${action}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || "Action impossible" };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const approveSubscriptionRequest = (paymentId: string) =>
+  reviewSubscriptionRequest(paymentId, "approve", {});
+
+export const rejectSubscriptionRequest = (paymentId: string, reason: string) =>
+  reviewSubscriptionRequest(paymentId, "reject", { reason });

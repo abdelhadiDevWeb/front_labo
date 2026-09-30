@@ -224,6 +224,8 @@ function ProductsPageContent() {
   const [sponsorImagePath, setSponsorImagePath] = useState("");
   const [sponsorVideoPath, setSponsorVideoPath] = useState("");
   const [sponsorImagePreview, setSponsorImagePreview] = useState<string | null>(null);
+  const [sponsorMediaType, setSponsorMediaType] = useState<"image" | "video">("image");
+  const [sponsorVideoPreview, setSponsorVideoPreview] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
   const [fichePdfViewer, setFichePdfViewer] = useState<{
@@ -376,6 +378,21 @@ function ProductsPageContent() {
     }
   };
 
+  const sponsorMediaPayload = () =>
+    sponsorMediaType === "image"
+      ? {
+          imageFile: sponsorImageFile,
+          videoFile: null,
+          imagePath: sponsorImageFile ? null : sponsorImagePath || null,
+          videoPath: null,
+        }
+      : {
+          imageFile: null,
+          videoFile: sponsorVideoFile,
+          imagePath: null,
+          videoPath: sponsorVideoFile ? null : sponsorVideoPath || null,
+        };
+
   const handleCreateSubscriptionSponsor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubscriptionProductId) return;
@@ -388,10 +405,7 @@ function ProductsPageContent() {
       const result = await createSubscriptionSponsorProduct({
         id_product: selectedSubscriptionProductId,
         itemType: sponsorItemKind,
-        imageFile: sponsorImageFile,
-        videoFile: sponsorVideoFile,
-        imagePath: sponsorImageFile ? null : sponsorImagePath || null,
-        videoPath: sponsorVideoFile ? null : sponsorVideoPath || null,
+        ...sponsorMediaPayload(),
       });
 
       if (result.success) {
@@ -437,10 +451,7 @@ function ProductsPageContent() {
         id_plan_sponsor: selectedPlanId,
         id_product: selectedProductId,
         itemType: sponsorItemKind,
-        imageFile: sponsorImageFile,
-        videoFile: sponsorVideoFile,
-        imagePath: sponsorImageFile ? null : sponsorImagePath || null,
-        videoPath: sponsorVideoFile ? null : sponsorVideoPath || null,
+        ...sponsorMediaPayload(),
       });
 
       if (result.success && result.data?.checkoutUrl) {
@@ -594,12 +605,28 @@ function ProductsPageContent() {
     });
   };
 
-  const resetSponsorMedia = () => {
+  const clearSponsorImage = () => {
     setSponsorImageFile(null);
-    setSponsorVideoFile(null);
     setSponsorImagePath("");
-    setSponsorVideoPath("");
     setSponsorImagePreview(null);
+  };
+
+  const clearSponsorVideo = () => {
+    setSponsorVideoFile(null);
+    setSponsorVideoPath("");
+    setSponsorVideoPreview(null);
+  };
+
+  const resetSponsorMedia = () => {
+    clearSponsorImage();
+    clearSponsorVideo();
+  };
+
+  const handleSponsorMediaTypeChange = (type: "image" | "video") => {
+    if (type === sponsorMediaType) return;
+    if (type === "image") clearSponsorVideo();
+    else clearSponsorImage();
+    setSponsorMediaType(type);
   };
 
   const firstAvailableSponsorId = (kind: MarketplaceKind) =>
@@ -616,6 +643,7 @@ function ProductsPageContent() {
     setSelectedPlanId(sponsorPlans[0]?.id || "");
     setSelectedProductId(firstAvailableSponsorId(kind));
     resetSponsorMedia();
+    setSponsorMediaType("image");
     setSponsorError(null);
     setShowVipSponsorModal(true);
   };
@@ -625,6 +653,7 @@ function ProductsPageContent() {
     setSponsorItemKind(kind);
     setSelectedSubscriptionProductId(firstAvailableSponsorId(kind));
     resetSponsorMedia();
+    setSponsorMediaType("image");
     setSponsorError(null);
     setShowSubscriptionSponsorModal(true);
   };
@@ -649,14 +678,49 @@ function ProductsPageContent() {
       : sponsorImagePath
         ? getMediaUrl(sponsorImagePath)
         : null;
+    const videoPreviewUrl = sponsorVideoFile
+      ? sponsorVideoPreview
+      : sponsorVideoPath
+        ? getMediaUrl(sponsorVideoPath)
+        : null;
 
     return (
       <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
         <p className="text-sm font-semibold text-gray-800">Média du sponsoring (optionnel)</p>
         <p className="text-xs text-gray-500">
-          Uploadez une nouvelle image/vidéo, ou choisissez parmi celles {ofKind}.
+          Choisissez une image <strong>ou</strong> une vidéo : uploadez-en une nouvelle, ou
+          choisissez parmi celles {ofKind}.
         </p>
 
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Type de média">
+          {(
+            [
+              { type: "image", label: "Image", Icon: ImageIcon },
+              { type: "video", label: "Vidéo", Icon: Video },
+            ] as const
+          ).map(({ type, label, Icon }) => {
+            const selected = sponsorMediaType === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => handleSponsorMediaTypeChange(type)}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  selected
+                    ? "border-purple-600 bg-purple-50 text-purple-900"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {sponsorMediaType === "image" && (
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-2">Image</label>
           {productImages.length > 0 && (
@@ -706,11 +770,7 @@ function ProductsPageContent() {
               <img src={previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover border" />
               <button
                 type="button"
-                onClick={() => {
-                  setSponsorImageFile(null);
-                  setSponsorImagePath("");
-                  setSponsorImagePreview(null);
-                }}
+                onClick={clearSponsorImage}
                 className="text-xs font-semibold text-red-600 hover:text-red-700"
               >
                 Retirer l&apos;image
@@ -718,7 +778,9 @@ function ProductsPageContent() {
             </div>
           )}
         </div>
+        )}
 
+        {sponsorMediaType === "video" && (
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-2">Vidéo</label>
           {productVideo && (
@@ -755,22 +817,32 @@ function ProductsPageContent() {
                 const file = e.target.files?.[0] || null;
                 setSponsorVideoFile(file);
                 setSponsorVideoPath("");
+                setSponsorVideoPreview(file ? URL.createObjectURL(file) : null);
               }}
             />
           </label>
+          {videoPreviewUrl && (
+            <video
+              key={videoPreviewUrl}
+              src={videoPreviewUrl}
+              className="mt-2 w-full max-h-48 rounded-lg border bg-black object-contain"
+              controls
+              muted
+              playsInline
+              preload="metadata"
+            />
+          )}
           {(sponsorVideoFile || sponsorVideoPath) && (
             <button
               type="button"
-              onClick={() => {
-                setSponsorVideoFile(null);
-                setSponsorVideoPath("");
-              }}
+              onClick={clearSponsorVideo}
               className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700"
             >
               Retirer la vidéo
             </button>
           )}
         </div>
+        )}
       </div>
     );
   };

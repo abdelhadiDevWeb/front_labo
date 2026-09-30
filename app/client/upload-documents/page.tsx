@@ -15,15 +15,15 @@ import {
 import { apiFetch } from "@/lib/api";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validatePdfFile } from "@/lib/file-validation";
-import { validateOnboardingRedirect } from "@/lib/security";
 import { useOnboardingBackGuard } from "@/components/OnboardingBackGuard";
 import { uploadFormDataWithProgress } from "@/lib/upload-with-progress";
+import RegistrationPendingModal from "@/components/RegistrationPendingModal";
 
 function ClientUploadForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("edit") === "1";
-  const choosePlanHref = "/client/choose-subscription";
+  const homeHref = "/home";
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -31,6 +31,7 @@ function ClientUploadForm() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCheckingDocs, setIsCheckingDocs] = useState(true);
   const [hasExistingDocs, setHasExistingDocs] = useState(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { openModal, modal } = useOnboardingBackGuard("/", !isEditMode && !hasExistingDocs);
 
@@ -64,9 +65,9 @@ function ClientUploadForm() {
 
   useEffect(() => {
     if (!isCheckingDocs && hasExistingDocs && !isEditMode) {
-      router.replace(choosePlanHref);
+      router.replace(homeHref);
     }
-  }, [isCheckingDocs, hasExistingDocs, isEditMode, router, choosePlanHref]);
+  }, [isCheckingDocs, hasExistingDocs, isEditMode, router, homeHref]);
 
   useEffect(() => {
     if (isEditMode || hasExistingDocs) return;
@@ -109,9 +110,9 @@ function ClientUploadForm() {
     setError(null);
   };
 
-  const goToChoosePlan = () => {
+  const goHome = () => {
     if (isLoading) return;
-    router.replace(choosePlanHref);
+    router.replace(homeHref);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -121,7 +122,7 @@ function ClientUploadForm() {
 
     if (!file) {
       if (hasExistingDocs) {
-        goToChoosePlan();
+        goHome();
         return;
       }
       setError("Veuillez télécharger votre pièce d'identité");
@@ -142,7 +143,7 @@ function ClientUploadForm() {
       const { ok, status, data: result } = await uploadFormDataWithProgress<{
         success?: boolean;
         message?: string;
-        data?: { redirectTo?: string; identity?: string };
+        data?: { identity?: string; pendingActivation?: boolean };
       }>(`${getApiUrl()}/client/documents`, formData, setUploadProgress);
 
       if (status === 401 || status === 403) {
@@ -162,9 +163,12 @@ function ClientUploadForm() {
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
       await new Promise((r) => setTimeout(r, 400));
-      router.replace(
-        validateOnboardingRedirect(result.data?.redirectTo) || choosePlanHref
-      );
+      if (result.data?.pendingActivation) {
+        setIsLoading(false);
+        setShowPendingModal(true);
+      } else {
+        router.replace(homeHref);
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -179,7 +183,7 @@ function ClientUploadForm() {
   const handleBack = () => {
     if (isLoading) return;
     if (isEditMode || hasExistingDocs) {
-      goToChoosePlan();
+      goHome();
       return;
     }
     openModal();
@@ -193,6 +197,12 @@ function ClientUploadForm() {
       aria-busy={isLoading}
     >
       {modal}
+
+      <RegistrationPendingModal
+        open={showPendingModal}
+        documentLabel="documents"
+        withSubscription={false}
+      />
 
       {isLoading && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-auto">
@@ -236,7 +246,7 @@ function ClientUploadForm() {
             className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group disabled:opacity-40"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>{isEditMode || hasExistingDocs ? "Retour au choix du plan" : "Retour"}</span>
+            <span>{isEditMode || hasExistingDocs ? "Retour à l'accueil" : "Retour"}</span>
           </button>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             {hasExistingDocs
@@ -244,7 +254,7 @@ function ClientUploadForm() {
               : "Télécharger votre pièce d'identité"}
           </h1>
           <p className="text-gray-600">
-            Étape 2/3 —{" "}
+            Étape 2/2 —{" "}
             {hasExistingDocs
               ? "Vous pouvez conserver vos documents ou les remplacer."
               : "Envoyez un nouveau PDF."}
@@ -268,7 +278,7 @@ function ClientUploadForm() {
                     </p>
                     <p>
                       Pièce d&apos;identité : déjà envoyée. Pour la modifier, choisissez un
-                      nouveau PDF ci-dessous. Sinon, continuez vers le choix du plan.
+                      nouveau PDF ci-dessous. Sinon, retournez à l&apos;accueil.
                     </p>
                   </div>
                 </div>
@@ -346,7 +356,7 @@ function ClientUploadForm() {
                   {hasExistingDocs && !file && (
                     <button
                       type="button"
-                      onClick={goToChoosePlan}
+                      onClick={goHome}
                       disabled={isLoading}
                       className="flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 border-blue-200 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50"
                     >
@@ -360,11 +370,11 @@ function ClientUploadForm() {
                   >
                     {isLoading
                       ? `Téléchargement… ${uploadProgress}%`
-                      : file
-                        ? hasExistingDocs
-                          ? "Enregistrer et continuer"
-                          : "Continuer vers le choix d'abonnement"
-                        : "Continuer vers le choix d'abonnement"}
+                      : hasExistingDocs
+                        ? file
+                          ? "Enregistrer"
+                          : "Retour à l'accueil"
+                        : "Envoyer et terminer l'inscription"}
                   </button>
                 </div>
               </form>

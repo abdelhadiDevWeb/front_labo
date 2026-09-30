@@ -32,6 +32,9 @@ import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import ListingQuotaHeaderAlert, {
+  SUBSCRIPTION_REQUEST_UPDATED_EVENT,
+} from "@/components/supplier/ListingQuotaHeaderAlert";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
@@ -268,6 +271,25 @@ export default function SupplierDashboardLayout({
       if ("Notification" in window && Notification.permission === "granted") {
         new window.Notification("Preuve de paiement reçue", {
           body: `${data.buyerName} a envoyé une preuve de paiement`,
+          icon: "/favicon.ico",
+        });
+      }
+    });
+
+    socket.on("subscriptionRequestUpdate", async (data: { title?: string; message?: string }) => {
+      window.dispatchEvent(new CustomEvent(SUBSCRIPTION_REQUEST_UPDATED_EVENT, { detail: data }));
+      try {
+        const result = await getNotifications(true);
+        if (result.success && result.data) {
+          setNotifications(result.data.notifications.filter((n) => !n.isRead));
+          setUnreadCount(result.data.unreadCount);
+        }
+      } catch {
+        // Silent
+      }
+      if ("Notification" in window && Notification.permission === "granted") {
+        new window.Notification(data.title || "Abonnement", {
+          body: data.message || "",
           icon: "/favicon.ico",
         });
       }
@@ -592,7 +614,9 @@ export default function SupplierDashboardLayout({
                                   setUnreadCount((prev) => Math.max(0, prev - 1));
                                   void markNotificationAsRead(notification._id).catch(() => {});
                                 }
-                                if (notification.type === "system") {
+                                if (notification.type === "subscription") {
+                                  router.push("/dashboard-supplier");
+                                } else if (notification.type === "system") {
                                   router.push("/dashboard-supplier/products");
                                 } else {
                                   router.push("/dashboard-supplier/orders");
@@ -607,10 +631,14 @@ export default function SupplierDashboardLayout({
                                     ? "bg-gradient-to-br from-blue-600 to-cyan-600"
                                     : notification.type === "system"
                                     ? "bg-gradient-to-br from-amber-500 to-orange-600"
+                                    : notification.type === "subscription"
+                                    ? "bg-gradient-to-br from-purple-600 to-indigo-600"
                                     : "bg-gradient-to-br from-gray-600 to-gray-700"
                                 }`}>
                                   {notification.type === "new_order" ? (
                                     <ShoppingCart className="w-5 h-5 text-white" />
+                                  ) : notification.type === "subscription" ? (
+                                    <CreditCard className="w-5 h-5 text-white" />
                                   ) : notification.type === "system" ? (
                                     <Package className="w-5 h-5 text-white" />
                                   ) : (
@@ -621,9 +649,11 @@ export default function SupplierDashboardLayout({
                                   <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
                                     {notification.type === "new_order"
                                       ? "Nouvelle réserve"
-                                      : notification.type === "system"
-                                        ? "Alerte stock bas"
-                                        : "Mise à jour de réserve"}
+                                      : notification.type === "subscription"
+                                        ? "Abonnement"
+                                        : notification.type === "system"
+                                          ? "Alerte stock bas"
+                                          : "Mise à jour de réserve"}
                                   </p>
                                   <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
                                     {notification.message}
@@ -774,6 +804,7 @@ export default function SupplierDashboardLayout({
               </div>
             </div>
           </div>
+          <ListingQuotaHeaderAlert />
         </header>
 
         {/* Page Content */}

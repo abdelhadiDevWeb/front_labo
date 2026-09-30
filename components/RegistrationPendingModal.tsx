@@ -10,6 +10,8 @@ interface RegistrationPendingModalProps {
   title?: string;
   documentLabel?: string;
   selectedPlanName?: string;
+  /** False for accounts activated by the admin without a subscription (labs). */
+  withSubscription?: boolean;
   onClose?: () => void;
 }
 
@@ -18,6 +20,7 @@ export default function RegistrationPendingModal({
   title = "Inscription enregistrée !",
   documentLabel = "documents",
   selectedPlanName,
+  withSubscription = true,
   onClose,
 }: RegistrationPendingModalProps) {
   const router = useRouter();
@@ -63,7 +66,11 @@ export default function RegistrationPendingModal({
             )}
             <p className="text-gray-700 mb-6 leading-relaxed">
               Vous devez maintenant attendre la dernière étape :{" "}
-              <strong>la confirmation de votre compte et le règlement de votre abonnement par l&apos;administrateur</strong>.
+              <strong>
+                {withSubscription
+                  ? "la confirmation de votre compte et le règlement de votre abonnement par l'administrateur"
+                  : "la confirmation de votre compte par l'administrateur"}
+              </strong>.
             </p>
             <p className="text-sm text-gray-500 mb-6">
               Vous recevrez une notification une fois que votre compte sera approuvé.

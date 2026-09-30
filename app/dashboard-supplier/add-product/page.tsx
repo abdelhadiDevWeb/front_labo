@@ -36,9 +36,13 @@ import {
   deleteProduct,
   deleteMachine,
   deleteService,
+  getMyListingQuota,
+  checkExcelListingQuota,
   Category,
   HistoryXlsRecord,
   HistoryXlsItem,
+  ListingQuotaStatus,
+  ExcelListingQuotaCheck,
 } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
@@ -54,6 +58,7 @@ import {
 } from "@/lib/catalog-form-fields";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { scrollPageToTop } from "@/lib/scroll-to-top";
+import { LISTING_QUOTA_CHANGED_EVENT } from "@/components/supplier/ListingQuotaHeaderAlert";
 
 type ExcelImportType = SingleCatalogType | null;
 
@@ -134,7 +139,51 @@ export default function AddProductPage() {
   const [singleImages, setSingleImages] = useState<File[]>([]);
   const [fichePdf, setFichePdf] = useState<File | null>(null);
 
+  // Listing quota (products + machines + services vs. subscription max_products)
+  const [listingQuota, setListingQuota] = useState<ListingQuotaStatus | null>(null);
+  const [excelQuotaCheck, setExcelQuotaCheck] = useState<{
+    file: File;
+    result: ExcelListingQuotaCheck;
+  } | null>(null);
+  const [isCheckingExcelQuota, setIsCheckingExcelQuota] = useState(false);
+  const currentExcelQuotaCheck =
+    excelQuotaCheck && excelQuotaCheck.file === excelFile ? excelQuotaCheck.result : null;
+
+  const refreshListingQuota = async (): Promise<ListingQuotaStatus | null> => {
+    const result = await getMyListingQuota();
+    if (result.success && result.data) {
+      setListingQuota(result.data);
+      window.dispatchEvent(new Event(LISTING_QUOTA_CHANGED_EVENT));
+      return result.data;
+    }
+    return null;
+  };
+
+  const runExcelQuotaCheck = async (file: File): Promise<ExcelListingQuotaCheck | null> => {
+    setIsCheckingExcelQuota(true);
+    try {
+      const result = await checkExcelListingQuota(file);
+      if (result.success && result.data) {
+        setExcelQuotaCheck({ file, result: result.data });
+        return result.data;
+      }
+      setExcelQuotaCheck(null);
+      if (result.message) setError(result.message);
+      return null;
+    } finally {
+      setIsCheckingExcelQuota(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshListingQuota();
+    const onFocus = () => void refreshListingQuota();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   const resetExcelImportState = () => {
+    setExcelQuotaCheck(null);
     setExcelFile(null);
     setImageFiles([]);
     setPdfFiles([]);
@@ -212,6 +261,7 @@ export default function AddProductPage() {
       }
       const deletedId = viewingHistory.id;
       setXlsHistory((prev) => prev.filter((h) => h.id !== deletedId));
+      void refreshListingQuota();
       setConfirmDeleteAll(false);
       closeHistoryItems();
       setSuccess(
@@ -255,6 +305,7 @@ export default function AddProductPage() {
       setViewingHistory((prev) =>
         prev ? { ...prev, itemsCount: Math.max(0, prev.itemsCount - 1) } : prev
       );
+      void refreshListingQuota();
       setItemToDelete(null);
     } catch (err) {
       console.error("Delete history item error:", err);
@@ -471,9 +522,10 @@ export default function AddProductPage() {
     setError(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setExcelQuotaCheck(null);
       const allowedExtensions = [".xlsx", ".xls"];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
 
@@ -491,6 +543,11 @@ export default function AddProductPage() {
 
       setExcelFile(file);
       setError(null);
+
+      const check = await runExcelQuotaCheck(file);
+      if (check && !check.canImport && check.message) {
+        setError(check.message);
+      }
     }
   };
 
@@ -567,6 +624,14 @@ export default function AddProductPage() {
 
     setIsLoading(true);
 
+    const freshQuota = await refreshListingQuota();
+    if (freshQuota && !freshQuota.canAdd) {
+      setError(freshQuota.message || "Vous avez atteint la limite d'annonces de votre abonnement.");
+      setIsLoading(false);
+      scrollPageToTop();
+      return;
+    }
+
     try {
       const API_BASE_URL = getApiUrl();
       const unique_data: Record<string, string | number> = {};
@@ -637,6 +702,7 @@ export default function AddProductPage() {
               ? "Service créé"
               : "Produit créé";
         setSuccess(`${label} avec succès !`);
+        void refreshListingQuota();
         resetSingleForm();
         setSingleType(null);
         setTimeout(() => setSuccess(null), 3000);
@@ -741,6 +807,17 @@ export default function AddProductPage() {
     }
 
     setIsLoading(true);
+    setUploadProgress(10);
+
+    const quotaCheck = await runExcelQuotaCheck(excelFile);
+    if (quotaCheck && !quotaCheck.canImport) {
+      setError(quotaCheck.message || "Ce fichier dépasse la limite d'annonces de votre abonnement.");
+      setUploadErrors([]);
+      setIsLoading(false);
+      setUploadProgress(0);
+      return;
+    }
+
     setUploadProgress(30);
 
     try {
@@ -824,6 +901,7 @@ export default function AddProductPage() {
           setUploadErrors([]);
         }
         void loadXlsHistory();
+        void refreshListingQuota();
       } else {
         setError(result.message || "Erreur lors de l'upload du fichier");
         setUploadErrors(result.errors || result.errorDetails || []);
@@ -836,6 +914,74 @@ export default function AddProductPage() {
       setIsLoading(false);
       setUploadProgress(0);
     }
+  };
+
+  const quotaBlocked = listingQuota !== null && !listingQuota.canAdd;
+  const excelQuotaRefused = currentExcelQuotaCheck !== null && !currentExcelQuotaCheck.canImport;
+
+  const renderListingQuotaBanner = () => {
+    if (!listingQuota) return null;
+    const { quota, message } = listingQuota;
+
+    if (!quota.hasActiveSubscription) {
+      return (
+        <div className="p-5 bg-red-50 border-l-4 border-red-500 rounded-xl shadow flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-red-600 shrink-0" />
+          <div>
+            <p className="font-semibold text-red-900 mb-1">Aucun abonnement actif</p>
+            <p className="text-sm text-red-700">
+              {message ||
+                "Vous devez avoir un abonnement actif pour ajouter des produits, machines ou services."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (quota.max === null) {
+      return (
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3 text-sm text-gray-700">
+          <Layers className="w-5 h-5 text-gray-500 shrink-0" />
+          <span>
+            Annonces publiées : <strong>{quota.used}</strong> (produits, machines et services) —
+            aucune limite définie pour votre abonnement « {quota.subscriptionType} ».
+          </span>
+        </div>
+      );
+    }
+
+    const remaining = quota.remaining ?? 0;
+    const percent = quota.max > 0 ? Math.min(100, Math.round((quota.used / quota.max) * 100)) : 100;
+    const tone = remaining <= 0 ? "red" : percent >= 80 ? "amber" : "green";
+    const toneClasses = {
+      red: { box: "bg-red-50 border-red-300", text: "text-red-800", bar: "bg-red-500" },
+      amber: { box: "bg-amber-50 border-amber-300", text: "text-amber-800", bar: "bg-amber-500" },
+      green: { box: "bg-green-50 border-green-300", text: "text-green-800", bar: "bg-green-500" },
+    }[tone];
+
+    return (
+      <div className={`p-5 border-2 rounded-xl shadow-sm ${toneClasses.box}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p className={`font-semibold flex items-center gap-2 ${toneClasses.text}`}>
+            <Layers className="w-5 h-5" />
+            Annonces : {quota.used} / {quota.max}
+            <span className="text-xs font-normal">(produits, machines et services)</span>
+          </p>
+          <p className={`text-sm font-semibold ${toneClasses.text}`}>
+            {remaining > 0
+              ? `Il vous reste ${remaining} annonce(s)`
+              : "Limite atteinte"}{" "}
+            <span className="font-normal">— abonnement « {quota.subscriptionType} »</span>
+          </p>
+        </div>
+        <div className="w-full bg-white/70 rounded-full h-2.5 overflow-hidden">
+          <div className={`h-2.5 rounded-full ${toneClasses.bar}`} style={{ width: `${percent}%` }} />
+        </div>
+        {remaining <= 0 && message && (
+          <p className="mt-3 text-sm text-red-700">{message}</p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1031,6 +1177,8 @@ export default function AddProductPage() {
           </button>
         </div>
       </div>
+
+      {renderListingQuotaBanner()}
 
       {/* Messages - Enhanced Design */}
       {success && (
@@ -1488,7 +1636,7 @@ export default function AddProductPage() {
                     <div className="flex gap-4 pt-6 border-t border-gray-200">
                       <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || quotaBlocked}
                         className="flex-1 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                       >
                         {isLoading ? (
@@ -1849,9 +1997,20 @@ export default function AddProductPage() {
                                   <p className="text-sm font-bold text-gray-900 mb-1">{excelFile.name}</p>
                                   <div className="flex items-center gap-3 text-xs text-gray-600">
                                     <span>{(excelFile.size / 1024).toFixed(2)} KB</span>
-                                    <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
-                                      Prêt à importer
-                                    </span>
+                                    {isCheckingExcelQuota ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full font-medium">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Vérification du quota...
+                                      </span>
+                                    ) : excelQuotaRefused ? (
+                                      <span className="px-2 py-0.5 bg-red-200 text-red-700 rounded-full font-medium">
+                                        Import refusé
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
+                                        Prêt à importer
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1888,6 +2047,19 @@ export default function AddProductPage() {
                                 className="hidden"
                               />
                             </label>
+                          )}
+                          {excelFile && currentExcelQuotaCheck && !isCheckingExcelQuota && (
+                            <p
+                              className={`mt-3 text-sm font-medium ${
+                                currentExcelQuotaCheck.canImport ? "text-green-700" : "text-red-700"
+                              }`}
+                            >
+                              {currentExcelQuotaCheck.canImport
+                                ? currentExcelQuotaCheck.quota.remaining === null
+                                  ? `Ce fichier contient ${currentExcelQuotaCheck.rows} annonce(s) — aucune limite définie pour votre abonnement.`
+                                  : `Ce fichier contient ${currentExcelQuotaCheck.rows} annonce(s) — il vous en reste ${currentExcelQuotaCheck.quota.remaining} sur ${currentExcelQuotaCheck.quota.max}. Après l'import : ${currentExcelQuotaCheck.quota.remaining - currentExcelQuotaCheck.rows} restante(s).`
+                                : currentExcelQuotaCheck.message}
+                            </p>
                           )}
                         </div>
 
@@ -2051,7 +2223,13 @@ export default function AddProductPage() {
                         <div className="flex gap-4 pt-6 border-t border-gray-200">
                           <button
                             type="submit"
-                            disabled={isLoading || !excelFile}
+                            disabled={
+                              isLoading ||
+                              !excelFile ||
+                              isCheckingExcelQuota ||
+                              quotaBlocked ||
+                              excelQuotaRefused
+                            }
                             className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                           >
                             {isLoading ? (

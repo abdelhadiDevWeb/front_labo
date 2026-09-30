@@ -59,9 +59,31 @@ export default function DashboardLayout({
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    setSidebarOpen(false);
+    setShowNotificationsDropdown(false);
+    setShowProblemsDropdown(false);
+    setShowProfileMenu(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [sidebarOpen]);
 
   useEffect(() => {
     const verify = async () => {
@@ -340,22 +362,31 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-[100dvh] w-72 max-w-[85vw] lg:w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
+        aria-label="Menu d'administration"
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-gray-200">
+          <div className="relative px-6 py-4 lg:py-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center justify-center">
               <Image
                 src="/images/logo.jpeg"
                 alt="Dz Labmarket Logo"
                 width={150}
                 height={60}
-                className="w-32 h-16 object-contain"
+                className="w-28 h-14 lg:w-32 lg:h-16 object-contain"
               />
             </Link>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+              aria-label="Fermer le menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation */}
@@ -395,7 +426,7 @@ export default function DashboardLayout({
           </nav>
 
           {/* Bottom Actions */}
-          <div className="p-4 border-t border-gray-200 space-y-2">
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-200 space-y-2">
             <button
               onClick={() => performLogout(router)}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200"
@@ -411,10 +442,11 @@ export default function DashboardLayout({
       <div className="lg:pl-64">
         {/* Top Bar */}
         <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+          <div className="flex items-center gap-2 px-3 sm:px-6 lg:px-8 h-14 sm:h-16">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="lg:hidden -ml-1 p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              aria-label={sidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
             >
               {sidebarOpen ? (
                 <X className="w-6 h-6 text-gray-700" />
@@ -422,11 +454,11 @@ export default function DashboardLayout({
                 <Menu className="w-6 h-6 text-gray-700" />
               )}
             </button>
-            <div className="flex items-center justify-between w-full">
-              <h1 className="text-xl font-bold text-gray-900">
+            <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
+              <h1 className="min-w-0 truncate text-base sm:text-xl font-bold text-gray-900">
                 {visibleMenuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
               </h1>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 sm:gap-3 shrink-0">
                 {/* App notifications (new users, etc.) — same as supplier bell */}
                 <div className="relative">
                   <button
@@ -434,6 +466,7 @@ export default function DashboardLayout({
                     onClick={() => {
                       setShowNotificationsDropdown(!showNotificationsDropdown);
                       setShowProblemsDropdown(false);
+                      setShowProfileMenu(false);
                     }}
                     className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
                     aria-label="Notifications"
@@ -448,10 +481,10 @@ export default function DashboardLayout({
                   {showNotificationsDropdown && (
                     <>
                       <div
-                        className="fixed inset-0 z-40"
+                        className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent"
                         onClick={() => setShowNotificationsDropdown(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-72 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                      <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
                         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
                           <div className="flex items-center justify-between">
                             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -538,8 +571,11 @@ export default function DashboardLayout({
                   <button
                     onClick={() => {
                       setShowProblemsDropdown(!showProblemsDropdown);
+                      setShowNotificationsDropdown(false);
+                      setShowProfileMenu(false);
                     }}
                     className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                    aria-label="Problèmes signalés"
                   >
                     <Bell className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
                     {unreadProblemsCount > 0 && (
@@ -552,10 +588,10 @@ export default function DashboardLayout({
                   {showProblemsDropdown && (
                     <>
                       <div
-                        className="fixed inset-0 z-40"
+                        className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent"
                         onClick={() => setShowProblemsDropdown(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+                      <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
                         {/* Header */}
                         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
                           <div className="flex items-center justify-between">
@@ -643,10 +679,20 @@ export default function DashboardLayout({
                 </div>
                 )}
                 {profile && (
-                  <div className="relative group">
-                  <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(!showProfileMenu);
+                      setShowNotificationsDropdown(false);
+                      setShowProblemsDropdown(false);
+                    }}
+                    className="flex items-center gap-2 p-1 rounded-full sm:rounded-lg hover:opacity-80 transition-opacity"
+                    aria-label="Menu du profil"
+                    aria-expanded={showProfileMenu}
+                  >
                     {profile.profileImage ? (
-                      <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-600">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-blue-600">
                         <Image
                           key={imageKey}
                           src={getImageUrl(profile.profileImage) || ""}
@@ -657,18 +703,37 @@ export default function DashboardLayout({
                         />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center border-2 border-gray-300">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center border-2 border-gray-300">
                         <User className="w-5 h-5 text-gray-500" />
                       </div>
                     )}
-                    <span className="hidden sm:block text-sm font-medium text-gray-700">
+                    <span className="hidden md:block max-w-[10rem] truncate text-sm font-medium text-gray-700">
                       {profile.firstName} {profile.lastName}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-500 hidden sm:block transition-transform ${
+                        showProfileMenu ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
+                  {showProfileMenu && (
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowProfileMenu(false)}
+                    />
+                  )}
                   {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div
+                    className={`absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-xl border border-gray-200 transition-all duration-200 z-50 ${
+                      showProfileMenu ? "opacity-100 visible" : "opacity-0 invisible"
+                    }`}
+                  >
                     <div className="py-2">
+                      <div className="px-4 pb-2 mb-1 border-b border-gray-100 md:hidden">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {profile.firstName} {profile.lastName}
+                        </p>
+                      </div>
                       <Link
                         href="/dashboard/profile"
                         className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
@@ -694,7 +759,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className="p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="animate-fade-in">{children}</div>
         </main>
       </div>
