@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
@@ -56,10 +56,37 @@ function RegisterPageContent() {
     client: false,
   });
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const policiesEmptyRef = useRef<Partial<Record<UserType, Promise<boolean | null>>>>({});
+
+  /** true = no conditions to read, null = unknown (request failed, retried next time). */
+  const loadPoliciesEmpty = useCallback((role: UserType): Promise<boolean | null> => {
+    const cached = policiesEmptyRef.current[role];
+    if (cached) return cached;
+    const request = getPublicPolicies(role === "supplier" ? "supplier" : "labo")
+      .then((result) =>
+        result.success && result.data ? (result.data.policies ?? []).length === 0 : null
+      )
+      .catch(() => null)
+      .then((empty) => {
+        if (empty === null) delete policiesEmptyRef.current[role];
+        return empty;
+      });
+    policiesEmptyRef.current[role] = request;
+    return request;
+  }, []);
+
+  /** Accept directly when there is nothing to read, otherwise show the conditions. */
+  const requestTermsAcceptance = async (role: UserType) => {
+    if (await loadPoliciesEmpty(role)) {
+      setAcceptedTerms((prev) => ({ ...prev, [role]: true }));
+    } else {
+      setShowTermsModal(true);
+    }
+  };
 
   const openTermsModal = (e?: React.MouseEvent) => {
     e?.preventDefault();
-    setShowTermsModal(true);
+    void requestTermsAcceptance(userType);
   };
   const closeTermsModal = useCallback(() => setShowTermsModal(false), []);
   const handleAcceptTerms = useCallback(() => {
@@ -70,23 +97,22 @@ function RegisterPageContent() {
     if (acceptedTerms[userType]) {
       setAcceptedTerms((prev) => ({ ...prev, [userType]: false }));
     } else {
-      setShowTermsModal(true);
+      void requestTermsAcceptance(userType);
     }
   };
 
   useEffect(() => {
     let cancelled = false;
     const role = userType;
-    void getPublicPolicies(role === "supplier" ? "supplier" : "labo").then((result) => {
-      if (cancelled || !result.success || !result.data) return;
-      if ((result.data.policies ?? []).length === 0) {
+    void loadPoliciesEmpty(role).then((empty) => {
+      if (!cancelled && empty) {
         setAcceptedTerms((prev) => ({ ...prev, [role]: true }));
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [userType]);
+  }, [userType, loadPoliciesEmpty]);
 
   // Ensure feedback alerts are visible even when user submits from the bottom.
   useEffect(() => {
@@ -135,8 +161,11 @@ function RegisterPageContent() {
     setSuccess(null);
 
     if (!acceptedTerms.supplier) {
-      setShowTermsModal(true);
-      return;
+      if (!(await loadPoliciesEmpty("supplier"))) {
+        setShowTermsModal(true);
+        return;
+      }
+      setAcceptedTerms((prev) => ({ ...prev, supplier: true }));
     }
     
     // Validate passwords match
@@ -256,8 +285,11 @@ function RegisterPageContent() {
     setSuccess(null);
 
     if (!acceptedTerms.client) {
-      setShowTermsModal(true);
-      return;
+      if (!(await loadPoliciesEmpty("client"))) {
+        setShowTermsModal(true);
+        return;
+      }
+      setAcceptedTerms((prev) => ({ ...prev, client: true }));
     }
     
     // Validate passwords match
