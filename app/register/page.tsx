@@ -31,6 +31,14 @@ type UserType = "supplier" | "client";
 const normalizePhoneInput = (phone: string): string =>
   phone.replace(/[\s().-]/g, "").trim();
 
+const PHONE_MAX_DIGITS = 10;
+const ALGERIAN_MOBILE_REGEX = /^0[567][0-9]{8}$/;
+const PHONE_FORMAT_ERROR =
+  "Le numéro de téléphone doit contenir 10 chiffres et commencer par 05, 06 ou 07";
+
+const sanitizePhoneTyping = (value: string): string =>
+  value.replace(/\D/g, "").slice(0, PHONE_MAX_DIGITS);
+
 const registrationErrorMessage = (
   result: { message?: string; errors?: string[] },
   fallback: string
@@ -180,6 +188,11 @@ function RegisterPageContent() {
       return;
     }
 
+    if (!ALGERIAN_MOBILE_REGEX.test(normalizePhoneInput(supplierFormData.phone))) {
+      setError(PHONE_FORMAT_ERROR);
+      return;
+    }
+
     if (!isLocationComplete(supplierLocation)) {
       setError("Veuillez sélectionner votre localisation sur la carte (wilaya et commune requises)");
       return;
@@ -301,6 +314,11 @@ function RegisterPageContent() {
     const clientPasswordError = validateStrongPassword(clientFormData.password);
     if (clientPasswordError) {
       setError(clientPasswordError);
+      return;
+    }
+
+    if (!ALGERIAN_MOBILE_REGEX.test(normalizePhoneInput(clientFormData.phone))) {
+      setError(PHONE_FORMAT_ERROR);
       return;
     }
 
@@ -534,12 +552,14 @@ function RegisterPageContent() {
                     id="supplier-phone"
                   name="phone"
                   type="tel"
+                  inputMode="numeric"
                   autoComplete="tel"
+                  maxLength={PHONE_MAX_DIGITS}
                   required
                     value={supplierFormData.phone}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: e.target.value })}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: sanitizePhoneTyping(e.target.value) })}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
-                  placeholder="+33 6 12 34 56 78"
+                  placeholder="0555123456"
                 />
               </div>
             </div>
@@ -757,12 +777,14 @@ function RegisterPageContent() {
                     id="client-phone"
                     name="phone"
                     type="tel"
+                    inputMode="numeric"
                     autoComplete="tel"
+                    maxLength={PHONE_MAX_DIGITS}
                     required
                     value={clientFormData.phone}
-                    onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+                    onChange={(e) => setClientFormData({ ...clientFormData, phone: sanitizePhoneTyping(e.target.value) })}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
-                    placeholder="+33 6 12 34 56 78"
+                    placeholder="0555123456"
                   />
                 </div>
               </div>
