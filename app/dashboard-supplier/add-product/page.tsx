@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -46,6 +46,7 @@ import {
 } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import { uploadSupplierImages } from "@/lib/supplier-image-upload";
 import {
   SingleCatalogType,
   columnsForCategory,
@@ -59,6 +60,9 @@ import { scrollPageToTop } from "@/lib/scroll-to-top";
 import { LISTING_QUOTA_CHANGED_EVENT } from "@/components/supplier/ListingQuotaHeaderAlert";
 
 type ExcelImportType = SingleCatalogType | null;
+
+/** Rendering thousands of thumbnails would freeze the page. */
+const MAX_EXCEL_IMAGE_PREVIEWS = 24;
 
 type CategoryKind = "machine" | "services" | "product";
 
@@ -108,6 +112,11 @@ export default function AddProductPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageUploadCount, setImageUploadCount] = useState<{ done: number; total: number } | null>(
+    null
+  );
+  /** Photos already stored in the supplier image library (lets a failed import resume). */
+  const uploadedImageKeysRef = useRef<Set<string>>(new Set());
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -345,6 +354,22 @@ export default function AddProductPage() {
 
     void loadCategories();
     void loadXlsHistory();
+  }, []);
+
+  // Pick up the admin's new category Excel columns when the supplier comes back to this tab.
+  useEffect(() => {
+    const refreshCategories = async () => {
+      if (document.visibilityState !== "visible") return;
+      const result = await getPublicCategories();
+      if (result.success && result.data) setCategories(result.data.categories);
+    };
+    const onVisible = () => void refreshCategories();
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -822,6 +847,24 @@ export default function AddProductPage() {
     setUploadProgress(30);
 
     try {
+      if (imageFiles.length > 0) {
+        setImageUploadCount({ done: 0, total: imageFiles.length });
+        const imageResult = await uploadSupplierImages(imageFiles, {
+          alreadyUploaded: uploadedImageKeysRef.current,
+          onProgress: (done, total) => {
+            setImageUploadCount({ done, total });
+            setUploadProgress(30 + Math.round((done / Math.max(total, 1)) * 50));
+          },
+        });
+        if (!imageResult.ok) {
+          setError(
+            `${imageResult.message} — ${imageResult.uploaded} / ${imageFiles.length} images envoyées. Cliquez à nouveau sur « Importer » pour reprendre l'envoi là où il s'est arrêté.`
+          );
+          setUploadErrors([]);
+          return;
+        }
+      }
+
       const API_BASE_URL = getApiUrl();
       const endpoint =
         excelImportType === "machine"
@@ -846,15 +889,11 @@ export default function AddProductPage() {
         formDataUpload.append("type_labo", excelTypeLabo);
       }
 
-      imageFiles.forEach((imageFile) => {
-        formDataUpload.append("images", imageFile);
-      });
-
       pdfFiles.forEach((pdfFile) => {
         formDataUpload.append("ficheTechniques", pdfFile);
       });
 
-      setUploadProgress(60);
+      setUploadProgress(imageFiles.length > 0 ? 85 : 60);
 
       const response = await apiFetch(endpoint, {
         method: "POST",
@@ -888,6 +927,7 @@ export default function AddProductPage() {
         );
         setExcelFile(null);
         setImageFiles([]);
+        uploadedImageKeysRef.current.clear();
         setPdfFiles([]);
         const fileInput = document.getElementById("excelFile") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
@@ -914,6 +954,7 @@ export default function AddProductPage() {
     } finally {
       setIsLoading(false);
       setUploadProgress(0);
+      setImageUploadCount(null);
     }
   };
 
@@ -2073,7 +2114,9 @@ export default function AddProductPage() {
                           </label>
                           <p className="text-xs text-gray-500 mb-3">
                             Images correspondant à la colonne &quot;Image&quot; du fichier Excel
-                            (ex: <code className="bg-gray-100 px-1 rounded">photo1.jpg</code>)
+                            (ex: <code className="bg-gray-100 px-1 rounded">photo1.jpg</code>). Pas de
+                            limite de nombre : les images sont compressées puis envoyées par petits lots
+                            avant l&apos;import.
                           </p>
                           {imageFiles.length > 0 ? (
                             <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
@@ -2094,7 +2137,7 @@ export default function AddProductPage() {
                                 </button>
                               </div>
                               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-40 overflow-y-auto">
-                                {imageFiles.map((file, idx) => (
+                                {imageFiles.slice(0, MAX_EXCEL_IMAGE_PREVIEWS).map((file, idx) => (
                                   <div key={idx} className="relative group">
                                     <img
                                       src={URL.createObjectURL(file)}
@@ -2103,6 +2146,11 @@ export default function AddProductPage() {
                                     />
                                   </div>
                                 ))}
+                                {imageFiles.length > MAX_EXCEL_IMAGE_PREVIEWS && (
+                                  <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-blue-300 bg-white text-sm font-semibold text-blue-700">
+                                    +{imageFiles.length - MAX_EXCEL_IMAGE_PREVIEWS} autres
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -2210,7 +2258,9 @@ export default function AddProductPage() {
                             <div className="flex items-center justify-between text-sm font-semibold text-blue-900">
                               <span className="flex items-center gap-2">
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                Importation en cours...
+                                {imageUploadCount
+                                  ? `Envoi des images : ${imageUploadCount.done} / ${imageUploadCount.total}`
+                                  : "Importation en cours..."}
                               </span>
                               <span className="font-bold">{uploadProgress}%</span>
                             </div>

@@ -1897,6 +1897,7 @@ export const getAllProducts = async (filters?: {
   wilayaCode?: string;
   limit?: number;
   cursor?: string;
+  hasQuantity?: boolean;
 }): Promise<
   ApiResponse<{
     products: PublicProduct[];
@@ -1916,6 +1917,7 @@ export const getAllProducts = async (filters?: {
       if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
       if (filters?.limit != null) params.append("limit", String(filters.limit));
       if (filters?.cursor) params.append("cursor", filters.cursor);
+      if (filters?.hasQuantity) params.append("hasQuantity", "1");
       const query = params.toString() ? `?${params.toString()}` : "";
 
       const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {
@@ -4816,6 +4818,7 @@ export const getPublicCategories = async (): Promise<ApiResponse<{ categories: C
       const response = await apiFetch(`${getApiBaseUrl()}/categories/public`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
+        cache: "no-cache",
       });
 
       if (!response.ok) {

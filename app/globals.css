@@ -47,6 +47,10 @@ body {
     --lab-nav-offset: calc(4rem + env(safe-area-inset-bottom));
   }
 
+  html[data-lab-nav="app"] {
+    --lab-nav-offset: 4rem;
+  }
+
   html[data-lab-nav] body {
     padding-bottom: var(--lab-nav-offset);
   }

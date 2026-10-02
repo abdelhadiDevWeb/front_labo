@@ -277,7 +277,7 @@ export default function HomePage() {
 
       try {
         const [productsRes, machinesRes, servicesRes] = await Promise.all([
-          getAllProducts(filters),
+          getAllProducts({ ...filters, hasQuantity: true }),
           getPublicMachines(filters),
           getPublicServices(filters),
         ]);

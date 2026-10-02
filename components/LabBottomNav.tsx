@@ -8,6 +8,7 @@ import CartPanel from "@/components/CartPanel";
 import { useCart } from "@/contexts/CartContext";
 import { getSessionRole } from "@/lib/api";
 import { hasAuthSessionHint } from "@/lib/auth-session";
+import { getReactNativeWebView } from "@/lib/security";
 
 /** Lab (client) pages where the phone tab bar is shown. */
 const LAB_PATH_PREFIXES = [
@@ -75,6 +76,8 @@ export default function LabBottomNav() {
   const { getTotalItems } = useCart();
   const [isLab, setIsLab] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  /** The Expo app's SafeAreaView already pads the bottom inset around the WebView. */
+  const [inApp, setInApp] = useState(false);
   const roleCheckedRef = useRef(false);
 
   const onLabPage = matchesPrefix(pathname, LAB_PATH_PREFIXES);
@@ -94,11 +97,15 @@ export default function LabBottomNav() {
   const visible = onLabPage && isLab;
 
   useEffect(() => {
+    setInApp(Boolean(getReactNativeWebView()));
+  }, []);
+
+  useEffect(() => {
     const root = document.documentElement;
-    if (visible) root.setAttribute("data-lab-nav", "");
+    if (visible) root.setAttribute("data-lab-nav", inApp ? "app" : "");
     else root.removeAttribute("data-lab-nav");
     return () => root.removeAttribute("data-lab-nav");
-  }, [visible]);
+  }, [visible, inApp]);
 
   useEffect(() => {
     setCartOpen(false);
@@ -113,7 +120,7 @@ export default function LabBottomNav() {
       <nav
         aria-label="Navigation laboratoire"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_20px_rgba(15,23,42,0.06)] backdrop-blur-md md:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={inApp ? undefined : { paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <ul className="mx-auto grid h-16 max-w-lg grid-cols-5">
           {TABS.map((tab) => {
