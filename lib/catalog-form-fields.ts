@@ -94,6 +94,74 @@ export const editableFieldsForType = (type: SingleCatalogType): CatalogFieldDef[
 export const typeHasFicheTechnique = (type: SingleCatalogType): boolean =>
   columnsForType(type).some((col) => isFicheTechniqueField(col.label));
 
+const normalizeLabel = (label: string) =>
+  label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const isCategoryLabel = (label: string) => {
+  const n = normalizeLabel(label);
+  return (
+    n === "categorie" ||
+    n === "category" ||
+    n === "subcategory" ||
+    (n.includes("sous") && n.includes("cat"))
+  );
+};
+
+const isDesignationLabel = (label: string) =>
+  ["designation", "name", "nom"].includes(normalizeLabel(label));
+
+const NUMERIC_LABEL = /prix|quantite|tva|remise|^r ?%$/;
+
+/**
+ * Columns of the admin's category Excel (header row), falling back to the
+ * default schema of the type when the category has no Excel.
+ */
+export const columnsForCategory = (
+  type: SingleCatalogType,
+  excelColumns?: string[] | null
+): CatalogFieldDef[] => {
+  const defaults = columnsForType(type);
+  if (!excelColumns || excelColumns.length === 0) return defaults;
+
+  const defaultsByLabel = new Map(defaults.map((col) => [normalizeLabel(col.label), col]));
+  const columns: CatalogFieldDef[] = excelColumns.map((label) => {
+    const known = defaultsByLabel.get(normalizeLabel(label));
+    const field: CatalogFieldDef = known
+      ? { ...known, label }
+      : {
+          label,
+          desc: "",
+          inputType: NUMERIC_LABEL.test(normalizeLabel(label)) ? "number" : "text",
+        };
+    if (isDesignationLabel(label)) field.required = true;
+    return field;
+  });
+
+  // The backend refuses items without a Désignation / nom.
+  if (!columns.some((col) => isDesignationLabel(col.label))) {
+    columns.unshift({ label: "Désignation", desc: "Nom de l'article", required: true });
+  }
+  return columns;
+};
+
+/** Editable text/number fields among the given columns */
+export const editableFieldsFromColumns = (columns: CatalogFieldDef[]): CatalogFieldDef[] =>
+  columns.filter(
+    (col) =>
+      !AUTO_FILLED_FIELDS.has(col.label) &&
+      !isCategoryLabel(col.label) &&
+      !isFicheTechniqueField(col.label) &&
+      !isImageField(col.label)
+  );
+
+export const columnsHaveFicheTechnique = (columns: CatalogFieldDef[]): boolean =>
+  columns.some((col) => isFicheTechniqueField(col.label));
+
 export const catalogTypeToCategoryKind = (type: SingleCatalogType): CategoryKind => {
   if (type === "machine") return "machine";
   if (type === "service") return "services";

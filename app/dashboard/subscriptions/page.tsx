@@ -883,7 +883,7 @@ export default function SubscriptionsPage() {
   const renderSubscriptionCard = (subscription: Subscription) => (
     <div
       key={subscription._id}
-      className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-white"
+      className="flex h-full flex-col border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow bg-white"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -919,7 +919,7 @@ export default function SubscriptionsPage() {
           {subscription.status === "active" ? "Actif" : "Terminé"}
         </span>
       </div>
-      <div className="space-y-2 mb-4">
+      <div className="flex-1 space-y-2 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <DollarSign className="w-4 h-4" />
           {subscription.price.toLocaleString("fr-FR")} DA
@@ -1111,7 +1111,7 @@ export default function SubscriptionsPage() {
                 {clients.map((user) => (
                   <div
                     key={user._id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="flex h-full flex-col border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -1126,7 +1126,7 @@ export default function SubscriptionsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-2 mb-4">
+                    <div className="flex-1 space-y-2 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Phone className="w-4 h-4" />
                         {user.phone}
@@ -1182,7 +1182,7 @@ export default function SubscriptionsPage() {
                 {suppliers.map((user) => (
                   <div
                     key={user._id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="flex h-full flex-col border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -1197,7 +1197,7 @@ export default function SubscriptionsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-2 mb-4">
+                    <div className="flex-1 space-y-2 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Phone className="w-4 h-4" />
                         {user.phone}
@@ -1364,7 +1364,7 @@ export default function SubscriptionsPage() {
               .map((type) => (
                 <div
                   key={type.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="flex h-full flex-col border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -1385,7 +1385,7 @@ export default function SubscriptionsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-2 mb-4">
+                  <div className="flex-1 space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Clock className="w-4 h-4" />
                       Durée: {(() => {

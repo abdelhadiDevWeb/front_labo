@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, CheckCircle, Heart, Loader2, MapPin, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle, Heart, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import {
   addSupplierToFavorites,
   getAllSuppliersPublic,
@@ -76,19 +76,29 @@ export default function SuppliersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6 gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Fournisseurs</h1>
+      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/home"
+              aria-label="Retour à l'accueil"
+              className="-ml-2 shrink-0 rounded-lg p-2 transition-colors hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            <h1 className="truncate text-xl font-bold text-gray-900 sm:text-3xl">Fournisseurs</h1>
+          </div>
           <Link
             href="/favorable"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white transition-colors hover:bg-blue-700 sm:px-4 sm:text-base"
           >
             <Heart className="w-4 h-4" />
             Favoris
           </Link>
         </div>
-
-        <div className="relative mb-6">
+      </header>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="relative mb-4 sm:mb-6">
           <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             value={query}
@@ -108,24 +118,24 @@ export default function SuppliersPage() {
             <p className="text-gray-600">Aucun supplier trouvé</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {filtered.map((supplier) => (
               <div
                 key={supplier.id}
                 className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
                 <div className="h-1.5 bg-gradient-to-r from-blue-600 to-cyan-500" />
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <Link href={`/supplier/${supplier.id}`} className="flex items-center gap-3 min-w-0">
                       {supplier.profileImage ? (
                         <img
                           src={getMediaUrl(supplier.profileImage) || ""}
                           alt={`${supplier.firstName} ${supplier.lastName}`}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-blue-100"
+                          className="w-14 h-14 shrink-0 rounded-full object-cover border-2 border-blue-100"
                         />
                       ) : (
-                        <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
+                        <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
                           <Building2 className="w-7 h-7 text-blue-600" />
                         </div>
                       )}
@@ -138,7 +148,7 @@ export default function SuppliersPage() {
                     </Link>
                     <button
                       onClick={() => toggleFavorite(supplier.id)}
-                      className={`p-2.5 rounded-xl transition-colors ${
+                      className={`shrink-0 p-2.5 rounded-xl transition-colors ${
                         favoriteIds.has(supplier.id) ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-500 hover:text-red-600"
                       }`}
                       title="Favori"

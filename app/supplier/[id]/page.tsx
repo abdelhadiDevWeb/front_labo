@@ -254,29 +254,29 @@ export default function SupplierDetailsPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link
               href="/home"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Détails du fournisseur</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Détails du fournisseur</h1>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Supplier Profile Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-5 sm:mb-8">
+          <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-5 sm:p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4 sm:gap-6">
               {/* Profile Image */}
               <div className="relative">
                 {supplier.profileImage ? (
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-xl">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-4 border-white shadow-xl">
                     <img
                       src={getMediaUrl(supplier.profileImage) || ""}
                       alt={`${supplier.firstName} ${supplier.lastName}`}
@@ -284,8 +284,8 @@ export default function SupplierDetailsPage() {
                     />
                   </div>
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white shadow-xl flex items-center justify-center">
-                    <User className="w-12 h-12 text-white" />
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white shadow-xl flex items-center justify-center">
+                    <User className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                   </div>
                 )}
                 {supplier.certife && (
@@ -296,14 +296,14 @@ export default function SupplierDetailsPage() {
               </div>
 
               {/* Supplier Info */}
-              <div className="flex-1 text-white">
+              <div className="flex-1 min-w-0 w-full text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
                   <h2 className="text-2xl sm:text-3xl font-bold">
                     {supplier.firstName} {supplier.lastName}
                   </h2>
                   <button
                     onClick={toggleFavorite}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                    className={`inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
                       isFavorite ? "bg-red-500 text-white" : "bg-white/20 text-white"
                     }`}
                   >
@@ -321,17 +321,17 @@ export default function SupplierDetailsPage() {
                   <p className="text-blue-100 mb-3 sm:mb-4 text-sm sm:text-base">Fournisseur certifie</p>
                 )}
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    <span>{supplier.email}</span>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="break-all">{supplier.email}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Phone className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{supplier.phone}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>{supplier.address}</span>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="break-words">{supplier.address}</span>
                   </div>
                 </div>
               </div>
@@ -358,7 +358,7 @@ export default function SupplierDetailsPage() {
 
         {/* Payment Information Section */}
         {(supplier.rip_post || supplier.rip_bank || (supplier.methode_payment && supplier.methode_payment.length > 0)) && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-5 sm:mb-8">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 sm:p-6">
               <h3 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
                 <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -391,7 +391,7 @@ export default function SupplierDetailsPage() {
                     RIP Post
                   </h4>
                   <div className="flex items-center gap-2">
-                    <p className="flex-1 text-gray-900 font-mono bg-gray-50 px-4 py-2 rounded-lg">{supplier.rip_post}</p>
+                    <p className="flex-1 min-w-0 break-all text-sm sm:text-base text-gray-900 font-mono bg-gray-50 px-3 sm:px-4 py-2 rounded-lg">{supplier.rip_post}</p>
                     <button
                       onClick={handleCopyRipPost}
                       className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex-shrink-0"
@@ -413,7 +413,7 @@ export default function SupplierDetailsPage() {
                     RIP Bank
                   </h4>
                   <div className="flex items-center gap-2">
-                    <p className="flex-1 text-gray-900 font-mono bg-gray-50 px-4 py-2 rounded-lg">{supplier.rip_bank}</p>
+                    <p className="flex-1 min-w-0 break-all text-sm sm:text-base text-gray-900 font-mono bg-gray-50 px-3 sm:px-4 py-2 rounded-lg">{supplier.rip_bank}</p>
                     <button
                       onClick={handleCopyRipBank}
                       className="p-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex-shrink-0"
@@ -433,7 +433,7 @@ export default function SupplierDetailsPage() {
         )}
 
         {/* Ratings Section */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-5 sm:mb-8">
           <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-4 sm:p-6">
             <h3 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
               <Star className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -574,8 +574,8 @@ export default function SupplierDetailsPage() {
                       key={rate.id}
                       className="p-4 bg-gray-50 rounded-xl border border-gray-200"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                             <User className="w-5 h-5 text-blue-600" />
                           </div>
@@ -624,8 +624,8 @@ export default function SupplierDetailsPage() {
 
         {/* Products Section */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Package className="w-6 h-6 text-blue-600" />
               Produits ({displayedProducts})
             </h2>
@@ -637,13 +637,13 @@ export default function SupplierDetailsPage() {
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
-              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 sm:p-12 text-center">
+              <Package className="w-14 h-14 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 text-lg font-medium">Aucun produit disponible</p>
               <p className="text-gray-500 mt-2">Ce fournisseur n'a pas encore de produits en stock.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredProducts.map((product) => (
                 <div
                   key={product._id}

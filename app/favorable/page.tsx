@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, CheckCircle, Heart, Loader2, MapPin, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle, Heart, Loader2, MapPin, Sparkles } from "lucide-react";
 import { getFavoriteSuppliers, removeSupplierFromFavorites, SupplierCard } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 
@@ -34,13 +34,28 @@ export default function FavorablePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Favoris</h1>
-          <Link href="/suppliers" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/home"
+              aria-label="Retour à l'accueil"
+              className="-ml-2 shrink-0 rounded-lg p-2 transition-colors hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            <h1 className="truncate text-xl font-bold text-gray-900 sm:text-3xl">Favoris</h1>
+          </div>
+          <Link
+            href="/suppliers"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white transition-colors hover:bg-blue-700 sm:px-4 sm:text-base"
+          >
+            <Building2 className="h-4 w-4" />
             Fournisseurs
           </Link>
         </div>
+      </header>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
 
         {isLoading ? (
           <div className="py-16 flex justify-center">
@@ -52,24 +67,24 @@ export default function FavorablePage() {
             <p className="text-gray-600">Aucun supplier en favori</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {suppliers.map((supplier) => (
               <div
                 key={supplier.id}
                 className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
                 <div className="h-1.5 bg-gradient-to-r from-rose-500 to-red-500" />
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <Link href={`/supplier/${supplier.id}`} className="flex items-center gap-3 min-w-0">
                       {supplier.profileImage ? (
                         <img
                           src={getMediaUrl(supplier.profileImage) || ""}
                           alt={`${supplier.firstName} ${supplier.lastName}`}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-blue-100"
+                          className="w-14 h-14 shrink-0 rounded-full object-cover border-2 border-blue-100"
                         />
                       ) : (
-                        <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
+                        <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-200">
                           <Building2 className="w-7 h-7 text-blue-600" />
                         </div>
                       )}
@@ -82,7 +97,7 @@ export default function FavorablePage() {
                     </Link>
                     <button
                       onClick={() => removeFav(supplier.id)}
-                      className="p-2.5 rounded-xl bg-red-100 text-red-600"
+                      className="shrink-0 p-2.5 rounded-xl bg-red-100 text-red-600"
                       title="Retirer du favori"
                     >
                       <Heart className="w-5 h-5 fill-current" />

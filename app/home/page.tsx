@@ -2087,7 +2087,7 @@ export default function HomePage() {
           }
           setShowSupportModal(true);
         }}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-3 sm:p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
+        className="fixed bottom-[calc(1rem+var(--lab-nav-offset,0px))] right-4 sm:bottom-[calc(1.5rem+var(--lab-nav-offset,0px))] sm:right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-3 sm:p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
         aria-label="Contacter le support"
       >
         <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />

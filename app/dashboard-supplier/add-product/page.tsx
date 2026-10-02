@@ -48,11 +48,9 @@ import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import {
   SingleCatalogType,
-  MACHINE_COLUMNS,
-  SERVICE_COLUMNS,
-  PRODUCT_COLUMNS,
-  editableFieldsForType,
-  typeHasFicheTechnique,
+  columnsForCategory,
+  editableFieldsFromColumns,
+  columnsHaveFicheTechnique,
   catalogTypeToCategoryKind,
   createEndpointForType,
 } from "@/lib/catalog-form-fields";
@@ -371,12 +369,10 @@ export default function AddProductPage() {
     !!selectedExcelCategory &&
     (!hasExcelSousCategories || !!excelSousCategoryId);
 
-  const excelColumnsForType =
-    excelImportType === "machine"
-      ? MACHINE_COLUMNS
-      : excelImportType === "service"
-        ? SERVICE_COLUMNS
-        : PRODUCT_COLUMNS;
+  const excelColumnsForType = excelImportType
+    ? columnsForCategory(excelImportType, selectedExcelCategory?.excelColumns)
+    : [];
+  const excelHasCategoryTemplate = (selectedExcelCategory?.excelColumns?.length ?? 0) > 0;
 
   const singleCategoryKind = singleType ? catalogTypeToCategoryKind(singleType) : null;
   const singleNeedsTypeLabo = singleType === "product";
@@ -395,8 +391,11 @@ export default function AddProductPage() {
     showSingleCategoryStep &&
     !!selectedSingleCategory &&
     (!hasSingleSousCategories || !!singleSousCategoryId);
-  const singleEditableFields = singleType ? editableFieldsForType(singleType) : [];
-  const showFicheUpload = singleType ? typeHasFicheTechnique(singleType) : false;
+  const singleColumns = singleType
+    ? columnsForCategory(singleType, selectedSingleCategory?.excelColumns)
+    : [];
+  const singleEditableFields = editableFieldsFromColumns(singleColumns);
+  const showFicheUpload = columnsHaveFicheTechnique(singleColumns);
 
   const handlePickExcelCategory = (categoryId: string) => {
     setExcelCategoryId(categoryId);
@@ -738,14 +737,16 @@ export default function AddProductPage() {
         params.set("sousCategory", selectedExcelSousCategory.name_sou_catgory);
       }
 
-      const endpoint =
-        excelImportType === "machine"
+      const endpoint = excelHasCategoryTemplate
+        ? `${API_BASE_URL}/categories/public/${encodeURIComponent(selectedExcelCategory.id)}/excel-template`
+        : excelImportType === "machine"
           ? `${API_BASE_URL}/machines/download-template?${params.toString()}`
           : excelImportType === "service"
             ? `${API_BASE_URL}/services/download-template?${params.toString()}`
             : `${API_BASE_URL}/products/download-template?${params.toString()}`;
-      const filename =
-        excelImportType === "machine"
+      const filename = excelHasCategoryTemplate
+        ? `modele_${selectedExcelCategory.name_catgory.replace(/[\\/:*?"<>|\s]+/g, "_")}.xlsx`
+        : excelImportType === "machine"
           ? "modele_automates_biologie_medicale.xlsx"
           : excelImportType === "service"
             ? "modele_services_divers.xlsx"
@@ -1533,7 +1534,9 @@ export default function AddProductPage() {
                             <span>{field.label}</span>
                             {field.required && <span className="text-red-500">*</span>}
                           </label>
-                          <p className="text-xs text-gray-500 mb-2">{field.desc}</p>
+                          {field.desc && (
+                            <p className="text-xs text-gray-500 mb-2">{field.desc}</p>
+                          )}
                           <input
                             type={field.inputType === "number" ? "number" : "text"}
                             step={field.inputType === "number" ? "any" : undefined}
@@ -1541,7 +1544,7 @@ export default function AddProductPage() {
                             value={fieldValues[field.label] || ""}
                             onChange={(e) => handleFieldChange(field.label, e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-50 focus:bg-white"
-                            placeholder={field.desc}
+                            placeholder={field.desc || field.label}
                           />
                         </div>
                       ))}
@@ -1970,7 +1973,7 @@ export default function AddProductPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <span className="text-xs font-semibold text-blue-900">{col.label}</span>
-                                  <p className="text-xs text-blue-700">{col.desc}</p>
+                                  {col.desc && <p className="text-xs text-blue-700">{col.desc}</p>}
                                 </div>
                               </div>
                             ))}
@@ -2119,7 +2122,7 @@ export default function AddProductPage() {
                           )}
                         </div>
 
-                        {excelImportType && typeHasFicheTechnique(excelImportType) && (
+                        {excelImportType && columnsHaveFicheTechnique(excelColumnsForType) && (
                           <div>
                             <label
                               htmlFor="excelFichePdfs"

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/contexts/CartContext";
 import ChunkLoadRecovery from "@/components/ChunkLoadRecovery";
+import LabBottomNav from "@/components/LabBottomNav";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -109,6 +110,7 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 const organizationJsonLd = {
@@ -167,6 +169,7 @@ export default function RootLayout({
         <CartProvider>
           <ChunkLoadRecovery />
           {children}
+          <LabBottomNav />
         </CartProvider>
       </body>
     </html>

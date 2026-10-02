@@ -322,22 +322,22 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Link
                 href="/home"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </Link>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <ShoppingBag className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
+                  <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Mes Réserves</h1>
-                  <p className="text-sm text-gray-600">
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Mes Réserves</h1>
+                  <p className="text-xs sm:text-sm text-gray-600">
                     {orders.length} réserve{orders.length > 1 ? "s" : ""} au total
                   </p>
                 </div>
@@ -346,12 +346,12 @@ export default function OrdersPage() {
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-4">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-4 min-w-0">
+            <Filter className="hidden sm:block w-5 h-5 text-gray-400 shrink-0" />
+            <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
               <button
                 onClick={() => setStatusFilter("all")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all ${
                   statusFilter === "all"
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -361,7 +361,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => setStatusFilter("en attente")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "en attente"
                     ? "bg-amber-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -372,7 +372,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => setStatusFilter("en cours")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "en cours"
                     ? "bg-blue-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -383,7 +383,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => setStatusFilter("on route")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "on route"
                     ? "bg-orange-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -394,7 +394,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => setStatusFilter("arrived")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "arrived"
                     ? "bg-green-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -405,7 +405,7 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => setStatusFilter("refusée")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "refusée"
                     ? "bg-red-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -420,21 +420,21 @@ export default function OrdersPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Hidden print area */}
         <div ref={printRef} className="hidden" />
 
         {ordersLoading && orders.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 sm:p-12 text-center">
             <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
             <p className="text-gray-600">Chargement des réserves...</p>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Package className="w-12 h-12 text-gray-400" />
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 sm:p-12 text-center">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5 sm:mb-6">
+              <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Aucune réserve</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Aucune réserve</h2>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               Vous n'avez pas encore passé de réserve. Parcourez notre marketplace pour découvrir nos services.
             </p>
@@ -447,19 +447,19 @@ export default function OrdersPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {filteredOrders.map((order) => (
               <div
                 key={order._id}
-                className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all"
+                className="bg-white rounded-2xl shadow-sm sm:shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all"
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {/* Order Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
                         {getStatusIcon(order.status)}
-                        <h3 className="text-lg font-bold text-gray-900">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900">
                           Réserve #{order._id.slice(-8).toUpperCase()}
                         </h3>
                         {getStatusBadge(order.status)}
@@ -477,8 +477,8 @@ export default function OrdersPage() {
                         Date: {new Date(order.createdAt).toLocaleString("fr-FR")}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="sm:text-right shrink-0">
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">
                         {order.total.toFixed(2)} DA
                       </p>
                     </div>
@@ -491,11 +491,11 @@ export default function OrdersPage() {
                       {order.products.map((product, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg"
                         >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-gray-900">{product.name}</p>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium text-gray-900 break-words">{product.name}</p>
                               {product.itemType === "machine" && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
                                   Machine
@@ -506,7 +506,7 @@ export default function OrdersPage() {
                               {product.price.toFixed(2)} DA × {product.quantity}
                             </p>
                           </div>
-                          <p className="font-semibold text-gray-900">
+                          <p className="font-semibold text-gray-900 shrink-0 whitespace-nowrap">
                             {(product.price * product.quantity).toFixed(2)} DA
                           </p>
                         </div>
@@ -532,8 +532,8 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     ) : payments[order._id] ? (
-                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      <div className="flex flex-wrap items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
                         <span className="text-sm text-green-700 font-medium">Preuve de paiement uploadée</span>
                         <button
                           onClick={() => {
@@ -547,9 +547,9 @@ export default function OrdersPage() {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <FileText className="w-5 h-5 text-yellow-600" />
-                        <span className="text-sm text-yellow-700 flex-1">Aucune preuve de paiement uploadée</span>
+                      <div className="flex flex-wrap items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <FileText className="w-5 h-5 text-yellow-600 shrink-0" />
+                        <span className="text-sm text-yellow-700 flex-1 min-w-0">Aucune preuve de paiement uploadée</span>
                         <button
                           onClick={() => {
                             setSelectedOrder(order);
@@ -572,7 +572,7 @@ export default function OrdersPage() {
                     {order.status === "on route" && (
                       <button
                         onClick={() => openReviewModal(order)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-all"
+                        className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-all"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Confirmer la réception
@@ -586,7 +586,7 @@ export default function OrdersPage() {
                     )}
                     <button
                       onClick={() => handlePrintInvoice(order)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
+                      className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
                     >
                       <Printer className="w-4 h-4" />
                       Imprimer la réserve
@@ -724,11 +724,11 @@ export default function OrdersPage() {
 
       {/* Upload Payment Modal - Show all orders at once */}
       {showUploadModal && pendingOrderIds.length > 0 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-xl">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Uploader les preuves de paiement</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl max-w-4xl w-full max-h-[92dvh] sm:max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center gap-3 border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-2xl sm:rounded-t-xl">
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Uploader les preuves de paiement</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   {pendingOrderIds.length} réserve{pendingOrderIds.length > 1 ? "s" : ""} nécessite{pendingOrderIds.length > 1 ? "nt" : ""} une preuve de paiement
                 </p>
@@ -749,7 +749,7 @@ export default function OrdersPage() {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
               {pendingOrderIds.map((orderId, index) => {
                 const order = orders.find(o => o._id === orderId);
                 if (!order) return null;
@@ -761,18 +761,18 @@ export default function OrdersPage() {
                 return (
                   <div
                     key={orderId}
-                    className="border-2 border-gray-200 rounded-xl p-6 bg-gradient-to-br from-gray-50 to-white hover:border-blue-300 transition-all"
+                    className="border-2 border-gray-200 rounded-xl p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-white hover:border-blue-300 transition-all"
                   >
                     {/* Order Header with Supplier Details */}
                     <div className="mb-4 pb-4 border-b border-gray-200">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-3">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">
                               {index + 1}
                             </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-gray-900">
+                            <div className="min-w-0">
+                              <h4 className="text-base sm:text-lg font-bold text-gray-900">
                                 Réserve #{order._id.slice(-8).toUpperCase()}
                               </h4>
                               <p className="text-sm text-gray-500">
@@ -781,8 +781,8 @@ export default function OrdersPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-blue-600">
+                        <div className="sm:text-right shrink-0">
+                          <p className="text-xl sm:text-2xl font-bold text-blue-600">
                             {order.total.toFixed(2)} DA
                           </p>
                         </div>
@@ -798,9 +798,9 @@ export default function OrdersPage() {
                           {order.idSupplier.firstName} {order.idSupplier.lastName}
                         </p>
                         <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            <span>{order.idSupplier.email}</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <Mail className="w-4 h-4 shrink-0" />
+                            <span className="break-all">{order.idSupplier.email}</span>
                           </div>
                           {order.idSupplier.phone && (
                             <div className="flex items-center gap-1">
@@ -825,8 +825,8 @@ export default function OrdersPage() {
 
                     {/* Payment Upload Section */}
                     {payments[orderId] ? (
-                      <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      <div className="flex flex-wrap items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
                         <span className="text-sm text-green-700 font-medium">Preuve de paiement déjà uploadée</span>
                         <button
                           onClick={() => {
@@ -961,7 +961,10 @@ export default function OrdersPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-xl">
+            <div
+              className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 sm:rounded-b-xl"
+              style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            >
               <button
                 onClick={() => {
                   setShowUploadModal(false);

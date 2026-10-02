@@ -4776,6 +4776,8 @@ export interface Category {
   type_catgory: "machine" | "services" | "product";
   excelFile?: string | null;
   excelFileName?: string | null;
+  /** Header row of the admin's category Excel (columns suppliers must fill) */
+  excelColumns?: string[];
   createdAt: string;
   updatedAt: string;
   sousCategories: SousCategory[];
@@ -4900,7 +4902,6 @@ const formData = new FormData();
     if (data.type_catgory) formData.append("type_catgory", data.type_catgory);
     if (data.image) formData.append("image", data.image);
     if (data.excelFile) formData.append("excelFile", data.excelFile);
-
     const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/${categoryId}`, {
       method: "PUT",
 body: formData,

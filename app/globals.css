@@ -37,6 +37,21 @@ body {
   box-sizing: border-box;
 }
 
+/* Space taken by the lab bottom tab bar (phones only, set by LabBottomNav) */
+:root {
+  --lab-nav-offset: 0px;
+}
+
+@media (max-width: 767.98px) {
+  html[data-lab-nav] {
+    --lab-nav-offset: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  html[data-lab-nav] body {
+    padding-bottom: var(--lab-nav-offset);
+  }
+}
+
 /* Modern Animations */
 @keyframes fade-in-up {
   from {

@@ -22,6 +22,8 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Heart,
+  Building2,
 } from "lucide-react";
 import { checkAuthSession, getProfile, updateProfile, updatePassword, getDevices, Device } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
@@ -177,25 +179,47 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-12">
         {/* Header */}
-        <div className="mb-8 animate-fade-in-up">
+        <div className="mb-6 sm:mb-8 animate-fade-in-up">
           <Link
             href="/home"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group"
+            className="inline-flex items-center gap-2 text-sm sm:text-base text-gray-600 hover:text-blue-600 transition-colors mb-3 sm:mb-4 group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>Retour à l'accueil</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform">
-              <User className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform">
+              <User className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Mon Profil</h1>
-              <p className="text-gray-600">Gérez vos informations personnelles et votre sécurité</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Mon Profil</h1>
+              <p className="text-sm sm:text-base text-gray-600">Gérez vos informations personnelles et votre sécurité</p>
             </div>
           </div>
+        </div>
+
+        {/* Quick links */}
+        <div className="mb-5 grid grid-cols-2 gap-3 md:hidden">
+          <Link
+            href="/favorable"
+            className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-sm active:scale-[0.98] transition-transform"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+              <Heart className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-semibold text-gray-900">Mes favoris</span>
+          </Link>
+          <Link
+            href="/suppliers"
+            className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-sm active:scale-[0.98] transition-transform"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-semibold text-gray-900">Fournisseurs</span>
+          </Link>
         </div>
 
         {/* Tabs */}
@@ -203,39 +227,39 @@ export default function ProfilePage() {
           <div className="flex gap-2 bg-white/80 backdrop-blur-md rounded-xl p-1 shadow-lg border border-gray-200">
             <button
               onClick={() => setActiveTab("profile")}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+              className={`flex-1 px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-base rounded-lg font-medium transition-all duration-300 ${
                 activeTab === "profile"
-                  ? "bg-blue-600 text-white shadow-md transform scale-105"
+                  ? "bg-blue-600 text-white shadow-md sm:scale-105"
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
                 <User className="w-4 h-4" />
                 <span>Profil</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab("password")}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+              className={`flex-1 px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-base rounded-lg font-medium transition-all duration-300 ${
                 activeTab === "password"
-                  ? "bg-blue-600 text-white shadow-md transform scale-105"
+                  ? "bg-blue-600 text-white shadow-md sm:scale-105"
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
                 <Lock className="w-4 h-4" />
                 <span>Mot de passe</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab("security")}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+              className={`flex-1 px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-base rounded-lg font-medium transition-all duration-300 ${
                 activeTab === "security"
-                  ? "bg-blue-600 text-white shadow-md transform scale-105"
+                  ? "bg-blue-600 text-white shadow-md sm:scale-105"
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
                 <Shield className="w-4 h-4" />
                 <span>Sécurité</span>
               </div>
@@ -260,9 +284,9 @@ export default function ProfilePage() {
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Informations personnelles</h2>
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg sm:shadow-2xl p-4 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Informations personnelles</h2>
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
@@ -295,7 +319,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Prénom</label>
                 {isEditing ? (
@@ -333,8 +357,8 @@ export default function ProfilePage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl">
-                  <Mail className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-900">{userData.email}</span>
+                  <Mail className="w-5 h-5 text-gray-400 shrink-0" />
+                  <span className="text-gray-900 min-w-0 break-all">{userData.email}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">L'email ne peut pas être modifié</p>
               </div>
@@ -378,8 +402,8 @@ export default function ProfilePage() {
 
         {/* Password Tab */}
         {activeTab === "password" && (
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Changer le mot de passe</h2>
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg sm:shadow-2xl p-4 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Changer le mot de passe</h2>
 
             <div className="space-y-6 max-w-2xl">
               <div>
@@ -453,21 +477,21 @@ export default function ProfilePage() {
 
         {/* Security Tab */}
         {activeTab === "security" && (
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Appareils connectés</h2>
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg sm:shadow-2xl p-4 sm:p-8 border border-gray-200 animate-fade-in-up animation-delay-300">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Appareils connectés</h2>
 
             <div className="space-y-4">
               {devices.map((device, index) => (
                 <div
                   key={device.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all animate-fade-in-up"
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-blue-300 transition-all animate-fade-in-up"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="w-12 h-12 shrink-0 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
                       {getDeviceIcon(device.type)}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-semibold text-gray-900">{device.name}</h3>
                       <p className="text-sm text-gray-600">
                         Dernière connexion: {new Date(device.lastActive).toLocaleString("fr-FR")}

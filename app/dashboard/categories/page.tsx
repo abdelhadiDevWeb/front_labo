@@ -310,12 +310,7 @@ export default function CategoriesPage() {
         excelFile: categoryExcelFile!,
       });
       if (result.success) {
-        const imported = (result.data as any)?.excelImport?.imported;
-        setSuccess(
-          imported
-            ? `Catégorie créée — ${imported} élément(s) importé(s) depuis Excel`
-            : "Catégorie créée avec succès"
-        );
+        setSuccess("Catégorie créée avec succès");
         closeModal();
         await loadCategories();
         setTimeout(() => setSuccess(null), 4000);
@@ -353,13 +348,7 @@ export default function CategoriesPage() {
         excelFile: categoryExcelFile || undefined,
       });
       if (result.success) {
-        const imported = (result.data as { excelImport?: { imported?: number } } | undefined)
-          ?.excelImport?.imported;
-        setSuccess(
-          imported
-            ? `Catégorie mise à jour — ${imported} élément(s) importé(s) depuis Excel`
-            : "Catégorie mise à jour"
-        );
+        setSuccess("Catégorie mise à jour");
         closeModal();
         await loadCategories();
         setTimeout(() => setSuccess(null), 4000);
@@ -587,15 +576,16 @@ export default function CategoriesPage() {
                         </label>
                         <p className="text-xs text-gray-600 mt-1">
                           {modalType === "editCategory"
-                            ? "Fichier obligatoire. Vous pouvez conserver le fichier actuel ou en importer un nouveau ("
-                            : "Fichier obligatoire. Importez le listing XLS de cette catégorie ("}
+                            ? "Fichier obligatoire. Vous pouvez conserver le fichier actuel ou en importer un nouveau. "
+                            : "Fichier obligatoire. "}
+                          Seule la première ligne (les noms des colonnes) est utilisée : elle
+                          devient le modèle que les fournisseurs remplissent pour cette catégorie (
                           {categoryType === "machine"
                             ? "machines"
                             : categoryType === "services"
                               ? "services"
                               : "produits"}
-                          ). Les sous-catégories ne sont pas créées automatiquement — ajoutez-les
-                          manuellement si besoin.
+                          ). Les lignes de données du fichier ne sont pas importées.
                         </p>
                       </div>
                     </div>
