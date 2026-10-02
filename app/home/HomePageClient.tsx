@@ -631,17 +631,17 @@ export default function HomePage() {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/images/logo.jpeg"
+                  src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}
-                  width={280}
-                  height={140}
-                  className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto object-contain rounded-xl"
+                  width={274}
+                  height={200}
+                  className="h-12 sm:h-14 md:h-[4.5rem] lg:h-20 w-auto object-contain"
                   priority
                 />
              
               </div>
             </Link>
-            <div className="hidden md:flex items-center gap-8 lg:gap-10">
+            <div className="hidden md:flex items-center gap-5 lg:gap-8 xl:gap-10">
               <a href="#accueil" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Accueil
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
@@ -1003,29 +1003,26 @@ export default function HomePage() {
                 <stop offset="100%" stopColor="white" stopOpacity="0.5" />
               </linearGradient>
             </defs>
-            {/* Main Wave - Animated */}
+            {/* Main Wave */}
             <path 
               d="M0,120 Q360,80 720,100 T1440,120 L1440,200 L0,200 Z" 
               fill="url(#waveGradient)"
-              className="animate-wave"
             />
-            {/* Secondary Wave - Delayed Animation */}
+            {/* Secondary Wave */}
             <path 
               d="M0,140 Q360,100 720,120 T1440,140 L1440,200 L0,200 Z" 
               fill="url(#waveGradient2)"
-              className="animate-wave-delayed"
             />
-            {/* Accent Wave - Slow Animation */}
+            {/* Accent Wave */}
             <path 
               d="M0,160 Q240,120 480,140 T960,160 T1440,150 L1440,200 L0,200 Z" 
               fill="url(#waveGradient3)"
-              className="animate-wave-slow"
             />
           </svg>
           {/* Gradient Overlay for Smooth Transition */}
           <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-b from-transparent via-white/30 to-white pointer-events-none"></div>
           {/* Shine Effect */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none animate-shimmer"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
         </div>
       </section>
 
@@ -1929,14 +1926,11 @@ export default function HomePage() {
             <div className="col-span-2 sm:col-span-1">
               <div className="flex items-center gap-2 mb-3 sm:mb-4" >
                 <Image
-                style={{
-                  borderRadius: "8px",
-                }}
-                  src="/images/logo.jpeg"
+                  src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}
                   width={120}
-                  height={120}
-                  className="h-10 sm:h-12 w-auto object-contain rounded-lg"
+                  height={88}
+                  className="h-10 sm:h-12 w-auto object-contain"
                 />
               </div>
               <p className="text-gray-400 text-xs sm:text-sm">

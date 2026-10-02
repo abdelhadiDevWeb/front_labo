@@ -104,17 +104,17 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
-                  src="/images/logo.jpeg"
+                  src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}
-                  width={280}
-                  height={140}
-                  className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto object-contain rounded-xl"
+                  width={274}
+                  height={200}
+                  className="h-12 sm:h-14 md:h-[4.5rem] lg:h-20 w-auto object-contain"
                   priority
                 />
               </div>
             </Link>
 
-            <div className="hidden md:flex items-center gap-8 lg:gap-10">
+            <div className="hidden md:flex items-center gap-5 lg:gap-8 xl:gap-10">
               <Link href="/home" className={navLinkClass}>
                 Accueil
                 <span className={navUnderline} />
@@ -123,7 +123,7 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                 À propos
                 <span className={navUnderline} />
               </Link>
-              <HomeDesktopNavMenus showSuppliers={isAuthenticated} />
+              <HomeDesktopNavMenus showSuppliers={isAuthenticated} promotionAlert={isAuthenticated} />
               <Link href="/contact" className={navLinkClass}>
                 Contact
                 <span className={navUnderline} />
@@ -205,6 +205,7 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                 <HomeMobileNavMenus
                   onNavigate={() => setMobileMenuOpen(false)}
                   showSuppliers={isAuthenticated}
+                  promotionAlert={isAuthenticated}
                 />
                 <Link
                   href="/contact"
@@ -281,12 +282,11 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
             <div className="col-span-2 sm:col-span-1">
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <Image
-                  style={{ borderRadius: "8px" }}
-                  src="/images/logo.jpeg"
+                  src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}
                   width={120}
-                  height={120}
-                  className="h-10 sm:h-12 w-auto object-contain rounded-lg"
+                  height={88}
+                  className="h-10 sm:h-12 w-auto object-contain"
                 />
               </div>
               <p className="text-gray-400 text-xs sm:text-sm">

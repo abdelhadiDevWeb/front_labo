@@ -7,14 +7,18 @@ const path = require("path");
 const fs = require("fs");
 
 const ROOT = path.join(__dirname, "..");
-const INPUT = path.join(ROOT, "public", "images", "logo.jpeg");
+const INPUT = path.join(ROOT, "public", "images", "logo.png");
 
 async function makeCircleIcon(size, outPath) {
+  const white = { r: 255, g: 255, b: 255, alpha: 1 };
+  // The logo is transparent and wider than tall: flatten on white and shrink it so its corners stay inside the circle.
+  const inner = Math.round(size * 0.78);
+  const before = Math.floor((size - inner) / 2);
+  const after = size - inner - before;
   const resized = await sharp(INPUT)
-    .resize(size, size, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    })
+    .flatten({ background: white })
+    .resize(inner, inner, { fit: "contain", background: white })
+    .extend({ top: before, bottom: after, left: before, right: after, background: white })
     .png()
     .toBuffer();
 

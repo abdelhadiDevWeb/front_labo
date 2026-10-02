@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 import { getSessionRole } from "@/lib/api";
 import { formatCatalogPriceDa } from "@/lib/catalog-price";
+import AntiCapturePrice from "@/components/AntiCapturePrice";
+import PriceWatermark from "@/components/PriceWatermark";
 
 type CatalogPriceProps = {
   amount: number | string | null | undefined;
@@ -18,6 +20,11 @@ type CatalogPriceProps = {
   linkToLogin?: boolean;
   fractionDigits?: number;
   loginHref?: string;
+  /** Render the visible price as a motion-only canvas pattern that photos/screenshots cannot capture. */
+  antiCapture?: boolean;
+  antiCaptureFontSize?: number;
+  /** Overlay the viewer's email + date so photos/screenshots of the price are traceable. */
+  watermark?: boolean;
 };
 
 /**
@@ -33,6 +40,9 @@ export default function CatalogPrice({
   linkToLogin = true,
   fractionDigits = 2,
   loginHref = "/login",
+  antiCapture = false,
+  antiCaptureFontSize = 32,
+  watermark = false,
 }: CatalogPriceProps) {
   const [sessionVisible, setSessionVisible] = useState(false);
   const [ready, setReady] = useState(visible !== undefined);
@@ -88,6 +98,23 @@ export default function CatalogPrice({
       >
         {hint}
       </Link>
+    );
+  }
+
+  if (antiCapture) {
+    return (
+      <AntiCapturePrice
+        text={formatCatalogPriceDa(amount, fractionDigits)}
+        fontSize={antiCaptureFontSize}
+      />
+    );
+  }
+
+  if (watermark) {
+    return (
+      <PriceWatermark className="py-2">
+        <span className={className}>{formatCatalogPriceDa(amount, fractionDigits)}</span>
+      </PriceWatermark>
     );
   }
 

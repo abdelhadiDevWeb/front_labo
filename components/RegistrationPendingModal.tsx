@@ -12,6 +12,8 @@ interface RegistrationPendingModalProps {
   selectedPlanName?: string;
   /** False for accounts activated by the admin without a subscription (labs). */
   withSubscription?: boolean;
+  /** Free plan: nothing to pay, only the admin confirmation is pending. */
+  freePlan?: boolean;
   onClose?: () => void;
 }
 
@@ -21,6 +23,7 @@ export default function RegistrationPendingModal({
   documentLabel = "documents",
   selectedPlanName,
   withSubscription = true,
+  freePlan = false,
   onClose,
 }: RegistrationPendingModalProps) {
   const router = useRouter();
@@ -45,29 +48,30 @@ export default function RegistrationPendingModal({
         onClick={onClose}
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all animate-fade-in-up border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-green-100 rounded-xl">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto transform transition-all animate-fade-in-up border border-gray-200">
+          <div className="p-5 sm:p-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 sm:p-3 bg-green-100 rounded-xl shrink-0">
+                <CheckCircle className="w-7 h-7 sm:w-8 sm:h-8 text-green-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h3>
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-5 sm:p-6">
             <p className="text-gray-700 mb-2 leading-relaxed">
               Vos {documentLabel} ont été enregistrés avec succès.
             </p>
             {selectedPlanName && (
               <p className="text-gray-700 mb-2 leading-relaxed">
-                Plan choisi : <strong>{selectedPlanName}</strong> — paiement en main propre.
+                Plan choisi : <strong>{selectedPlanName}</strong> —{" "}
+                {freePlan ? "gratuit." : "paiement en main propre."}
               </p>
             )}
             <p className="text-gray-700 mb-6 leading-relaxed">
               Vous devez maintenant attendre la dernière étape :{" "}
               <strong>
-                {withSubscription
+                {withSubscription && !freePlan
                   ? "la confirmation de votre compte et le règlement de votre abonnement par l'administrateur"
                   : "la confirmation de votre compte par l'administrateur"}
               </strong>.

@@ -47,7 +47,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
 
   const loadPlans = useCallback(async () => {
     setIsLoadingPlans(true);
-    const result = await getPublicSubscriptionPlans();
+    const result = await getPublicSubscriptionPlans("supplier");
     if (result.success && result.data?.subscriptionTypes) {
       setPlans(result.data.subscriptionTypes);
     } else {

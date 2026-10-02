@@ -27,6 +27,8 @@ import {
   Trash2,
   AlertTriangle,
   Package,
+  FlaskConical,
+  Truck,
 } from "lucide-react";
 import {
   getUsersForSubscription,
@@ -48,10 +50,12 @@ import {
   SubscriptionType,
   CreateSubscriptionTypeData,
   UpdateSubscriptionTypeData,
+  SubscriptionAudience,
   getSessionRole,
   updateUserStatus,
+  apiFetch,
 } from "@/lib/api";
-import { getBaseUrl } from "@/lib/api-config";
+import { getMediaUrl } from "@/lib/media-url";
 import { useRouter } from "next/navigation";
 import { isSouAdminRole } from "@/lib/admin-access";
 import SubscriptionRequestsPanel from "@/components/admin/SubscriptionRequestsPanel";
@@ -97,6 +101,7 @@ export default function SubscriptionsPage() {
   const [createTypeFormData, setCreateTypeFormData] = useState<
     Omit<CreateSubscriptionTypeData, "max_products">
   >({
+    type: "supplier",
     name: "",
     description: "",
     time: 1,
@@ -106,6 +111,7 @@ export default function SubscriptionsPage() {
   });
 
   const [updateTypeFormData, setUpdateTypeFormData] = useState<UpdateSubscriptionTypeData>({
+    type: "supplier",
     name: "",
     description: "",
     time: 1,
@@ -115,6 +121,7 @@ export default function SubscriptionsPage() {
   });
 
   const emptyCreateTypeForm = (): Omit<CreateSubscriptionTypeData, "max_products"> => ({
+    type: "supplier",
     name: "",
     description: "",
     time: 1,
@@ -332,6 +339,10 @@ export default function SubscriptionsPage() {
     }
   };
 
+  const plansForSelectedUser = subscriptionTypes.filter(
+    (t) => (t.type ?? "supplier") === (selectedUser?.role === "client" ? "labo" : "supplier")
+  );
+
   const handleOpenCreateModal = (user: SubscriptionUser) => {
     setSelectedUser(user);
     const today = new Date().toISOString().split("T")[0];
@@ -364,16 +375,17 @@ export default function SubscriptionsPage() {
     setSuccess(null);
 
     try {
+      const isLabo = createTypeFormData.type === "labo";
       const sponsors = createTypeFormData.sponsorsPerMonth ?? 0;
       const hours = createTypeFormData.sponsorDurationHours ?? 0;
-      if (sponsors > 0 && hours < 1) {
+      if (!isLabo && sponsors > 0 && hours < 1) {
         setError("Indiquez la durée de chaque sponsor en heures (minimum 1).");
         setIsCreatingType(false);
         return;
       }
 
       const maxProducts = parseMaxProducts(createMaxProducts);
-      if (maxProducts === null) {
+      if (!isLabo && maxProducts === null) {
         setError("Indiquez le nombre maximum de produits (0 ou plus).");
         setIsCreatingType(false);
         return;
@@ -381,12 +393,20 @@ export default function SubscriptionsPage() {
 
       // Convert months to days if needed
       const timeInDays = durationUnit === "months" ? durationMonths * 30 : createTypeFormData.time;
-      const formDataToSend: CreateSubscriptionTypeData = {
-        ...createTypeFormData,
-        time: timeInDays,
-        sponsorDurationHours: sponsors > 0 ? hours : 0,
-        max_products: maxProducts,
-      };
+      const formDataToSend: CreateSubscriptionTypeData = isLabo
+        ? {
+            type: "labo",
+            name: createTypeFormData.name,
+            description: createTypeFormData.description,
+            time: timeInDays,
+            price: createTypeFormData.price,
+          }
+        : {
+            ...createTypeFormData,
+            time: timeInDays,
+            sponsorDurationHours: sponsors > 0 ? hours : 0,
+            max_products: maxProducts ?? undefined,
+          };
 
       const result = await createSubscriptionType(formDataToSend);
       if (result.success && result.data) {
@@ -420,16 +440,17 @@ export default function SubscriptionsPage() {
     setSuccess(null);
 
     try {
+      const isLabo = updateTypeFormData.type === "labo";
       const sponsors = updateTypeFormData.sponsorsPerMonth ?? 0;
       const hours = updateTypeFormData.sponsorDurationHours ?? 0;
-      if (sponsors > 0 && hours < 1) {
+      if (!isLabo && sponsors > 0 && hours < 1) {
         setError("Indiquez la durée de chaque sponsor en heures (minimum 1).");
         setIsUpdatingType(false);
         return;
       }
 
       const maxProducts = parseMaxProducts(updateMaxProducts);
-      if (maxProducts === null) {
+      if (!isLabo && maxProducts === null) {
         setError("Indiquez le nombre maximum de produits (0 ou plus).");
         setIsUpdatingType(false);
         return;
@@ -437,12 +458,20 @@ export default function SubscriptionsPage() {
 
       // Convert months to days if needed
       const timeInDays = updateDurationUnit === "months" ? updateDurationMonths * 30 : getUpdateTimeValue();
-      const formDataToSend: UpdateSubscriptionTypeData = {
-        ...updateTypeFormData,
-        time: timeInDays,
-        sponsorDurationHours: sponsors > 0 ? hours : 0,
-        max_products: maxProducts,
-      };
+      const formDataToSend: UpdateSubscriptionTypeData = isLabo
+        ? {
+            type: "labo",
+            name: updateTypeFormData.name,
+            description: updateTypeFormData.description,
+            time: timeInDays,
+            price: updateTypeFormData.price,
+          }
+        : {
+            ...updateTypeFormData,
+            time: timeInDays,
+            sponsorDurationHours: sponsors > 0 ? hours : 0,
+            max_products: maxProducts ?? undefined,
+          };
 
       const result = await updateSubscriptionType(selectedType.id, formDataToSend);
       if (result.success && result.data) {
@@ -494,6 +523,7 @@ export default function SubscriptionsPage() {
     const isRoughlyMonths = Math.abs(days - months * 30) <= 2; // Allow 2 days tolerance
     
     const typeFormBase = {
+      type: type.type ?? "supplier",
       name: type.name,
       description: type.description || "",
       time: days,
@@ -568,9 +598,36 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const getFileUrl = (filePath: string) => {
-    const baseUrl = getBaseUrl();
-    return `${baseUrl}/${filePath}`;
+  // Documents are auth-protected and served as attachments, so fetch them with the
+  // session and show the PDF from a blob URL instead of linking to the file.
+  const openPaperFile = async (filePath?: string) => {
+    const url = getMediaUrl(filePath);
+    if (!url) {
+      setError("Document introuvable");
+      return;
+    }
+    setError(null);
+    // Opened synchronously so the popup blocker treats it as user-initiated
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
+    try {
+      const response = await apiFetch(url, { method: "GET", cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      if (tab) {
+        tab.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, "_blank");
+      }
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err) {
+      console.error("Open paper file error:", err);
+      tab?.close();
+      setError("Impossible d'ouvrir le document. Le fichier est peut-être manquant sur le serveur.");
+    }
   };
 
   const filteredUsers = users.filter(
@@ -1316,7 +1373,15 @@ export default function SubscriptionsPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900">{type.name}</h4>
-                        <p className="text-sm text-gray-500">Type d'abonnement</p>
+                        <span
+                          className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            type.type === "labo"
+                              ? "bg-cyan-100 text-cyan-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {type.type === "labo" ? "Laboratoire" : "Fournisseur"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1337,6 +1402,8 @@ export default function SubscriptionsPage() {
                       <DollarSign className="w-4 h-4" />
                       Prix: {type.price.toLocaleString("fr-FR")} DA
                     </div>
+                    {type.type !== "labo" && (
+                    <>
                     {type.max_products != null ? (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Package className="w-4 h-4" />
@@ -1365,6 +1432,8 @@ export default function SubscriptionsPage() {
                           return `${hours} heure${hours > 1 ? "s" : ""}`;
                         })()}
                       </div>
+                    )}
+                    </>
                     )}
                     {type.description && (
                       <p className="text-sm text-gray-500 line-clamp-2">{type.description}</p>
@@ -1443,7 +1512,7 @@ export default function SubscriptionsPage() {
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                   Type d'abonnement <span className="text-red-500">*</span>
                 </label>
-                {subscriptionTypes.length > 0 ? (
+                {plansForSelectedUser.length > 0 ? (
                   <select
                     required
                     value={createFormData.typeId || ""}
@@ -1463,7 +1532,7 @@ export default function SubscriptionsPage() {
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                   >
                     <option value="">Sélectionner un type d'abonnement</option>
-                    {subscriptionTypes.map((type) => (
+                    {plansForSelectedUser.map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.name} - {type.time} {type.time === 1 ? "jour" : "jours"} - {type.price.toLocaleString("fr-FR")} DA
                       </option>
@@ -1471,7 +1540,9 @@ export default function SubscriptionsPage() {
                   </select>
                 ) : (
                   <div className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-yellow-200 bg-yellow-50 rounded-lg sm:rounded-xl text-xs sm:text-sm text-yellow-800">
-                    Aucun type d'abonnement disponible. Veuillez créer un type d'abonnement d'abord.
+                    Aucun type d'abonnement{" "}
+                    {selectedUser?.role === "client" ? "laboratoire" : "fournisseur"} disponible. Veuillez
+                    créer un type d'abonnement d'abord.
                   </div>
                 )}
                 {createFormData.typeId && (
@@ -1745,17 +1816,36 @@ export default function SubscriptionsPage() {
                       Carte d'identité
                     </h4>
                     <div className="flex gap-2 sm:gap-3">
-                      <a
-                        href={getFileUrl(selectedUserPapers.identity)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => void openPaperFile(selectedUserPapers.identity)}
                         className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
                       >
                         <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                         Voir
-                      </a>
+                      </button>
                     </div>
             </div>
+
+                  {/* Agrément (for labs) */}
+                  {selectedUserPapers.type === "client" && selectedUserPapers.agrement && (
+                    <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+                      <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                        L&apos;agrément
+                      </h4>
+                      <div className="flex gap-2 sm:gap-3">
+                        <button
+                          type="button"
+                          onClick={() => void openPaperFile(selectedUserPapers.agrement)}
+                          className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
+                        >
+                          <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                          Voir
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Tax Number (for suppliers) */}
                   {selectedUserPapers.type === "supplier" && selectedUserPapers.Tax_number && (
@@ -1765,15 +1855,14 @@ export default function SubscriptionsPage() {
                         Numéro de taxe
                       </h4>
                       <div className="flex gap-2 sm:gap-3">
-                        <a
-                          href={getFileUrl(selectedUserPapers.Tax_number)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => void openPaperFile(selectedUserPapers.Tax_number)}
                           className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
                         >
                           <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                           Voir
-                        </a>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1786,15 +1875,14 @@ export default function SubscriptionsPage() {
                         Registre commercial
                       </h4>
                       <div className="flex gap-2 sm:gap-3">
-                        <a
-                          href={getFileUrl(selectedUserPapers.commercial_register)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => void openPaperFile(selectedUserPapers.commercial_register)}
                           className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base w-full sm:w-auto justify-center"
                         >
                           <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                           Voir
-                        </a>
+                        </button>
             </div>
           </div>
                   )}
@@ -1857,6 +1945,10 @@ export default function SubscriptionsPage() {
                         <Tag className="w-4 h-4 text-blue-600" />
                         Informations générales
                       </h4>
+                      <PlanAudiencePicker
+                        value={createTypeFormData.type}
+                        onChange={(type) => setCreateTypeFormData({ ...createTypeFormData, type })}
+                      />
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           Nom du type <span className="text-red-500">*</span>
@@ -1995,6 +2087,8 @@ export default function SubscriptionsPage() {
                       </div>
                     </div>
 
+                    {createTypeFormData.type !== "labo" && (
+                    <>
                     <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 space-y-3">
                       <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
                         <Package className="w-4 h-4 text-emerald-600" />
@@ -2072,6 +2166,8 @@ export default function SubscriptionsPage() {
                         déduit 1 du solde restant et dure le nombre d&apos;heures indiqué (ex. 24 = 1 jour, 48 = 2 jours).
                       </p>
                     </div>
+                    </>
+                    )}
                   </div>
                 </div>
 
@@ -2091,16 +2187,25 @@ export default function SubscriptionsPage() {
                     <DollarSign className="w-4 h-4" />
                     {createTypeFormData.price.toLocaleString("fr-FR")} DA
                   </span>
-                  <span className="inline-flex items-center gap-2 text-emerald-800">
-                    <Package className="w-4 h-4" />
-                    {createMaxProducts.trim() !== "" ? createMaxProducts : "?"} produit(s) max
-                  </span>
-                  <span className="inline-flex items-center gap-2 text-purple-800">
-                    <Megaphone className="w-4 h-4" />
-                    {createTypeFormData.sponsorsPerMonth ?? 0} sponsor(s)
-                    {(createTypeFormData.sponsorsPerMonth ?? 0) > 0 &&
-                      ` · ${createTypeFormData.sponsorDurationHours ?? 48} h`}
-                  </span>
+                  {createTypeFormData.type === "labo" ? (
+                    <span className="inline-flex items-center gap-2 text-cyan-800 font-medium">
+                      <FlaskConical className="w-4 h-4" />
+                      Laboratoire
+                    </span>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center gap-2 text-emerald-800">
+                        <Package className="w-4 h-4" />
+                        {createMaxProducts.trim() !== "" ? createMaxProducts : "?"} produit(s) max
+                      </span>
+                      <span className="inline-flex items-center gap-2 text-purple-800">
+                        <Megaphone className="w-4 h-4" />
+                        {createTypeFormData.sponsorsPerMonth ?? 0} sponsor(s)
+                        {(createTypeFormData.sponsorsPerMonth ?? 0) > 0 &&
+                          ` · ${createTypeFormData.sponsorDurationHours ?? 48} h`}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2165,6 +2270,10 @@ export default function SubscriptionsPage() {
               </button>
             </div>
             <form onSubmit={handleUpdateType} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+              <PlanAudiencePicker
+                value={updateTypeFormData.type ?? "supplier"}
+                onChange={(type) => setUpdateTypeFormData({ ...updateTypeFormData, type })}
+              />
               <div>
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                   Nom du type <span className="text-red-500">*</span>
@@ -2190,6 +2299,8 @@ export default function SubscriptionsPage() {
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none resize-none"
                 />
               </div>
+              {updateTypeFormData.type !== "labo" && (
+              <>
               <div>
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                   Produits max <span className="text-red-500">*</span>
@@ -2253,6 +2364,8 @@ export default function SubscriptionsPage() {
                   Durée d&apos;affichage de chaque sponsor inclus (en heures). Ex. 24 = 1 jour, 48 = 2 jours.
                 </p>
               </div>
+              </>
+              )}
               <div>
                 <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                   <label className="block text-xs sm:text-sm font-semibold text-gray-700">
@@ -2448,6 +2561,62 @@ export default function SubscriptionsPage() {
         </div>,
         document.body
       )}
+    </div>
+  );
+}
+
+const PLAN_AUDIENCE_OPTIONS: {
+  value: SubscriptionAudience;
+  label: string;
+  hint: string;
+  icon: typeof Truck;
+}[] = [
+  { value: "supplier", label: "Fournisseur", hint: "Prix, durée, produits max et sponsors", icon: Truck },
+  { value: "labo", label: "Laboratoire", hint: "Prix et durée uniquement", icon: FlaskConical },
+];
+
+function PlanAudiencePicker({
+  value,
+  onChange,
+}: {
+  value: SubscriptionAudience;
+  onChange: (value: SubscriptionAudience) => void;
+}) {
+  return (
+    <div>
+      <p className="block text-sm font-semibold text-gray-700 mb-2">
+        Type <span className="text-red-500">*</span>
+      </p>
+      <div role="radiogroup" aria-label="Type d'abonnement" className="grid grid-cols-2 gap-2">
+        {PLAN_AUDIENCE_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(option.value)}
+              className={`flex flex-col items-start gap-1 rounded-xl border-2 px-3 py-2.5 text-left transition-colors ${
+                selected
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 bg-white hover:border-blue-300"
+              }`}
+            >
+              <span
+                className={`flex items-center gap-2 text-sm font-semibold ${
+                  selected ? "text-blue-700" : "text-gray-800"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {option.label}
+              </span>
+              <span className="text-xs text-gray-500 leading-snug">{option.hint}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

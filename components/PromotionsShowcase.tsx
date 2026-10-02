@@ -1,14 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Percent, ArrowRight, Sparkles } from "lucide-react";
-import { getPublicPromotions, PublicPromotion } from "@/lib/api";
+import { getPublicPromotions, markPromotionsSeen, PublicPromotion } from "@/lib/api";
 import PromotionCard from "@/components/PromotionCard";
 
 export default function PromotionsShowcase() {
   const [promotions, setPromotions] = useState<PublicPromotion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const hasPromotions = !isLoading && promotions.length > 0;
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!hasPromotions || !section) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          void markPromotionsSeen();
+        }
+      },
+      // Root = top half of the viewport: fires once the section reaches mid-screen, whatever its height.
+      { rootMargin: "0px 0px -50% 0px" }
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [hasPromotions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +53,7 @@ export default function PromotionsShowcase() {
   }
 
   return (
-    <section id="promotions-section" className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-orange-50 via-white to-white scroll-mt-24">
+    <section ref={sectionRef} id="promotions-section" className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-orange-50 via-white to-white scroll-mt-24">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold mb-3">

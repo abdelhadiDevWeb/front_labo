@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getPromotionAlert, PROMOTIONS_SEEN_EVENT } from "@/lib/api";
 import {
   Building2,
   ChevronDown,
@@ -61,6 +62,58 @@ export const MARKETPLACE_MENU: HeaderMenuLink[] = [
   },
 ];
 
+const LIVE_HREF = "/live";
+const PROMOTIONS_HREF = "/products/promotions";
+
+/** Desktop and mobile menus mount together — share one request. */
+let promotionAlertRequest: Promise<boolean> | null = null;
+
+const fetchHasNewPromotions = (): Promise<boolean> => {
+  promotionAlertRequest ??= getPromotionAlert()
+    .then((result) => Boolean(result.success && result.data?.hasNew))
+    .catch(() => false)
+    .finally(() => {
+      promotionAlertRequest = null;
+    });
+  return promotionAlertRequest;
+};
+
+function useNewPromotionsAlert(enabled: boolean): boolean {
+  const [hasNew, setHasNew] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setHasNew(false);
+      return;
+    }
+    let cancelled = false;
+    let seen = false;
+    void fetchHasNewPromotions().then((value) => {
+      if (!cancelled && !seen) setHasNew(value);
+    });
+    const onSeen = () => {
+      seen = true;
+      setHasNew(false);
+    };
+    window.addEventListener(PROMOTIONS_SEEN_EVENT, onSeen);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PROMOTIONS_SEEN_EVENT, onSeen);
+    };
+  }, [enabled]);
+
+  return hasNew;
+}
+
+function AlertDot({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 ring-2 ring-white ${className}`}
+      aria-hidden
+    />
+  );
+}
+
 export const SUPPLIERS_MENU: HeaderMenuLink[] = [
   {
     href: "/suppliers",
@@ -79,9 +132,12 @@ export const SUPPLIERS_MENU: HeaderMenuLink[] = [
 function HeaderHoverMenu({
   label,
   items,
+  alertHref,
 }: {
   label: string;
   items: HeaderMenuLink[];
+  /** Item flagged with a red dot (the menu label gets one too). */
+  alertHref?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -104,6 +160,7 @@ function HeaderHoverMenu({
         }`}
         aria-haspopup="true"
         aria-expanded={open}
+        aria-label={alertHref ? `${label} — nouvelles promotions` : undefined}
       >
         <span className="relative">
           {label}
@@ -112,6 +169,7 @@ function HeaderHoverMenu({
               open ? "w-full" : "w-0"
             }`}
           />
+          {alertHref ? <AlertDot className="absolute -top-1.5 -right-2.5" /> : null}
         </span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-200 ${
@@ -134,6 +192,12 @@ function HeaderHoverMenu({
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   {item.label}
+                  {item.href === alertHref ? (
+                    <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                      Nouveau
+                      <AlertDot />
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -147,15 +211,31 @@ function HeaderHoverMenu({
 /** Desktop: Marketplace + optional Fournisseurs (parent waits for auth first). */
 export function HomeDesktopNavMenus({
   showSuppliers = false,
+  promotionAlert = false,
 }: {
   showSuppliers?: boolean;
+  /** Logged-in lab: flag promotions published since the last visit. */
+  promotionAlert?: boolean;
 }) {
+  const hasNewPromotions = useNewPromotionsAlert(promotionAlert);
+
   return (
     <>
-      <HeaderHoverMenu label="Marketplace" items={MARKETPLACE_MENU} />
+      <HeaderHoverMenu
+        label="Marketplace"
+        items={MARKETPLACE_MENU}
+        alertHref={hasNewPromotions ? PROMOTIONS_HREF : undefined}
+      />
       {showSuppliers ? (
         <HeaderHoverMenu label="Fournisseurs" items={SUPPLIERS_MENU} />
       ) : null}
+      <Link
+        href={LIVE_HREF}
+        className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-1.5"
+      >
+        Live
+        <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full" />
+      </Link>
     </>
   );
 }
@@ -164,12 +244,15 @@ export function HomeDesktopNavMenus({
 export function HomeMobileNavMenus({
   onNavigate,
   showSuppliers = false,
+  promotionAlert = false,
 }: {
   onNavigate?: () => void;
   showSuppliers?: boolean;
+  promotionAlert?: boolean;
 }) {
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [suppliersOpen, setSuppliersOpen] = useState(false);
+  const hasNewPromotions = useNewPromotionsAlert(promotionAlert);
 
   const renderLinks = (items: HeaderMenuLink[], close: () => void) =>
     items.map((item) => {
@@ -186,6 +269,12 @@ export function HomeMobileNavMenus({
         >
           <Icon className="w-4 h-4" />
           {item.label}
+          {hasNewPromotions && item.href === PROMOTIONS_HREF ? (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-red-600">
+              Nouveau
+              <AlertDot />
+            </span>
+          ) : null}
         </Link>
       );
     });
@@ -198,7 +287,10 @@ export function HomeMobileNavMenus({
         className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center justify-between"
         aria-expanded={marketplaceOpen}
       >
-        <span>Marketplace</span>
+        <span className="relative">
+          Marketplace
+          {hasNewPromotions ? <AlertDot className="absolute -top-1 -right-3" /> : null}
+        </span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-200 ${
             marketplaceOpen ? "rotate-180" : ""
@@ -233,6 +325,14 @@ export function HomeMobileNavMenus({
           )}
         </>
       )}
+
+      <Link
+        href={LIVE_HREF}
+        onClick={() => onNavigate?.()}
+        className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
+      >
+        Live
+      </Link>
     </>
   );
 }

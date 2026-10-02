@@ -58,9 +58,9 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: "/images/logo.jpeg",
-        width: 500,
-        height: 500,
+        url: "/images/logo-og.png",
+        width: 1200,
+        height: 630,
         alt: `${SITE_NAME} logo`,
       },
     ],
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
-    images: ["/images/logo.jpeg"],
+    images: ["/images/logo-og.png"],
   },
   robots: {
     index: true,
@@ -85,14 +85,14 @@ export const metadata: Metadata = {
   // Circular PNGs (transparent corners) — Google prefers multiples of 48px
   icons: {
     icon: [
-      { url: "/favicon.png?v=6", type: "image/png", sizes: "48x48" },
-      { url: "/favicon-96.png?v=6", type: "image/png", sizes: "96x96" },
-      { url: "/icon-192.png?v=6", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png?v=6", type: "image/png", sizes: "512x512" },
-      { url: "/favicon-32.png?v=6", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.png?v=7", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96.png?v=7", type: "image/png", sizes: "96x96" },
+      { url: "/icon-192.png?v=7", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=7", type: "image/png", sizes: "512x512" },
+      { url: "/favicon-32.png?v=7", type: "image/png", sizes: "32x32" },
     ],
-    apple: [{ url: "/apple-icon.png?v=6", type: "image/png", sizes: "180x180" }],
-    shortcut: "/favicon.png?v=6",
+    apple: [{ url: "/apple-icon.png?v=7", type: "image/png", sizes: "180x180" }],
+    shortcut: "/favicon.png?v=7",
   },
   manifest: "/site.webmanifest",
   formatDetection: {
@@ -116,7 +116,7 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: SITE_NAME,
   url: siteUrl,
-  logo: `${siteUrl}/images/logo.jpeg`,
+  logo: `${siteUrl}/images/logo.png`,
   description: SITE_DESCRIPTION,
   email: "dzmarketLab@gmail.com",
   telephone: "+213781079959",

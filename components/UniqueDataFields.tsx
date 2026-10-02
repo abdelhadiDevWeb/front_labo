@@ -2,6 +2,7 @@
 
 import { getUniqueDataEntries } from "@/lib/unique-data-display";
 import { isPriceFieldKey } from "@/lib/catalog-price";
+import AntiCapturePrice from "@/components/AntiCapturePrice";
 
 type Props = {
   data: Record<string, unknown> | null | undefined;
@@ -10,6 +11,8 @@ type Props = {
   excludeKeys?: string[];
   /** Hide prix / price fields (e.g. for guests). */
   hidePrices?: boolean;
+  /** Render visible prix / price values with the anti-capture canvas. */
+  protectPrices?: boolean;
 };
 
 export default function UniqueDataFields({
@@ -18,6 +21,7 @@ export default function UniqueDataFields({
   className = "",
   excludeKeys,
   hidePrices = false,
+  protectPrices = false,
 }: Props) {
   const entries = getUniqueDataEntries(data, { max, excludeKeys }).filter(
     ([key]) => !(hidePrices && isPriceFieldKey(key))
@@ -39,7 +43,17 @@ export default function UniqueDataFields({
           className="flex justify-between gap-3 text-xs sm:text-sm border-b border-gray-100 last:border-0 pb-1 last:pb-0"
         >
           <span className="text-gray-500 font-medium shrink-0">{key}</span>
-          <span className="text-gray-900 text-right break-all font-semibold">{value}</span>
+          {protectPrices && isPriceFieldKey(key) ? (
+            <AntiCapturePrice
+              text={String(value)}
+              fontSize={22}
+              color="#111827"
+              background="#f9fafb"
+              className="ml-auto"
+            />
+          ) : (
+            <span className="text-gray-900 text-right break-all font-semibold">{value}</span>
+          )}
         </div>
       ))}
     </div>

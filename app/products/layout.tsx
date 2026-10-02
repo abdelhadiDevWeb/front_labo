@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buildPageMetadata, PUBLIC_SEO_PAGES } from "@/lib/seo";
+import ContentProtection from "@/components/ContentProtection";
 
 const page = PUBLIC_SEO_PAGES.find((p) => p.path === "/products")!;
 
@@ -14,5 +15,10 @@ export default function ProductsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      <ContentProtection />
+    </>
+  );
 }

@@ -18,6 +18,7 @@ import { validatePdfFile } from "@/lib/file-validation";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { useOnboardingBackGuard } from "@/components/OnboardingBackGuard";
 import { uploadFormDataWithProgress } from "@/lib/upload-with-progress";
+import RegistrationStepper from "@/components/RegistrationStepper";
 
 type DocField = "Tax_number" | "identity" | "commercial_register";
 
@@ -295,11 +296,14 @@ function SupplierUploadForm() {
                   : "cursor-pointer hover:bg-gray-100"
               }`}
             >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <Upload className="w-10 h-10 mb-3 text-gray-400 group-hover:text-blue-600 transition-colors" />
+              <div className="flex flex-col items-center justify-center px-4 pt-5 pb-6 text-center">
+                <Upload className="w-8 h-8 sm:w-10 sm:h-10 mb-2 sm:mb-3 text-gray-400 group-hover:text-blue-600 transition-colors" />
                 <p className="mb-2 text-sm text-gray-500">
-                  <span className="font-semibold">Cliquez pour télécharger</span> ou
-                  glissez-déposez
+                  <span className="font-semibold">
+                    <span className="sm:hidden">Touchez pour choisir un PDF</span>
+                    <span className="hidden sm:inline">Cliquez pour télécharger</span>
+                  </span>
+                  <span className="hidden sm:inline"> ou glissez-déposez</span>
                 </p>
                 <p className="text-xs text-gray-500">PDF uniquement (MAX. 5MB)</p>
               </div>
@@ -326,7 +330,7 @@ function SupplierUploadForm() {
 
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8 ${
+      className={`min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-cyan-50 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:py-12 px-3 sm:px-6 lg:px-8 ${
         isLoading ? "pointer-events-none select-none" : ""
       }`}
       aria-busy={isLoading}
@@ -367,41 +371,33 @@ function SupplierUploadForm() {
       )}
 
       <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <button
             type="button"
             onClick={handleBack}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group disabled:opacity-40"
+            className="inline-flex items-center gap-2 py-1 text-sm sm:text-base text-gray-600 hover:text-blue-600 transition-colors mb-3 sm:mb-4 group disabled:opacity-40"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>
               {isEditMode || hasExistingDocs ? "Retour au choix du plan" : "Retour"}
             </span>
           </button>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+          {!isEditMode && (
+            <RegistrationStepper role="supplier" current={2} className="mb-5 sm:mb-6 max-w-lg" />
+          )}
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
             {hasExistingDocs ? "Vos documents" : "Télécharger vos documents"}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             Étape 2/3 —{" "}
             {hasExistingDocs
               ? "Vous pouvez conserver vos documents ou en remplacer certains."
               : "Après l'envoi, vous choisirez votre plan d'abonnement."}
           </p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs sm:text-sm">
-            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
-              1. Inscription
-            </span>
-            <span className="px-3 py-1 rounded-full bg-blue-600 text-white font-medium">
-              2. Documents
-            </span>
-            <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
-              3. Choisir un plan
-            </span>
-          </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl sm:shadow-2xl p-4 sm:p-8 border border-gray-200">
           {isCheckingDocs ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />

@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FlaskConical, Mail, Lock, Eye, EyeOff, User, Phone, Building2, AlertCircle, CheckCircle } from "lucide-react";
-import { registerClient, loginClient, apiFetch } from "@/lib/api";
+import { registerClient, loginClient, apiFetch, getPublicPolicies } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { getApiUrl, parseResponseJson } from "@/lib/api-config";
 import { validateOnboardingRedirect } from "@/lib/security";
 import { markSessionActive } from "@/lib/auth-session";
 import dynamic from "next/dynamic";
 import SupplierWilayaSelector from "@/components/SupplierWilayaSelector";
+import RegistrationStepper from "@/components/RegistrationStepper";
+import PolicyTermsModal from "@/components/PolicyTermsModal";
 import { type LocationData, isLocationComplete, enrichAlgeriaLocation } from "@/lib/location";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { ALGERIA_WILAYA_CODES, resolveWilayaFromCoordinates } from "@/lib/algeria-wilayas";
@@ -49,6 +51,42 @@ function RegisterPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState<Record<UserType, boolean>>({
+    supplier: false,
+    client: false,
+  });
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  const openTermsModal = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    setShowTermsModal(true);
+  };
+  const closeTermsModal = useCallback(() => setShowTermsModal(false), []);
+  const handleAcceptTerms = useCallback(() => {
+    setAcceptedTerms((prev) => ({ ...prev, [userType]: true }));
+    setShowTermsModal(false);
+  }, [userType]);
+  const handleTermsCheckboxChange = () => {
+    if (acceptedTerms[userType]) {
+      setAcceptedTerms((prev) => ({ ...prev, [userType]: false }));
+    } else {
+      setShowTermsModal(true);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const role = userType;
+    void getPublicPolicies(role === "supplier" ? "supplier" : "labo").then((result) => {
+      if (cancelled || !result.success || !result.data) return;
+      if ((result.data.policies ?? []).length === 0) {
+        setAcceptedTerms((prev) => ({ ...prev, [role]: true }));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userType]);
 
   // Ensure feedback alerts are visible even when user submits from the bottom.
   useEffect(() => {
@@ -95,6 +133,11 @@ function RegisterPageContent() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!acceptedTerms.supplier) {
+      setShowTermsModal(true);
+      return;
+    }
     
     // Validate passwords match
     if (supplierFormData.password !== supplierFormData.confirmPassword) {
@@ -211,6 +254,11 @@ function RegisterPageContent() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!acceptedTerms.client) {
+      setShowTermsModal(true);
+      return;
+    }
     
     // Validate passwords match
     if (clientFormData.password !== clientFormData.confirmPassword) {
@@ -298,27 +346,29 @@ function RegisterPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="relative min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-start sm:items-center justify-center pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       
-      <div className="max-w-xl w-full space-y-8 relative z-10 animate-fade-in-up">
+      <div className="max-w-xl w-full space-y-5 sm:space-y-8 relative z-10 animate-fade-in-up">
         {/* Logo and Header */}
         <div className="text-center">
-          <Link href="/home" className="inline-block mb-6 group">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110 group-hover:rotate-6 mx-auto">
-              <FlaskConical className="w-10 h-10 text-white" />
+          <Link href="/home" className="inline-block mb-4 sm:mb-6 group">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-2xl transform transition-transform group-hover:scale-110 group-hover:rotate-6 mx-auto">
+              <FlaskConical className="w-7 h-7 sm:w-10 sm:h-10 text-white" />
             </div>
           </Link>
-          <h2 className="text-4xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
             Créer un compte
           </h2>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             Rejoignez MarketLab et accédez à nos services
           </p>
         </div>
 
+        <RegistrationStepper role={userType} current={1} className="max-w-lg px-1 sm:px-0" />
+
         {/* Register Form */}
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-gray-200 hover-lift">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl sm:shadow-2xl p-4 sm:p-8 border border-gray-200 hover-lift">
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-fade-in">
@@ -336,14 +386,14 @@ function RegisterPageContent() {
           )}
 
           {/* User Type Selector */}
-          <div className="mb-6">
-            <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+          <div className="mb-5 sm:mb-6">
+            <div className="flex gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl">
               <button
                 type="button"
                 onClick={() => setUserType("supplier")}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-all duration-300 ${
                   userType === "supplier"
-                    ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                    ? "bg-blue-600 text-white shadow-lg sm:scale-105"
                     : "text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -353,9 +403,9 @@ function RegisterPageContent() {
               <button
                 type="button"
                 onClick={() => setUserType("client")}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-2 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-all duration-300 ${
                   userType === "client"
-                    ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                    ? "bg-blue-600 text-white shadow-lg sm:scale-105"
                     : "text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -367,7 +417,8 @@ function RegisterPageContent() {
 
           {/* Supplier Form */}
           {userType === "supplier" && (
-            <form className="space-y-5" onSubmit={handleSupplierSubmit}>
+            <form className="space-y-4 sm:space-y-5" onSubmit={handleSupplierSubmit}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4">
             {/* First Name Field */}
             <div className="space-y-2">
               <label htmlFor="supplier-firstName" className="block text-sm font-medium text-gray-700">
@@ -412,6 +463,7 @@ function RegisterPageContent() {
                   placeholder="Dupont"
                 />
               </div>
+            </div>
             </div>
 
             {/* Email Field */}
@@ -487,6 +539,7 @@ function RegisterPageContent() {
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4">
             {/* Password Field */}
             <div className="space-y-2">
                 <label htmlFor="supplier-password" className="block text-sm font-medium text-gray-700">
@@ -554,6 +607,7 @@ function RegisterPageContent() {
                 </button>
               </div>
             </div>
+            </div>
 
             {/* Terms and Conditions */}
             <div className="flex items-start">
@@ -561,18 +615,15 @@ function RegisterPageContent() {
                   id="supplier-terms"
                   name="terms"
                   type="checkbox"
-                  required
+                  checked={acceptedTerms.supplier}
+                  onChange={handleTermsCheckboxChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
                 />
                 <label htmlFor="supplier-terms" className="ml-2 block text-sm text-gray-700">
                   J'accepte les{" "}
-                  <Link href="#" className="text-blue-600 hover:text-blue-700">
-                    conditions générales
-                  </Link>{" "}
-                  et la{" "}
-                  <Link href="#" className="text-blue-600 hover:text-blue-700">
-                    politique de confidentialité
-                  </Link>
+                  <button type="button" onClick={openTermsModal} className="text-left text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline">
+                    conditions générales et la politique de confidentialité
+                  </button>
                 </label>
               </div>
 
@@ -580,7 +631,7 @@ function RegisterPageContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex justify-center py-3.5 sm:py-3 px-4 border border-transparent rounded-xl shadow-lg text-base sm:text-sm font-semibold sm:font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform sm:hover:scale-105 hover-lift hover-glow mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? "Création en cours..." : "Créer mon compte fournisseur"}
               </button>
@@ -589,7 +640,8 @@ function RegisterPageContent() {
 
           {/* Client Form */}
           {userType === "client" && (
-            <form className="space-y-5" onSubmit={handleClientSubmit}>
+            <form className="space-y-4 sm:space-y-5" onSubmit={handleClientSubmit}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4">
               {/* First Name Field */}
               <div className="space-y-2">
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
@@ -634,6 +686,7 @@ function RegisterPageContent() {
                     placeholder="Dupont"
                   />
                 </div>
+              </div>
               </div>
 
               {/* Email Field */}
@@ -733,6 +786,7 @@ function RegisterPageContent() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4">
               {/* Password Field */}
               <div className="space-y-2">
                 <label htmlFor="client-password" className="block text-sm font-medium text-gray-700">
@@ -800,6 +854,7 @@ function RegisterPageContent() {
                   </button>
                 </div>
               </div>
+              </div>
 
               {/* Terms and Conditions */}
               <div className="flex items-start">
@@ -807,18 +862,15 @@ function RegisterPageContent() {
                   id="client-terms"
                 name="terms"
                 type="checkbox"
-                required
+                checked={acceptedTerms.client}
+                onChange={handleTermsCheckboxChange}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
               />
                 <label htmlFor="client-terms" className="ml-2 block text-sm text-gray-700">
                 J'accepte les{" "}
-                <Link href="#" className="text-blue-600 hover:text-blue-700">
-                  conditions générales
-                </Link>{" "}
-                et la{" "}
-                <Link href="#" className="text-blue-600 hover:text-blue-700">
-                  politique de confidentialité
-                </Link>
+                <button type="button" onClick={openTermsModal} className="text-left text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline">
+                  conditions générales et la politique de confidentialité
+                </button>
               </label>
             </div>
 
@@ -826,7 +878,7 @@ function RegisterPageContent() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 hover-lift hover-glow mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full flex justify-center py-3.5 sm:py-3 px-4 border border-transparent rounded-xl shadow-lg text-base sm:text-sm font-semibold sm:font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform sm:hover:scale-105 hover-lift hover-glow mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isLoading ? "Création en cours..." : "Créer mon compte client"}
             </button>
@@ -869,6 +921,13 @@ function RegisterPageContent() {
           </Link>
         </div>
       </div>
+
+      <PolicyTermsModal
+        open={showTermsModal}
+        type={userType === "supplier" ? "supplier" : "labo"}
+        onAccept={handleAcceptTerms}
+        onClose={closeTermsModal}
+      />
     </div>
   );
 }

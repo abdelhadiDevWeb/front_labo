@@ -66,7 +66,7 @@ export default function PaymentMethodPicker({
           type="button"
           onClick={() => setCcpOpen((open) => !open)}
           disabled={isProcessing}
-          className="w-full flex items-center gap-4 p-5 text-left disabled:opacity-60"
+          className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 text-left disabled:opacity-60"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
             <Landmark className="h-6 w-6" />
@@ -80,7 +80,7 @@ export default function PaymentMethodPicker({
         </button>
 
         {ccpOpen && (
-          <div className="px-5 pb-5 space-y-4">
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
             <div className="rounded-xl border border-emerald-200 bg-white p-4">
               <p className="text-sm font-semibold text-gray-900 mb-2">Coordonnées de paiement</p>
               {ccpRows.length > 0 ? (
@@ -150,7 +150,7 @@ export default function PaymentMethodPicker({
       {/* Online payment — coming soon */}
       <div
         aria-disabled="true"
-        className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50/40 p-5 opacity-90 cursor-not-allowed select-none"
+        className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 via-white to-cyan-50/40 p-4 sm:p-5 opacity-90 cursor-not-allowed select-none"
       >
         <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-200/30 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-8 -left-4 h-20 w-20 rounded-full bg-slate-200/40 blur-2xl" />

@@ -10,7 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { io as socketIO } from "socket.io-client";
 import { getApiUrl, getBaseUrl } from "@/lib/api-config";
-import { getMediaUrl } from "@/lib/media-url";
+import { useProtectedFileUrl } from "@/lib/use-protected-file";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 interface Order {
@@ -55,6 +55,9 @@ export default function OrdersPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const paymentProof = useProtectedFileUrl(
+    showPaymentModal && selectedPayment?.image ? `uploads/payments/${selectedPayment.image}` : null
+  );
   const [pendingOrderIds, setPendingOrderIds] = useState<string[]>([]);
   const [currentPendingOrderIndex, setCurrentPendingOrderIndex] = useState(0);
   const [uploadFiles, setUploadFiles] = useState<{ [orderId: string]: File | null }>({});
@@ -1047,22 +1050,33 @@ export default function OrdersPage() {
                     <p className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Document PDF</p>
                     <p className="text-xs sm:text-sm text-gray-600">Preuve de paiement de la Poste Algérienne</p>
                   </div>
-                  <a
-                    href={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Télécharger
-                  </a>
+                  {paymentProof.url ? (
+                    <a
+                      href={paymentProof.url}
+                      download={selectedPayment.image.split("/").pop() || "preuve-paiement.pdf"}
+                      className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Télécharger
+                    </a>
+                  ) : null}
                 </div>
                 <div className="bg-gray-50 rounded-lg sm:rounded-xl p-2 sm:p-4 border-2 border-gray-200 shadow-inner">
-                  <iframe
-                    src={getMediaUrl(`uploads/payments/${selectedPayment.image}`) || ""}
-                    className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
-                    title="Payment proof"
-                  />
+                  {paymentProof.url ? (
+                    <iframe
+                      src={paymentProof.url}
+                      className="w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-lg border border-gray-300"
+                      title="Payment proof"
+                    />
+                  ) : paymentProof.error ? (
+                    <div className="flex items-center justify-center h-[200px] text-sm text-red-700 text-center px-4">
+                      {paymentProof.error}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-[400px] sm:h-[500px]">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

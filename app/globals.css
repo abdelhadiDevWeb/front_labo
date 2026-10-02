@@ -444,3 +444,29 @@ body {
     linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
   background-size: 50px 50px;
 }
+
+/* Catalog content protection (toggled by ContentProtection) */
+html.content-protected body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.content-protected input,
+html.content-protected textarea,
+html.content-protected select,
+html.content-protected [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+html.content-protected img {
+  -webkit-user-drag: none;
+}
+
+@media print {
+  html.content-protected body {
+    display: none;
+  }
+}

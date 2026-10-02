@@ -21,6 +21,7 @@ import {
   Bell,
   FolderTree,
   Megaphone,
+  ScrollText,
 } from "lucide-react";
 import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
@@ -37,6 +38,7 @@ const menuItems = [
   { icon: FolderTree, label: "Catégories", href: "/dashboard/categories" },
   { icon: CreditCard, label: "Gestion Abonnements", href: "/dashboard/subscriptions" },
   { icon: Megaphone, label: "Sponsorisations", href: "/dashboard/sponsors" },
+  { icon: ScrollText, label: "Politiques", href: "/dashboard/policies" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard/statistics" },
   { icon: Shield, label: "Administrateurs", href: "/dashboard/admins" },
   { icon: MessageCircle, label: "Problèmes", href: "/dashboard/problems" },
@@ -372,7 +374,7 @@ export default function DashboardLayout({
           <div className="relative px-6 py-4 lg:py-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center justify-center">
               <Image
-                src="/images/logo.jpeg"
+                src="/images/logo.png"
                 alt="Dz Labmarket Logo"
                 width={150}
                 height={60}

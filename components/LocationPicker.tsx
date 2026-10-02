@@ -19,7 +19,7 @@ const GOOGLE_MAPS_LOADER_ID = "marketlab-google-maps";
 
 const mapContainerStyle = {
   width: "100%",
-  height: "280px",
+  height: "clamp(220px, 60vw, 280px)",
   borderRadius: "0.75rem",
 };
 
@@ -205,7 +205,7 @@ function GoogleLocationPicker({
             type="text"
             defaultValue={value?.address || ""}
             placeholder="Rechercher une adresse en Algérie..."
-            className="block w-full rounded-xl border border-gray-300 py-3 pl-10 pr-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            className="block w-full rounded-xl border border-gray-300 py-3 pl-10 pr-3 text-base sm:text-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
           />
         </Autocomplete>
       </div>

@@ -20,11 +20,11 @@ export default function AppLoadingScreen({
   const shell = (
     <div className="flex flex-col items-center justify-center gap-5 px-4">
       <Image
-        src="/images/logo.jpeg"
+        src="/images/logo.png"
         alt={`${BRAND_NAME} Logo`}
         width={200}
-        height={80}
-        className="h-16 w-auto rounded-xl object-contain sm:h-20"
+        height={146}
+        className="h-16 w-auto object-contain sm:h-20"
         priority
       />
       <div

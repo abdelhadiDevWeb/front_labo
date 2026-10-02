@@ -65,7 +65,7 @@ export function useOnboardingBackGuard(
               role="dialog"
               aria-modal="true"
               aria-labelledby="onboarding-back-title"
-              className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden"
+              className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto border border-gray-200"
             >
               <div className="p-6 border-b border-gray-100 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">

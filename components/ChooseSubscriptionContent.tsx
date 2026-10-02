@@ -19,6 +19,7 @@ import {
   SubscriptionType,
 } from "@/lib/api";
 import RegistrationPendingModal from "@/components/RegistrationPendingModal";
+import RegistrationStepper from "@/components/RegistrationStepper";
 import PaymentMethodPicker from "@/components/subscription/PaymentMethodPicker";
 import {
   PlanMaxProductsInfo,
@@ -54,17 +55,19 @@ export default function ChooseSubscriptionContent({
   const [error, setError] = useState<string | null>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingPlanName, setPendingPlanName] = useState<string | undefined>();
+  const [pendingFreePlan, setPendingFreePlan] = useState(false);
+  const [submittingPlanId, setSubmittingPlanId] = useState<string | null>(null);
 
   const loadPlans = useCallback(async () => {
     setIsLoadingPlans(true);
-    const result = await getPublicSubscriptionPlans();
+    const result = await getPublicSubscriptionPlans(role === "supplier" ? "supplier" : "labo");
     if (result.success && result.data?.subscriptionTypes) {
       setPlans(result.data.subscriptionTypes);
     } else {
       setError(result.message || "Impossible de charger les abonnements");
     }
     setIsLoadingPlans(false);
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     loadPlans();
@@ -112,7 +115,30 @@ export default function ChooseSubscriptionContent({
     };
   }, [searchParams, router, dashboardHref]);
 
+  // Labs on a free plan skip the payment step: the request goes straight to the admin.
+  const isFreeLabPlan = (plan: SubscriptionType) => role === "client" && plan.price === 0;
+
+  const handleFreeRequest = async (plan: SubscriptionType) => {
+    setSubmittingPlanId(plan.id);
+    setError(null);
+
+    const result = await registerHandToHandAbonnement(plan.id);
+    setSubmittingPlanId(null);
+
+    if (result.success) {
+      setPendingPlanName(plan.name);
+      setPendingFreePlan(true);
+      setShowPendingModal(true);
+    } else {
+      setError(result.message || "Une erreur est survenue");
+    }
+  };
+
   const handleSelectPlan = (plan: SubscriptionType) => {
+    if (isFreeLabPlan(plan)) {
+      void handleFreeRequest(plan);
+      return;
+    }
     setSelectedPlan(plan);
     setShowPaymentOptions(true);
     setError(null);
@@ -151,18 +177,19 @@ export default function ChooseSubscriptionContent({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-blue-50 via-white to-cyan-50 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mb-4 group"
+            className="inline-flex items-center gap-2 py-1 text-sm sm:text-base text-gray-600 hover:text-blue-600 transition-colors mb-3 sm:mb-4 group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>Retour aux documents</span>
           </Link>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{pageTitle}</h1>
-          <p className="text-gray-600">{pageSubtitle}</p>
+          <RegistrationStepper role={role} current={3} className="mb-5 sm:mb-6 max-w-lg" />
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">{pageTitle}</h1>
+          <p className="text-sm sm:text-base text-gray-600">{pageSubtitle}</p>
         </div>
 
         {error && (
@@ -189,15 +216,15 @@ export default function ChooseSubscriptionContent({
               <p className="text-gray-600">Aucun abonnement disponible pour le moment.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all p-6 flex flex-col"
+                  className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all p-5 sm:p-6 flex flex-col"
                 >
                   <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+                    <Sparkles className="w-5 h-5 text-blue-600 shrink-0" />
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 break-words">{plan.name}</h3>
                   </div>
                   {plan.description && (
                     <p className="text-gray-600 text-sm mb-4 flex-1">{plan.description}</p>
@@ -208,19 +235,29 @@ export default function ChooseSubscriptionContent({
                       <span>Durée de l&apos;abonnement&nbsp;: {formatPlanDuration(plan.time)}</span>
                     </div>
                     <PlanMaxProductsInfo plan={plan} role={role} />
-                    <PlanSponsorInfo plan={plan} />
+                    {role === "supplier" && <PlanSponsorInfo plan={plan} />}
                   </div>
                   <div className="mt-auto">
-                    <p className="text-3xl font-bold text-blue-600 mb-4">
-                      {plan.price.toLocaleString("fr-DZ")}{" "}
-                      <span className="text-lg font-medium">DZD</span>
-                    </p>
+                    {isFreeLabPlan(plan) ? (
+                      <p className="text-2xl sm:text-3xl font-bold text-green-600 mb-4">Gratuit</p>
+                    ) : (
+                      <p className="text-2xl sm:text-3xl font-bold text-blue-600 mb-4">
+                        {plan.price.toLocaleString("fr-DZ")}{" "}
+                        <span className="text-lg font-medium">DZD</span>
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleSelectPlan(plan)}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
+                      disabled={submittingPlanId !== null}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      Choisir ce plan
+                      {submittingPlanId === plan.id && <Loader2 className="w-5 h-5 animate-spin" />}
+                      {isFreeLabPlan(plan)
+                        ? submittingPlanId === plan.id
+                          ? "Envoi de la demande..."
+                          : "Envoyer ma demande"
+                        : "Choisir ce plan"}
                     </button>
                   </div>
                 </div>
@@ -237,26 +274,28 @@ export default function ChooseSubscriptionContent({
                   setSelectedPlan(null);
                   setError(null);
                 }}
-                className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 text-sm"
+                className="inline-flex items-center gap-2 py-1 text-gray-600 hover:text-blue-600 mb-4 sm:mb-6 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Choisir un autre plan
               </button>
 
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-8">
-                <div className="text-center mb-8">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">{selectedPlan.name}</h2>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-4 sm:p-8">
+                <div className="text-center mb-6 sm:mb-8">
+                  <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-green-500 mx-auto mb-3" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 break-words">{selectedPlan.name}</h2>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-2">
                     {selectedPlan.price.toLocaleString("fr-DZ")} DZD
                   </p>
                   <p className="text-gray-500 text-sm mt-1">
                     Durée de l&apos;abonnement&nbsp;: {formatPlanDuration(selectedPlan.time)}
                   </p>
-                  <div className="mt-4 text-left max-w-sm mx-auto space-y-2">
-                    <PlanMaxProductsInfo plan={selectedPlan} role={role} />
-                    <PlanSponsorInfo plan={selectedPlan} />
-                  </div>
+                  {role === "supplier" && (
+                    <div className="mt-4 text-left max-w-sm mx-auto space-y-2">
+                      <PlanMaxProductsInfo plan={selectedPlan} role={role} />
+                      <PlanSponsorInfo plan={selectedPlan} />
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-gray-700 text-center mb-6">
@@ -279,6 +318,7 @@ export default function ChooseSubscriptionContent({
         title="Demande enregistrée !"
         documentLabel={documentLabel}
         selectedPlanName={pendingPlanName}
+        freePlan={pendingFreePlan}
       />
     </div>
   );

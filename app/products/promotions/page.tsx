@@ -9,7 +9,7 @@ import {
   Sparkles,
   Search,
 } from "lucide-react";
-import { getPublicPromotions, PublicPromotion } from "@/lib/api";
+import { getPublicPromotions, markPromotionsSeen, PublicPromotion } from "@/lib/api";
 import PromotionCard from "@/components/PromotionCard";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 
@@ -26,6 +26,7 @@ export default function PromotionsPage() {
         const result = await getPublicPromotions();
         if (result.success && result.data) {
           setPromotions(result.data.promotions || []);
+          void markPromotionsSeen();
         } else {
           setError(result.message || "Erreur lors du chargement");
         }

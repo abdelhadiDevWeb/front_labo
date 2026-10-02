@@ -43,7 +43,7 @@ const resolveMediaOrigin = (): string | null => {
   }
 };
 
-const buildContentSecurityPolicy = (): string => {
+const buildContentSecurityPolicy = (frameAncestors = "'none'"): string => {
   const connectSrc = new Set<string>(["'self'"]);
   const imgSrc = new Set<string>(["'self'", "data:", "blob:"]);
   const mediaSrc = new Set<string>(["'self'", "blob:"]);
@@ -60,7 +60,8 @@ const buildContentSecurityPolicy = (): string => {
     "https://fonts.googleapis.com",
   ]);
   const fontSrc = new Set<string>(["'self'", "data:", "https://fonts.gstatic.com"]);
-  const frameSrc = new Set<string>(["'self'", "https://maps.googleapis.com", "https://www.google.com"]);
+  // blob: — protected PDFs are previewed from same-origin blob URLs (lib/use-protected-file.ts)
+  const frameSrc = new Set<string>(["'self'", "blob:", "https://maps.googleapis.com", "https://www.google.com"]);
   const workerSrc = new Set<string>(["'self'", "blob:"]);
 
   if (isDev) {
@@ -121,7 +122,7 @@ const buildContentSecurityPolicy = (): string => {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://pay.chargily.net https://pay.chargily.com https://pay.chargily.dz http://pay.chargily.dz https://test.pay.chargily.net",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${frameAncestors}`,
   ];
 
   if (isProd) {
@@ -197,18 +198,34 @@ const nextConfig: NextConfig = {
     }
 
     return [
+      // Dev chunk names are not content-hashed, so caching them would pin stale code.
+      ...(isProd
+        ? [
+            {
+              source: "/_next/static/:path*",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=31536000, immutable",
+                },
+              ],
+            },
+          ]
+        : []),
       {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/:path*",
+        source: "/((?!api/files/).*)",
         headers: securityHeaders,
+      },
+      // Uploaded PDFs are shown in iframes on our own pages: same-origin framing only.
+      {
+        source: "/api/files/:path*",
+        headers: securityHeaders.map((header) => {
+          if (header.key === "X-Frame-Options") return { ...header, value: "SAMEORIGIN" };
+          if (header.key === "Content-Security-Policy") {
+            return { ...header, value: buildContentSecurityPolicy("'self'") };
+          }
+          return header;
+        }),
       },
     ];
   },

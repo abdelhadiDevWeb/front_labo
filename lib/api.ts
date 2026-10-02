@@ -1,5 +1,5 @@
 import { getApiUrl, getBaseUrl, parseResponseJson } from "./api-config";
-import { markSessionActive, markSessionInactive } from "./auth-session";
+import { hasAuthSessionHint, markSessionActive, markSessionInactive } from "./auth-session";
 import { devLog, devError, devWarn } from "./dev-logger";
 import { toUserFacingError } from "./sanitize-error";
 
@@ -1480,6 +1480,57 @@ export const getPublicPromotions = async (): Promise<
       };
     }
   });
+};
+
+export interface PromotionAlert {
+  hasNew: boolean;
+  count: number;
+  lastSeenPromotion: string | null;
+}
+
+/** Fired on window after the lab's promotions were marked as seen. */
+export const PROMOTIONS_SEEN_EVENT = "promotions:seen";
+
+export const getPromotionAlert = async (): Promise<ApiResponse<PromotionAlert>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/promotions/alert`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch promotion alert (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Labs: stamp `last_seen_promotion` and clear the header alert. No-op for guests. */
+export const markPromotionsSeen = async (): Promise<void> => {
+  if (!hasAuthSessionHint()) return;
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/promotions/seen`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (response.ok && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(PROMOTIONS_SEEN_EVENT));
+    }
+  } catch {
+    // Best effort — the alert simply stays until the next visit.
+  }
 };
 
 export interface GroupSelleProductInfo {
@@ -3033,8 +3084,12 @@ export const deleteSubscription = async (
 };
 
 // Subscription Type Interfaces
+/** Who can buy a plan. Lab plans only have a price and a duration. */
+export type SubscriptionAudience = "supplier" | "labo";
+
 export interface SubscriptionType {
   id: string;
+  type: SubscriptionAudience;
   name: string;
   description?: string;
   time: number; // Duration in days
@@ -3049,16 +3104,19 @@ export interface SubscriptionType {
 }
 
 export interface CreateSubscriptionTypeData {
+  type: SubscriptionAudience;
   name: string;
   description?: string;
   time: number;
   price: number;
   sponsorsPerMonth?: number;
   sponsorDurationHours?: number;
-  max_products: number;
+  /** Required for supplier plans, ignored for lab plans */
+  max_products?: number;
 }
 
 export interface UpdateSubscriptionTypeData {
+  type?: SubscriptionAudience;
   name?: string;
   description?: string;
   time?: number;
@@ -3380,6 +3438,160 @@ const response = await apiFetch(`${getApiBaseUrl()}/admin/sponsors/${sponsorId}`
       return {
         success: false,
         message: errorData.message || `Failed to delete sponsor (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Policy (registration terms per account type)
+export type PolicyType = "labo" | "supplier";
+
+export interface Policy {
+  id: string;
+  type: PolicyType;
+  title: string;
+  text: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PolicyFormData {
+  type: PolicyType;
+  title: string;
+  text: string;
+}
+
+export const getPublicPolicies = async (
+  type: PolicyType
+): Promise<ApiResponse<{ policies: Policy[] }>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/policies/public?type=${encodeURIComponent(type)}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch policies (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getAllPolicies = async (
+  type?: PolicyType
+): Promise<ApiResponse<{ policies: Policy[] }>> => {
+  try {
+    const query = type ? `?type=${encodeURIComponent(type)}` : "";
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/policies${query}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch policies (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const createPolicy = async (data: PolicyFormData): Promise<ApiResponse<Policy>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/policies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to create policy (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const updatePolicy = async (
+  policyId: string,
+  data: Partial<PolicyFormData>
+): Promise<ApiResponse<Policy>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/policies/${policyId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to update policy (${response.status})`,
+        errors: errorData.errors,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const deletePolicy = async (policyId: string): Promise<ApiResponse<void>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/admin/policies/${policyId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to delete policy (${response.status})`,
       };
     }
 
@@ -3855,6 +4067,7 @@ export interface UserPapers {
   Tax_number?: string;
   identity: string;
   commercial_register?: string;
+  agrement?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -4794,11 +5007,12 @@ const response = await apiFetch(`${getApiBaseUrl()}/admin/categories/sous-catego
 };
 
 // Public subscription plans (post-registration)
-export const getPublicSubscriptionPlans = async (): Promise<
-  ApiResponse<{ subscriptionTypes: SubscriptionType[] }>
-> => {
+export const getPublicSubscriptionPlans = async (
+  audience?: SubscriptionAudience
+): Promise<ApiResponse<{ subscriptionTypes: SubscriptionType[] }>> => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/abonnements/plans`, {
+    const query = audience ? `?type=${encodeURIComponent(audience)}` : "";
+    const response = await apiFetch(`${getApiBaseUrl()}/abonnements/plans${query}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
