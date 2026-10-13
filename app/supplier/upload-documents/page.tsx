@@ -146,7 +146,7 @@ function SupplierUploadForm() {
     if (!hasExistingDocs) {
       if (!files.Tax_number || !files.identity || !files.commercial_register) {
         setError(
-          "Veuillez télécharger les trois documents requis : Numéro de Taxe, Pièce d'identité et Registre du Commerce"
+          "Veuillez télécharger les trois documents requis : Numéro Fiscal, Pièce d'identité et Registre du Commerce"
         );
         return;
       }
@@ -435,7 +435,7 @@ function SupplierUploadForm() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {renderField("Tax_number", "Numéro de Taxe (PDF)")}
+                {renderField("Tax_number", "Numéro Fiscal (PDF)")}
                 {renderField("identity", "Pièce d'identité (PDF)")}
                 {renderField("commercial_register", "Registre du Commerce (PDF)")}
 
