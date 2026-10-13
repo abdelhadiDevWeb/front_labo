@@ -5283,3 +5283,68 @@ export const approveSubscriptionRequest = (paymentId: string) =>
 
 export const rejectSubscriptionRequest = (paymentId: string, reason: string) =>
   reviewSubscriptionRequest(paymentId, "reject", { reason });
+
+// ============================================
+// LIVRAISONS (supplier delivery note per wilaya)
+// ============================================
+
+export interface Livraison {
+  id: string;
+  supplierId: string;
+  wilayaCode: string;
+  wilayaName: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const livraisonRequest = async <T>(
+  path: string,
+  init: RequestInit,
+  fallback: string
+): Promise<ApiResponse<T>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/livraisons${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json" },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: result.message || fallback };
+    }
+    return result;
+  } catch (error: unknown) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getMyLivraisons = () =>
+  livraisonRequest<{ livraisons: Livraison[] }>(
+    "/me",
+    { method: "GET" },
+    "Impossible de charger les notes de livraison"
+  );
+
+export const createLivraison = (data: { wilayaCode: string; text: string }) =>
+  livraisonRequest<{ livraison: Livraison }>(
+    "",
+    { method: "POST", body: JSON.stringify(data) },
+    "Impossible d'ajouter la note de livraison"
+  );
+
+export const updateLivraison = (id: string, text: string) =>
+  livraisonRequest<{ livraison: Livraison }>(
+    `/${id}`,
+    { method: "PUT", body: JSON.stringify({ text }) },
+    "Impossible de modifier la note de livraison"
+  );
+
+export const deleteLivraison = (id: string) =>
+  livraisonRequest<null>(
+    `/${id}`,
+    { method: "DELETE" },
+    "Impossible de supprimer la note de livraison"
+  );

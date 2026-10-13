@@ -30,6 +30,7 @@ import UniqueDataFields from "@/components/UniqueDataFields";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
+import QuantityInput from "@/components/QuantityInput";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
@@ -42,6 +43,7 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   const [cartOpen, setCartOpen] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
   const { canSeePrice } = useCanSeeCatalogPrice();
   const { location } = useUserLocation();
@@ -91,6 +93,7 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
   }
 
   const image = item.images?.[0] ? getMediaUrl(item.images[0]) : null;
+  const stock = typeof item.quantity === "number" ? item.quantity : undefined;
 
   const handleReserve = async () => {
     const session = await getSessionRole();
@@ -98,13 +101,17 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
       setLoginAlertOpen(true);
       return;
     }
-    addToCart({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      supplierId: item.supplier?.id || "",
-      itemType: "machine",
-    });
+    addToCart(
+      {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        supplierId: item.supplier?.id || "",
+        itemType: "machine",
+        maxQuantity: stock,
+      },
+      quantity
+    );
     setCartOpen(true);
   };
 
@@ -168,20 +175,39 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             <SupplierDeliveryNotes
               deliveryNoteAll={item.supplier.deliveryNoteAll}
               deliveryByWilaya={item.supplier.deliveryByWilaya}
+              wilayas={item.supplier.wilayas}
+              coversAllWilayas={item.supplier.coversAllWilayas}
               highlightWilayaCode={visitorWilayaCode}
             />
           )}
 
           {kind === "machine" && (
-            <button
-              type="button"
-              onClick={() => void handleReserve()}
-              disabled={item.quantity === 0}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {item.quantity === 0 ? "Rupture de stock" : "Réserver"}
-            </button>
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
+                <QuantityInput
+                  value={quantity}
+                  onChange={setQuantity}
+                  max={stock}
+                  disabled={item.quantity === 0}
+                />
+                {stock !== undefined && stock > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {stock} disponible{stock > 1 ? "s" : ""}
+                    {quantity >= stock && " — quantité maximale atteinte"}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleReserve()}
+                disabled={item.quantity === 0}
+                className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {item.quantity === 0 ? "Rupture de stock" : "Réserver"}
+              </button>
+            </div>
           )}
 
           {fichePdfUrl && (

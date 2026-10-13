@@ -1,16 +1,13 @@
 import Link from "next/link";
 import {
-  Building2,
-  CheckCircle2,
   FlaskConical,
-  Microscope,
   Package,
   Search,
-  ShieldCheck,
   ShoppingBag,
   Truck,
   Users,
 } from "lucide-react";
+import WhyChooseDzLabmarket from "@/components/WhyChooseDzLabmarket";
 
 const BRAND = "Dz Labmarket";
 
@@ -47,12 +44,9 @@ export default function AboutPage() {
           Notre mission
         </h2>
         <p className="mt-4 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg">
-          {BRAND} simplifie l’approvisionnement des laboratoires en Algérie. Les
-          laboratoires trouvent des offres adaptées à leur activité ; les
-          fournisseurs publient leur catalogue, reçoivent des réserves et gèrent
-          le suivi jusqu’à la réception. Une plateforme unique pour gagner du
-          temps, comparer sereinement et travailler avec des partenaires
-          identifiés.
+          Simplifier et optimiser l’approvisionnement des laboratoires de
+          biologie médicale en centralisant l’accès aux fournisseurs, aux
+          meilleurs prix et aux livraisons les plus rapides.
         </p>
       </section>
 
@@ -109,78 +103,14 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-16">
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <div className="mb-10 flex items-center gap-3">
           <Users className="h-7 w-7 text-cyan-700" />
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Ce que propose la plateforme
+            Pourquoi choisir {BRAND} ?
           </h2>
         </div>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-700 text-white">
-              <Microscope className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              Pour les laboratoires
-            </h3>
-            <ul className="mt-4 space-y-2.5">
-              {[
-                "Catalogue produits, machines et services",
-                "Réservation et suivi centralisés",
-                "Accès fournisseurs et favoris",
-                "Proximité géographique (wilaya)",
-              ].map((point) => (
-                <li key={point} className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-700 text-white">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              Pour les fournisseurs
-            </h3>
-            <ul className="mt-4 space-y-2.5">
-              {[
-                "Publication du catalogue Marché",
-                "Gestion des réserves et livraisons",
-                "Sponsoring et promotions",
-                "Statistiques d’activité",
-              ].map((point) => (
-                <li key={point} className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-700 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900">
-              Confiance & sécurité
-            </h3>
-            <ul className="mt-4 space-y-2.5">
-              {[
-                "Comptes vérifiés (documents + abonnement)",
-                "Paiement suivi côté plateforme",
-                "Espace dédié labo / fournisseur / admin",
-                "Support et signalement des problèmes",
-              ].map((point) => (
-                <li key={point} className="flex items-start gap-2 text-sm text-slate-600">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-        </div>
+        <WhyChooseDzLabmarket />
       </section>
 
       <section className="border-t border-slate-200 bg-slate-900 text-white">

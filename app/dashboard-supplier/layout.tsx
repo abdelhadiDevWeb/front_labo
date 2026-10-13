@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -26,11 +26,13 @@ import {
   Percent,
   Users,
 } from "lucide-react";
-import { getSessionRole, getProfile, ClientData, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, apiFetch } from "@/lib/api";
+import { getSessionRole, getProfile, ClientData, NotificationData, createProblem, apiFetch } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
 import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
-import { io as socketIO } from "socket.io-client";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
+import { useNotificationFeed } from "@/hooks/useNotificationFeed";
+import NotificationPanel, { RealtimeToast, type NotificationVisual } from "@/components/NotificationPanel";
+import { showBrowserNotification } from "@/lib/browser-notification";
 import { getMediaUrl } from "@/lib/media-url";
 import ListingQuotaHeaderAlert, {
   SUBSCRIPTION_REQUEST_UPDATED_EVENT,
@@ -59,9 +61,8 @@ export default function SupplierDashboardLayout({
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Array<NotificationData & { orderId?: string; buyerName?: string; productsCount?: number }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const bellRef = useRef<HTMLButtonElement>(null);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportFormData, setSupportFormData] = useState({
     email: "",
@@ -126,183 +127,106 @@ export default function SupplierDashboardLayout({
     return setupNativeFcmBridge({ enabled: true });
   }, [isAuthenticated, userRole]);
 
-  // Fetch notifications from database on load (only unread for supplier)
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!isAuthenticated || userRole !== "supplier") return;
+  const notify = (title: string, message: string, href?: string) => {
+    showBrowserNotification(title, message);
+    return { title, message, href };
+  };
 
-      try {
-        const result = await getNotifications(true); // Get only unread notifications (isRead: false)
-        if (result.success && result.data) {
-          // Filter to show only unread notifications (isRead: false)
-          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
-          setNotifications(unreadNotifications);
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-    };
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    toast,
+    dismissToast,
+  } = useNotificationFeed(isAuthenticated && userRole === "supplier", {
+    newOrder: {
+      handle: (payload) => {
+        const data = payload as { buyerName?: string; total?: number };
+        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: payload }));
+        const total = Number(data.total);
+        return notify(
+          "Nouvelle réserve",
+          `Nouvelle réserve de ${data.buyerName || "un laboratoire"}${
+            Number.isFinite(total) ? ` - ${total.toFixed(2)} DA` : ""
+          }`,
+          "/dashboard-supplier/orders"
+        );
+      },
+    },
+    orderStatusUpdate: {
+      handle: (payload) => {
+        const data = payload as { message?: string };
+        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: payload }));
+        return notify("Mise à jour de réserve", data.message || "", "/dashboard-supplier/orders");
+      },
+    },
+    lowStockAlert: {
+      handle: (payload) => {
+        const data = payload as { message?: string };
+        return notify("Alerte stock bas", data.message || "", "/dashboard-supplier/products");
+      },
+    },
+    paymentUploaded: {
+      handle: (payload) => {
+        const data = payload as { buyerName?: string };
+        window.dispatchEvent(new CustomEvent("ml:supplier-payment", { detail: payload }));
+        return notify(
+          "Preuve de paiement reçue",
+          `${data.buyerName || "Un laboratoire"} a envoyé une preuve de paiement`,
+          "/dashboard-supplier/orders"
+        );
+      },
+    },
+    subscriptionRequestUpdate: {
+      handle: (payload) => {
+        const data = payload as { title?: string; message?: string };
+        window.dispatchEvent(new CustomEvent(SUBSCRIPTION_REQUEST_UPDATED_EVENT, { detail: payload }));
+        return notify(data.title || "Abonnement", data.message || "", "/dashboard-supplier");
+      },
+    },
+  });
 
-    loadNotifications();
-  }, [isAuthenticated, userRole]);
+  const notificationHref = (notification: NotificationData) => {
+    if (notification.type === "subscription") return "/dashboard-supplier";
+    if (notification.type === "system") return "/dashboard-supplier/products";
+    return "/dashboard-supplier/orders";
+  };
 
-  // Socket.io connection for real-time notifications
-  useEffect(() => {
-    if (!isAuthenticated || userRole !== "supplier") return;
-
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
-
-    socket.on("connect", () => {
-      // Socket connected
-    });
-
-    socket.on("newOrder", async (data: {
-      orderId: string;
-      total: number;
-      buyerName: string;
-      productsCount: number;
-      createdAt: string;
-      notificationId?: string;
-    }) => {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: data }));
-      }
-      // Reload notifications from database to get the full notification object (only unread)
-      try {
-        const result = await getNotifications(true); // Get only unread notifications
-        if (result.success && result.data) {
-          // Filter to show only unread notifications (isRead: false)
-          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
-          setNotifications(unreadNotifications);
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-      
-      // Show browser notification if permission granted
-      if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification("Nouvelle réserve", {
-          body: `Nouvelle réserve de ${data.buyerName} - ${data.total.toFixed(2)} DA`,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("orderStatusUpdate", async (data: {
-      orderId: string;
-      status: string;
-      message: string;
-      notificationId?: string;
-    }) => {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("ml:supplier-order", { detail: data }));
-      }
-      try {
-        const result = await getNotifications(true);
-        if (result.success && result.data) {
-          const unreadNotifications = result.data.notifications.filter((n) => !n.isRead);
-          setNotifications(unreadNotifications);
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch {
-        // Silent
-      }
-      if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification("Mise à jour de réserve", {
-          body: data.message,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("lowStockAlert", async (data: {
-      orderId: string;
-      productName: string;
-      remaining: number;
-      previous: number;
-      message: string;
-      notificationId?: string;
-    }) => {
-      try {
-        const result = await getNotifications(true);
-        if (result.success && result.data) {
-          const unreadNotifications = result.data.notifications.filter((n) => !n.isRead);
-          setNotifications(unreadNotifications);
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch {
-        // Silent
-      }
-      if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification("Alerte stock bas", {
-          body: data.message,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("paymentUploaded", async (data: {
-      orderId: string;
-      total: number;
-      buyerName: string;
-      paymentId: string;
-      notificationId?: string;
-      createdAt: string;
-    }) => {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("ml:supplier-payment", { detail: data }));
-      }
-      try {
-        const result = await getNotifications(true);
-        if (result.success && result.data) {
-          const unreadNotifications = result.data.notifications.filter(n => !n.isRead);
-          setNotifications(unreadNotifications);
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification("Preuve de paiement reçue", {
-          body: `${data.buyerName} a envoyé une preuve de paiement`,
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("subscriptionRequestUpdate", async (data: { title?: string; message?: string }) => {
-      window.dispatchEvent(new CustomEvent(SUBSCRIPTION_REQUEST_UPDATED_EVENT, { detail: data }));
-      try {
-        const result = await getNotifications(true);
-        if (result.success && result.data) {
-          setNotifications(result.data.notifications.filter((n) => !n.isRead));
-          setUnreadCount(result.data.unreadCount);
-        }
-      } catch {
-        // Silent
-      }
-      if ("Notification" in window && Notification.permission === "granted") {
-        new window.Notification(data.title || "Abonnement", {
-          body: data.message || "",
-          icon: "/favicon.ico",
-        });
-      }
-    });
-
-    socket.on("disconnect", () => {
-      // Socket disconnected
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [isAuthenticated, userRole]);
+  const describeNotification = (notification: NotificationData): NotificationVisual => {
+    switch (notification.type) {
+      case "new_order":
+        return {
+          title: "Nouvelle réserve",
+          icon: <ShoppingCart className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-green-600 to-emerald-600",
+        };
+      case "order_status":
+        return {
+          title: "Mise à jour de réserve",
+          icon: <Bell className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-blue-600 to-cyan-600",
+        };
+      case "subscription":
+        return {
+          title: "Abonnement",
+          icon: <CreditCard className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-purple-600 to-indigo-600",
+        };
+      case "system":
+        return {
+          title: "Alerte stock bas",
+          icon: <Package className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-amber-500 to-orange-600",
+        };
+      default:
+        return {
+          title: "Mise à jour de réserve",
+          icon: <Bell className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-gray-600 to-gray-700",
+        };
+    }
+  };
 
   // Handle support form submission
   const handleSupportSubmit = async (e: React.FormEvent) => {
@@ -440,18 +364,6 @@ export default function SupplierDashboardLayout({
     return null;
   }
 
-  const handleMarkAllNotificationsAsRead = async () => {
-    try {
-      const result = await markAllNotificationsAsRead();
-      if (result.success) {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
-    } catch (error) {
-      // Silent error handling
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Sidebar Overlay */}
@@ -547,9 +459,13 @@ export default function SupplierDashboardLayout({
               {/* Notifications */}
               <div className="relative">
                 <button
+                  ref={bellRef}
+                  type="button"
                   onClick={() => {
                     setShowNotifications(!showNotifications);
                   }}
+                  aria-label="Notifications"
+                  aria-expanded={showNotifications}
                   className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
                 >
                   <Bell className="w-5 h-5 text-gray-600 group-hover:text-green-600 transition-colors" />
@@ -560,119 +476,29 @@ export default function SupplierDashboardLayout({
                   )}
                 </button>
 
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[100]"
-                      onClick={() => setShowNotifications(false)}
-                    />
-                    <div className="fixed left-1/2 -translate-x-1/2 top-20 w-[calc(100vw-2rem)] sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-auto sm:mt-2 sm:w-72 md:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[101] animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
-                      <div className="p-3 sm:p-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                        <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                        <p className="text-xs sm:text-sm text-green-100">
-                          {unreadCount > 0 
-                            ? `${unreadCount} nouvelle${unreadCount > 1 ? "s" : ""} notification${unreadCount > 1 ? "s" : ""}`
-                            : "Aucune nouvelle notification"}
-                        </p>
-                          </div>
-                          {unreadCount > 0 && (
-                            <button
-                              onClick={handleMarkAllNotificationsAsRead}
-                              className="text-xs sm:text-sm font-semibold px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
-                            >
-                              Tout marquer lu
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="divide-y divide-gray-200">
-                        {notifications.filter((notification) => !notification.isRead).length === 0 ? (
-                          <div className="p-4 sm:p-6 text-center text-gray-500">
-                            <Bell className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-300" />
-                            <p className="font-medium text-sm sm:text-base">Vous n'avez aucune nouvelle notification</p>
-                            <p className="text-xs text-gray-400 mt-1">Toutes vos notifications ont été lues</p>
-                          </div>
-                        ) : (
-                          notifications
-                            .filter((notification) => !notification.isRead) // Only show unread notifications
-                            .map((notification) => (
-                            <div
-                              key={notification._id}
-                              className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
-                              }`}
-                              onClick={() => {
-                                setShowNotifications(false);
-                                // Optimistic UI + navigate immediately
-                                if (!notification.isRead) {
-                                  setNotifications((prev) =>
-                                    prev.filter((n) => n._id !== notification._id)
-                                  );
-                                  setUnreadCount((prev) => Math.max(0, prev - 1));
-                                  void markNotificationAsRead(notification._id).catch(() => {});
-                                }
-                                if (notification.type === "subscription") {
-                                  router.push("/dashboard-supplier");
-                                } else if (notification.type === "system") {
-                                  router.push("/dashboard-supplier/products");
-                                } else {
-                                  router.push("/dashboard-supplier/orders");
-                                }
-                              }}
-                            >
-                              <div className="flex items-start gap-2 sm:gap-3">
-                                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                  notification.type === "new_order" 
-                                    ? "bg-gradient-to-br from-green-600 to-emerald-600"
-                                    : notification.type === "order_status"
-                                    ? "bg-gradient-to-br from-blue-600 to-cyan-600"
-                                    : notification.type === "system"
-                                    ? "bg-gradient-to-br from-amber-500 to-orange-600"
-                                    : notification.type === "subscription"
-                                    ? "bg-gradient-to-br from-purple-600 to-indigo-600"
-                                    : "bg-gradient-to-br from-gray-600 to-gray-700"
-                                }`}>
-                                  {notification.type === "new_order" ? (
-                                    <ShoppingCart className="w-5 h-5 text-white" />
-                                  ) : notification.type === "subscription" ? (
-                                    <CreditCard className="w-5 h-5 text-white" />
-                                  ) : notification.type === "system" ? (
-                                    <Package className="w-5 h-5 text-white" />
-                                  ) : (
-                                    <Bell className="w-5 h-5 text-white" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
-                                    {notification.type === "new_order"
-                                      ? "Nouvelle réserve"
-                                      : notification.type === "subscription"
-                                        ? "Abonnement"
-                                        : notification.type === "system"
-                                          ? "Alerte stock bas"
-                                          : "Mise à jour de réserve"}
-                                  </p>
-                                  <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
-                                    {notification.message}
-                                  </p>
-                                  <p className="text-xs text-gray-400 mt-1">
-                                    {new Date(notification.createdAt).toLocaleString("fr-FR")}
-                                  </p>
-                                </div>
-                                {!notification.isRead && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
+                <NotificationPanel
+                  open={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                  anchorRef={bellRef}
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  onMarkAllRead={() => void markAllRead().catch(() => {})}
+                  onItemClick={(notification) => {
+                    setShowNotifications(false);
+                    markRead(notification._id);
+                    router.push(notificationHref(notification));
+                  }}
+                  describe={describeNotification}
+                  theme="green"
+                />
+                <RealtimeToast
+                  toast={toast}
+                  onDismiss={dismissToast}
+                  onOpen={(t) => {
+                    if (t.href) router.push(t.href);
+                  }}
+                  theme="green"
+                />
               </div>
 
               {/* User Profile Dropdown */}

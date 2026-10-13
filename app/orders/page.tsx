@@ -8,10 +8,15 @@ import { consumePendingPaymentOrderIds } from "@/lib/flow-session";
 import { printInvoiceSafely } from "@/lib/invoice-print";
 import Link from "next/link";
 import Image from "next/image";
-import { io as socketIO } from "socket.io-client";
-import { getApiUrl, getBaseUrl } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
 import { useProtectedFileUrl } from "@/lib/use-protected-file";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import { useRealtimeEvents } from "@/hooks/useRealtimeEvents";
+import { RealtimeToast } from "@/components/NotificationPanel";
+import type { RealtimeToastData } from "@/hooks/useNotificationFeed";
+import { showBrowserNotification } from "@/lib/browser-notification";
+
+const HIGHLIGHT_MS = 5000;
 
 interface Order {
   _id: string;
@@ -71,6 +76,9 @@ export default function OrdersPage() {
   const [reviewMessage, setReviewMessage] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [liveToast, setLiveToast] = useState<RealtimeToastData | null>(null);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -95,27 +103,40 @@ export default function OrdersPage() {
     checkAuth();
   }, [router]);
 
-  // Real-time updates for client orders (status changes/new orders)
+  // Supplier accepted / refused / shipped a reservation: refresh the list live.
+  useRealtimeEvents(
+    isAuthenticated,
+    {
+      orderStatusUpdate: (payload: { orderId?: string; message?: string }) => {
+        void loadOrders();
+        const message = payload?.message || "Le statut d'une réserve a changé.";
+        setLiveToast({ key: Date.now(), title: "Mise à jour de réserve", message });
+        showBrowserNotification("Mise à jour de réserve", message);
+        if (payload?.orderId) {
+          setHighlightedOrderId(payload.orderId);
+          if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+          highlightTimerRef.current = setTimeout(() => setHighlightedOrderId(null), HIGHLIGHT_MS);
+        }
+      },
+    },
+    () => void loadOrders()
+  );
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    },
+    []
+  );
+
+  // Status changes may have happened while the WebView/tab was in the background.
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const socket = socketIO(getBaseUrl(), {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
-
-    const refreshOrders = () => {
-      void loadOrders();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadOrders();
     };
-
-    socket.on("orderStatusUpdate", refreshOrders);
-    socket.on("newOrder", refreshOrders);
-
-    return () => {
-      socket.off("orderStatusUpdate", refreshOrders);
-      socket.off("newOrder", refreshOrders);
-      socket.disconnect();
-    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [isAuthenticated]);
   
   // Check URL params for payment upload (single or multiple orders)
@@ -320,6 +341,12 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <RealtimeToast
+        toast={liveToast}
+        onDismiss={() => setLiveToast(null)}
+        theme="blue"
+        mobileBottomClassName="bottom-20"
+      />
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -451,7 +478,11 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => (
               <div
                 key={order._id}
-                className="bg-white rounded-2xl shadow-sm sm:shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all"
+                className={`bg-white rounded-2xl shadow-sm sm:shadow-lg border overflow-hidden hover:shadow-xl transition-all ${
+                  highlightedOrderId === order._id
+                    ? "border-blue-400 ring-4 ring-blue-200"
+                    : "border-gray-200"
+                }`}
               >
                 <div className="p-4 sm:p-6">
                   {/* Order Header */}

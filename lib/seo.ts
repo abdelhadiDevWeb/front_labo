@@ -100,6 +100,14 @@ export const PUBLIC_SEO_PAGES: PublicSeoPage[] = [
     priority: 0.6,
   },
   {
+    path: "/products/group-sales",
+    title: `Ventes groupées — ${SITE_NAME}`,
+    description:
+      "Achats collectifs au prix groupé pour laboratoires d'analyses sur Dz Labmarket.",
+    changeFrequency: "daily",
+    priority: 0.6,
+  },
+  {
     path: "/machines",
     title: `Machines & automates — ${SITE_NAME}`,
     description:

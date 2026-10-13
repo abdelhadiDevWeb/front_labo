@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { apiFetch, checkAuthSession } from "@/lib/api";
 import { getApiUrl } from "@/lib/api-config";
+import QuantityInput from "@/components/QuantityInput";
 
 interface CartPanelProps {
   isOpen: boolean;
@@ -369,29 +370,23 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                           ? `${item.price.toFixed(2)} DA` 
                           : item.price}
                       </p>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="text-sm text-gray-600">Quantité:</span>
-                        <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1, type)
-                            }
-                            className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-700"
-                          >
-                            −
-                          </button>
-                          <span className="px-3 py-1 min-w-[2rem] text-center font-medium">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1, type)
-                            }
-                            className="px-3 py-1 hover:bg-gray-200 transition-colors text-gray-700"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <QuantityInput
+                          size="sm"
+                          value={item.quantity}
+                          max={item.maxQuantity}
+                          onChange={(next) => updateQuantity(item.id, next, type)}
+                          onDecrementBelowMin={() => removeFromCart(item.id, type)}
+                          ariaLabel={`Quantité de ${item.name}`}
+                        />
+                        {typeof item.maxQuantity === "number" &&
+                          item.maxQuantity > 0 &&
+                          item.quantity >= item.maxQuantity && (
+                            <span className="w-full text-xs text-amber-600">
+                              Maximum disponible : {item.maxQuantity}
+                            </span>
+                          )}
                       </div>
                     </div>
                     <button

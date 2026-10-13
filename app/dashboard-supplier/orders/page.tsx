@@ -18,7 +18,9 @@ import {
   Phone,
   FileText,
   AlertCircle,
+  AlertTriangle,
   CreditCard,
+  ExternalLink,
 } from "lucide-react";
 import { apiFetch, checkAuthSession, getPaymentsByCommandes, Payment } from "@/lib/api";
 import { printInvoiceSafely } from "@/lib/invoice-print";
@@ -53,6 +55,30 @@ interface Order {
   updatedAt: string;
 }
 
+interface StockProblemItem {
+  productId?: string;
+  itemType?: "product" | "machine";
+  name: string;
+  available?: number;
+  requested?: number;
+  remaining?: number;
+  firstQu?: number;
+}
+
+interface StockProblem {
+  /** `insufficient`: the reservation was NOT accepted. `low`: accepted, but stock is critical. */
+  kind: "insufficient" | "low";
+  message?: string;
+  items: StockProblemItem[];
+}
+
+const stockItemHref = (item: StockProblemItem) => {
+  if (!item.productId) return "/dashboard-supplier/products";
+  return item.itemType === "machine"
+    ? `/dashboard-supplier/machines/${item.productId}`
+    : `/dashboard-supplier/products/${item.productId}`;
+};
+
 export default function SupplierOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -73,13 +99,24 @@ export default function SupplierOrdersPage() {
   const [pendingStatusChange, setPendingStatusChange] = useState<{ orderId: string; newStatus: "on route" } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [recentPaymentOrderIds, setRecentPaymentOrderIds] = useState<Set<string>>(new Set());
+  const [stockProblem, setStockProblem] = useState<StockProblem | null>(null);
 
   // Memoize modal states to ensure consistent dependency array
   const modalStates = useMemo(() => ({
     showPaymentModal,
     showPaymentAlert,
     showConfirmStatusModal,
-  }), [showPaymentModal, showPaymentAlert, showConfirmStatusModal]);
+    showStockProblem: stockProblem !== null,
+  }), [showPaymentModal, showPaymentAlert, showConfirmStatusModal, stockProblem]);
+
+  useEffect(() => {
+    if (!stockProblem) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setStockProblem(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stockProblem]);
 
   useEffect(() => {
     loadOrders();
@@ -123,7 +160,11 @@ export default function SupplierOrdersPage() {
 
   // Prevent body scroll when modals are open
   useEffect(() => {
-    const hasOpenModal = modalStates.showPaymentModal || modalStates.showPaymentAlert || modalStates.showConfirmStatusModal;
+    const hasOpenModal =
+      modalStates.showPaymentModal ||
+      modalStates.showPaymentAlert ||
+      modalStates.showConfirmStatusModal ||
+      modalStates.showStockProblem;
     if (hasOpenModal) {
       document.body.style.overflow = "hidden";
     } else {
@@ -327,7 +368,16 @@ export default function SupplierOrdersPage() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        alert(result.message || "Action impossible");
+        const issues: StockProblemItem[] = Array.isArray(result.stockIssues) ? result.stockIssues : [];
+        const isStockError =
+          issues.length > 0 ||
+          result.code === "INSUFFICIENT_STOCK" ||
+          /stock insuffisant/i.test(String(result.message || ""));
+        if (action === "accept" && isStockError) {
+          setStockProblem({ kind: "insufficient", message: result.message, items: issues });
+        } else {
+          alert(result.message || "Action impossible");
+        }
         return;
       }
       if (
@@ -335,17 +385,7 @@ export default function SupplierOrdersPage() {
         Array.isArray(result.lowStockAlerts) &&
         result.lowStockAlerts.length > 0
       ) {
-        const lines = result.lowStockAlerts
-          .map(
-            (a: { name: string; remaining: number; firstQu?: number }) =>
-              a.firstQu != null
-                ? `« ${a.name} » : ${a.remaining} restant(s) / ${a.firstQu} initial`
-                : `« ${a.name} » : ${a.remaining} restant(s)`
-          )
-          .join("\n");
-        alert(
-          `Réserve acceptée.\n\nAlerte stock bas (≤ 20% du stock initial) :\n${lines}\n\nPensez à réapprovisionner.`
-        );
+        setStockProblem({ kind: "low", items: result.lowStockAlerts });
       }
       await loadOrders();
     } catch {
@@ -1043,6 +1083,154 @@ export default function SupplierOrdersPage() {
           </>,
           document.body
       )}
+
+      {/* Stock problem modal (accepting a reservation) */}
+      {isMounted &&
+        stockProblem &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2147483646] animate-fade-in"
+              onClick={() => setStockProblem(null)}
+            />
+            <div className="fixed inset-0 z-[2147483647] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="stock-problem-title"
+                className="pointer-events-auto flex w-full max-w-lg max-h-[90dvh] flex-col overflow-hidden rounded-t-3xl sm:rounded-2xl bg-white shadow-2xl ring-4 ring-red-500/40 animate-fade-in-up"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="shrink-0 bg-gradient-to-r from-red-600 to-rose-600 px-4 sm:px-6 py-4 sm:py-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-white/20 animate-pulse">
+                      <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-red-100">Urgent</p>
+                      <h3 id="stock-problem-title" className="text-base sm:text-xl font-bold text-white">
+                        {stockProblem.kind === "insufficient"
+                          ? "Stock insuffisant — réserve non acceptée"
+                          : "Réserve acceptée — stock critique"}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStockProblem(null)}
+                      className="shrink-0 rounded-lg p-1.5 text-white hover:bg-white/20 transition-colors"
+                      aria-label="Fermer"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+                  <div className="rounded-xl border-2 border-red-200 bg-red-50 p-3 sm:p-4 text-sm text-red-900">
+                    {stockProblem.kind === "insufficient" ? (
+                      <>
+                        <p className="font-semibold">Vous ne pouvez pas accepter cette réserve.</p>
+                        <p className="mt-1">
+                          La quantité disponible est inférieure à la quantité demandée par le laboratoire.
+                          Mettez à jour le stock de l&apos;article puis acceptez à nouveau, ou refusez la réserve.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold">Le stock restant est très bas (≤ 20% du stock initial).</p>
+                        <p className="mt-1">
+                          Réapprovisionnez rapidement pour ne pas bloquer les prochaines réserves.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {stockProblem.items.length > 0 ? (
+                    <ul className="space-y-2">
+                      {stockProblem.items.map((item, index) => (
+                        <li
+                          key={`${item.productId || item.name}-${index}`}
+                          className="flex flex-col gap-3 rounded-xl border border-red-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 break-words">{item.name}</p>
+                            <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                              {stockProblem.kind === "insufficient" ? (
+                                <>
+                                  <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">
+                                    Disponible : {item.available ?? 0}
+                                  </span>
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
+                                    Demandé : {item.requested ?? "—"}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">
+                                    Restant : {item.remaining ?? 0}
+                                  </span>
+                                  {item.firstQu != null && (
+                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
+                                      Stock initial : {item.firstQu}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStockProblem(null);
+                              router.push(stockItemHref(item));
+                            }}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            {item.itemType === "machine" ? "Voir la machine" : "Voir le produit"}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    stockProblem.message && (
+                      <p className="rounded-xl border border-red-200 bg-white p-3 text-sm font-medium text-gray-800 break-words">
+                        {stockProblem.message}
+                      </p>
+                    )
+                  )}
+                </div>
+
+                <div
+                  className="shrink-0 flex flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-end sm:px-6"
+                  style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setStockProblem(null)}
+                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Fermer
+                  </button>
+                  {stockProblem.items.length !== 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStockProblem(null);
+                        router.push("/dashboard-supplier/products");
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+                    >
+                      <Package className="h-4 w-4" />
+                      Voir mes produits
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ import AppLoadingScreen from "@/components/AppLoadingScreen";
 import CatalogPrice from "@/components/CatalogPrice";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
+import QuantityInput from "@/components/QuantityInput";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
@@ -93,13 +94,18 @@ export default function ProductDetailPage() {
     if (!product) return;
 
     if (isAuthenticated && userRole === "client") {
-      for (let i = 0; i < quantity; i++) {
-        addToCart({
+      const stock = typeof product.quantity === "number" ? product.quantity : undefined;
+      addToCart(
+        {
           id: product.id,
           name: product.name,
           price: product.price,
-        });
-      }
+          supplierId: product.supplier?.id || "",
+          itemType: "product",
+          maxQuantity: stock,
+        },
+        quantity
+      );
       alert(`${quantity} ${product.name} ajouté(s) au panier !`);
     } else {
       setLoginAlertOpen(true);
@@ -456,6 +462,8 @@ export default function ProductDetailPage() {
                   <SupplierDeliveryNotes
                     deliveryNoteAll={product.supplier.deliveryNoteAll}
                     deliveryByWilaya={product.supplier.deliveryByWilaya}
+                    wilayas={product.supplier.wilayas}
+                    coversAllWilayas={product.supplier.coversAllWilayas}
                     highlightWilayaCode={visitorWilayaCode}
                   />
                 </div>
@@ -466,26 +474,16 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg"
-                    disabled={quantity <= 1}
-                  >
-                    −
-                  </button>
-                  <span className="w-14 sm:w-16 text-center text-base sm:text-lg font-semibold">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(Math.min(product.quantity, quantity + 1))}
-                    className="w-9 h-9 sm:w-10 sm:h-10 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-base sm:text-lg"
-                    disabled={quantity >= product.quantity}
-                  >
-                    +
-                  </button>
-                </div>
+                <QuantityInput
+                  value={quantity}
+                  onChange={setQuantity}
+                  max={typeof product.quantity === "number" ? product.quantity : undefined}
+                  disabled={product.quantity === 0}
+                />
                 {product.quantity > 0 && (
                   <p className="text-xs text-gray-500 mt-2">
                     {product.quantity} disponible{product.quantity > 1 ? "s" : ""}
+                    {quantity >= product.quantity && " — quantité maximale atteinte"}
                   </p>
                 )}
               </div>

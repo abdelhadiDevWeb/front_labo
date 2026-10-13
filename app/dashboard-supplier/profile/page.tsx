@@ -39,7 +39,6 @@ interface ProfileFormData {
   coversAllWilayas: boolean;
   wilayas: string[];
   deliveryNoteAll: string;
-  deliveryByWilaya: Record<string, string>;
 }
 
 interface PasswordFormData {
@@ -73,7 +72,6 @@ export default function SupplierProfilePage() {
     coversAllWilayas: false,
     wilayas: [],
     deliveryNoteAll: "",
-    deliveryByWilaya: {},
   });
   
 
@@ -108,7 +106,6 @@ export default function SupplierProfilePage() {
             coversAllWilayas: !!result.data.coversAllWilayas,
             wilayas: result.data.wilayas || [],
             deliveryNoteAll: result.data.deliveryNoteAll || "",
-            deliveryByWilaya: result.data.deliveryByWilaya || {},
           });
         }
 
@@ -619,17 +616,14 @@ export default function SupplierProfilePage() {
                 Délais & infos de livraison
               </label>
               <p className="text-sm text-gray-500 mb-4">
-                Décrivez la livraison pour chaque wilaya. Vous pouvez aussi écrire un texte
-                unique et l&apos;appliquer à toutes.
+                Cliquez sur « Ajouter une note », choisissez une wilaya puis écrivez la note.
+                Vos notes s&apos;affichent sur la page de chacun de vos produits, machines et
+                services.
               </p>
               <SupplierDeliveryEditor
                 deliveryNoteAll={profileForm.deliveryNoteAll}
-                deliveryByWilaya={profileForm.deliveryByWilaya}
                 onDeliveryNoteAllChange={(value) =>
                   setProfileForm((prev) => ({ ...prev, deliveryNoteAll: value }))
-                }
-                onDeliveryByWilayaChange={(next) =>
-                  setProfileForm((prev) => ({ ...prev, deliveryByWilaya: next }))
                 }
               />
             </div>

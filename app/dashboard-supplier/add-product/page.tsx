@@ -1576,7 +1576,7 @@ export default function AddProductPage() {
                             {field.required && <span className="text-red-500">*</span>}
                           </label>
                           {field.desc && (
-                            <p className="text-xs text-gray-500 mb-2">{field.desc}</p>
+                          <p className="text-xs text-gray-500 mb-2">{field.desc}</p>
                           )}
                           <input
                             type={field.inputType === "number" ? "number" : "text"}
@@ -2051,9 +2051,9 @@ export default function AddProductPage() {
                                         Import refusé
                                       </span>
                                     ) : (
-                                      <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
-                                        Prêt à importer
-                                      </span>
+                                    <span className="px-2 py-0.5 bg-green-200 text-green-700 rounded-full font-medium">
+                                      Prêt à importer
+                                    </span>
                                     )}
                                   </div>
                                 </div>

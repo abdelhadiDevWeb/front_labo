@@ -17,6 +17,7 @@ import {
   Building2,
   FileText,
   ExternalLink,
+  Search,
 } from "lucide-react";
 import {
   getPublicGroupSelles,
@@ -693,8 +694,17 @@ const nextPollDelay = (list: GroupSelleItem[] | null, failures: number): number 
   return withJitter(base);
 };
 
-export default function GroupSelleShowcase() {
+/**
+ * `section`: home block, hidden while loading or empty.
+ * `page`: full listing (`/products/group-sales`) with loading, search and empty states.
+ */
+export default function GroupSelleShowcase({
+  variant = "section",
+}: {
+  variant?: "section" | "page";
+} = {}) {
   const [items, setItems] = useState<GroupSelleItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [detailsItem, setDetailsItem] = useState<GroupSelleItem | null>(null);
   const refreshRef = useRef<() => void>(() => {});
@@ -776,6 +786,86 @@ export default function GroupSelleShowcase() {
 
   const refresh = () => refreshRef.current();
 
+  const filteredItems = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((g) =>
+      [g.product?.name, g.product?.brand, g.product?.category]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q))
+    );
+  }, [items, searchTerm]);
+
+  if (variant === "page") {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher une vente groupée..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+            />
+          </div>
+          <span className="inline-flex items-center gap-2 self-start rounded-full bg-teal-100 px-3 py-1.5 text-sm font-semibold text-teal-800 sm:self-auto">
+            <Users className="w-4 h-4" />
+            {items.length} vente{items.length > 1 ? "s" : ""} en cours
+          </span>
+        </div>
+
+        {filteredItems.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+            {filteredItems.map((item) => (
+              <GroupSellCard
+                key={item.id}
+                item={item}
+                onJoined={refresh}
+                onSeeDetails={() => setDetailsItem(item)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-200 p-10 sm:p-12 text-center">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              {searchTerm ? "Aucun résultat" : "Aucune vente groupée en cours"}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {searchTerm
+                ? "Essayez un autre terme de recherche"
+                : "Revenez bientôt : les fournisseurs publient régulièrement de nouvelles offres groupées."}
+            </p>
+            <Link
+              href="/products"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700"
+            >
+              Voir tous les produits
+            </Link>
+          </div>
+        )}
+
+        {detailsItem && (
+          <GroupSellDetailsModal
+            item={detailsItem}
+            onClose={() => setDetailsItem(null)}
+            onJoined={refresh}
+          />
+        )}
+      </>
+    );
+  }
+
   if (isLoading || items.length === 0) {
     return null;
   }
@@ -799,6 +889,12 @@ export default function GroupSelleShowcase() {
             Rejoignez une annonce, indiquez votre quantité — quand l&apos;objectif
             est atteint, la réserve est créée automatiquement
           </p>
+          <Link
+            href="/products/group-sales"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 hover:text-teal-800 hover:underline"
+          >
+            Voir toutes les ventes groupées →
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">

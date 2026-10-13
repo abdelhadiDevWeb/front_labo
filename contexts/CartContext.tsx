@@ -10,7 +10,14 @@ export interface CartItem {
   supplierId?: string;
   /** Defaults to product when omitted (legacy cart entries). */
   itemType?: "product" | "machine" | "service";
+  /** Stock known when the item was added; quantities are capped to it. */
+  maxQuantity?: number;
 }
+
+const capQuantity = (quantity: number, maxQuantity?: number) =>
+  typeof maxQuantity === "number" && Number.isFinite(maxQuantity) && maxQuantity > 0
+    ? Math.min(quantity, maxQuantity)
+    : quantity;
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -70,13 +77,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
       );
 
       if (existingItem) {
-        return prev.map((cartItem) =>
-          cartItem.id === item.id && (cartItem.itemType || "product") === itemType
-            ? { ...cartItem, quantity: cartItem.quantity + quantity }
-            : cartItem
-        );
+        return prev.map((cartItem) => {
+          if (!(cartItem.id === item.id && (cartItem.itemType || "product") === itemType)) {
+            return cartItem;
+          }
+          const maxQuantity = item.maxQuantity ?? cartItem.maxQuantity;
+          return {
+            ...cartItem,
+            maxQuantity,
+            quantity: capQuantity(cartItem.quantity + quantity, maxQuantity),
+          };
+        });
       } else {
-        return [...prev, { ...item, itemType, quantity }];
+        return [...prev, { ...item, itemType, quantity: capQuantity(quantity, item.maxQuantity) }];
       }
     });
   };
@@ -103,7 +116,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartItems((prev) =>
       prev.map((item) =>
         item.id === id && (item.itemType || "product") === type
-          ? { ...item, quantity }
+          ? { ...item, quantity: capQuantity(quantity, item.maxQuantity) }
           : item
       )
     );

@@ -16,8 +16,6 @@ import {
   Truck,
   Check,
   ChevronDown,
-  Search,
-  FileText,
   ShoppingCart,
   Package,
   Menu,
@@ -40,12 +38,15 @@ import {
   HomeDesktopNavMenus,
   HomeMobileNavMenus,
 } from "@/components/HomeNavMenus";
-import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, refreshAuthToken } from "@/lib/api";
+import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, refreshAuthToken } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
 import { setupNativeFcmBridge } from "@/lib/fcm-bridge";
 import { useCart } from "@/contexts/CartContext";
 import dynamic from "next/dynamic";
-import { getBaseUrl } from "@/lib/api-config";
+import { useNotificationFeed } from "@/hooks/useNotificationFeed";
+import NotificationPanel, { RealtimeToast, type NotificationVisual } from "@/components/NotificationPanel";
+import { showBrowserNotification } from "@/lib/browser-notification";
+import WhyChooseDzLabmarket from "@/components/WhyChooseDzLabmarket";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
 import CatalogPrice from "@/components/CatalogPrice";
@@ -104,11 +105,35 @@ export default function HomePage() {
   const [isLoadingServices, setIsLoadingServices] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
+  const scrollProgressRef = useRef<HTMLDivElement>(null);
   const cartItemCount = getTotalItems();
   const isClientUser = userRole === "client";
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    toast,
+    dismissToast,
+  } = useNotificationFeed(isAuthenticated && isClientUser, {
+    orderStatusUpdate: {
+      handle: (payload) => {
+        const message = (payload as { message?: string }).message || "";
+        showBrowserNotification("Mise à jour de réserve", message);
+        return { title: "Mise à jour de réserve", message, href: "/orders" };
+      },
+    },
+    subscriptionRequestUpdate: {
+      handle: (payload) => {
+        const data = payload as { title?: string; message?: string };
+        showBrowserNotification(data.title || "Abonnement", data.message || "");
+        return { title: data.title || "Abonnement", message: data.message || "" };
+      },
+    },
+  });
   const {
     location: userLocation,
     status: locationStatus,
@@ -202,14 +227,38 @@ export default function HomePage() {
       setUserRole(null);
       setUserEmail("");
       setUserData(null);
-      setNotifications([]);
-      setUnreadCount(0);
       setShowNotifications(false);
       setMobileMenuOpen(false);
     };
     window.addEventListener("auth:logout", onLogout);
     return () => window.removeEventListener("auth:logout", onLogout);
   }, []);
+
+  // Compact header + reading progress bar while scrolling.
+  useEffect(() => {
+    if (!isAuthReady) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const y = window.scrollY;
+      setIsHeaderScrolled(y > 12);
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollProgressRef.current) {
+        scrollProgressRef.current.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
+      }
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [isAuthReady]);
 
   useEffect(() => {
     if (isClientUser) {
@@ -370,87 +419,38 @@ export default function HomePage() {
     }
   }, []);
 
-  // Load notifications for clients + register FCM token (mobile WebView)
+  // Register FCM token (mobile WebView)
   useEffect(() => {
     if (!(isAuthenticated && isClientUser)) return;
-
-    loadNotifications();
-    const cleanupSocket = setupSocketConnection();
-    const cleanupFcm = setupNativeFcmBridge({ enabled: true });
-
-    return () => {
-      cleanupSocket?.();
-      cleanupFcm?.();
-    };
+    return setupNativeFcmBridge({ enabled: true });
   }, [isAuthenticated, isClientUser]);
 
-  const loadNotifications = async () => {
-    try {
-      const result = await getNotifications(true); // Only unread
-      if (result.success && result.data) {
-        setNotifications(result.data.notifications || []);
-        setUnreadCount(result.data.unreadCount || 0);
-      }
-    } catch (err) {
-      // Silent error handling
-    }
-  };
-
-  const setupSocketConnection = () => {
-    let cancelled = false;
-    let socket: { disconnect: () => void; on: (...args: unknown[]) => void } | null = null;
-
-    void import("socket.io-client").then(({ io }) => {
-      if (cancelled) return;
-      socket = io(getBaseUrl(), {
-        withCredentials: true,
-        transports: ["websocket", "polling"],
-      }) as unknown as { disconnect: () => void; on: (...args: unknown[]) => void };
-
-      socket.on("orderStatusUpdate", async (data: {
-        orderId: string;
-        status: string;
-        message: string;
-        notificationId: string;
-      }) => {
-        await loadNotifications();
-
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("Mise à jour de réserve", {
-            body: data.message,
-            icon: "/favicon.ico",
-          });
-        }
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      socket?.disconnect();
-    };
-  };
-
   const handleNotificationClick = (notification: NotificationData) => {
-    // Close dropdown and navigate immediately (don't wait for API)
     setShowNotifications(false);
-    setNotifications((prev) => prev.filter((n) => n._id !== notification._id));
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    markRead(notification._id);
     router.push("/orders");
-
-    // Mark as read in background
-    void markNotificationAsRead(notification._id).catch(() => {});
   };
 
-  const handleMarkAllNotificationsAsRead = async () => {
-    try {
-      const result = await markAllNotificationsAsRead();
-      if (result.success) {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
-    } catch (error) {
-      // Silent error handling
+  const describeNotification = (notification: NotificationData): NotificationVisual => {
+    if (notification.type === "order_status") {
+      return {
+        title: "Mise à jour de réserve",
+        icon: <Truck className="w-5 h-5" />,
+        iconClassName: "bg-gradient-to-br from-blue-600 to-cyan-600",
+      };
     }
+    if (notification.type === "new_order") {
+      return {
+        title: "Nouvelle réserve",
+        icon: <ShoppingCart className="w-5 h-5" />,
+        iconClassName: "bg-gradient-to-br from-green-600 to-emerald-600",
+      };
+    }
+    return {
+      title: notification.type === "subscription" ? "Abonnement" : "Notification système",
+      icon: <Bell className="w-5 h-5" />,
+      iconClassName: "bg-gradient-to-br from-gray-600 to-gray-700",
+    };
   };
 
   // Handle support form submission
@@ -584,29 +584,6 @@ export default function HomePage() {
     },
   ];
 
-  const processSteps = [
-    {
-      title: "Recherchez",
-      description:
-        "Recherchez des réactifs, consommables ou automates compatibles de vos choix.",
-    },
-    {
-      title: "Comparez",
-      description:
-        "Comparez les offres des fournisseurs : prix, délais, services.",
-    },
-    {
-      title: "Réservez",
-      description:
-        "Réservez en un clic. Bon de réserve automatique.",
-    },
-    {
-      title: "Suivez",
-      description:
-        "Suivez votre commande en temps réel de la validation à la livraison.",
-    },
-  ];
-
   const benefits = [
     {
       icon: Microscope,
@@ -652,11 +629,21 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-white overflow-x-clip">
       {/* Header - Professional & Modern */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+      <header
+        className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-[background-color,box-shadow,border-color] duration-300 animate-header-in ${
+          isHeaderScrolled
+            ? "bg-white/80 border-gray-200/70 shadow-lg shadow-blue-950/5"
+            : "bg-white/95 border-gray-100 shadow-sm"
+        }`}
+      >
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20 md:h-28">
+          <div
+            className={`flex items-center justify-between transition-[height] duration-300 ease-out ${
+              isHeaderScrolled ? "h-16 md:h-20" : "h-20 md:h-28"
+            }`}
+          >
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
@@ -664,7 +651,11 @@ export default function HomePage() {
                   alt={`${BRAND_NAME} Logo`}
                   width={274}
                   height={200}
-                  className="h-12 sm:h-14 md:h-[4.5rem] lg:h-20 w-auto object-contain"
+                  className={`w-auto object-contain transition-[height] duration-300 ease-out ${
+                    isHeaderScrolled
+                      ? "h-10 sm:h-11 md:h-14 lg:h-16"
+                      : "h-12 sm:h-14 md:h-[4.5rem] lg:h-20"
+                  }`}
                   priority
                 />
              
@@ -698,14 +689,12 @@ export default function HomePage() {
                   {/* Notifications */}
                   <div className="relative">
                     <button
-                      onClick={() => {
-                        setShowNotifications(!showNotifications);
-                        if (!showNotifications && unreadCount > 0) {
-                          loadNotifications();
-                        }
-                      }}
+                      ref={bellRef}
+                      type="button"
+                      onClick={() => setShowNotifications(!showNotifications)}
                       className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors group"
                       aria-label="Notifications"
+                      aria-expanded={showNotifications}
                     >
                       <Bell className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
                       {unreadCount > 0 && (
@@ -715,111 +704,27 @@ export default function HomePage() {
                       )}
                     </button>
 
-                    {/* Notifications Dropdown */}
-                    {showNotifications && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowNotifications(false)}
-                        />
-                        <div className="fixed left-1/2 -translate-x-1/2 top-20 w-[calc(100vw-2rem)] sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-auto sm:mt-2 sm:w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up max-h-[70vh] sm:max-h-96 overflow-y-auto">
-                          <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                            <h3 className="font-bold text-base sm:text-lg">Notifications</h3>
-                            <p className="text-xs sm:text-sm text-blue-100">
-                              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
-                            </p>
-                              </div>
-                              {unreadCount > 0 && (
-                                <button
-                                  onClick={handleMarkAllNotificationsAsRead}
-                                  className="text-xs sm:text-sm font-semibold px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
-                                >
-                                  Tout marquer lu
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="divide-y divide-gray-200">
-                            {notifications.length === 0 ? (
-                              <div className="p-6 text-center text-gray-500">
-                                <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                                <p>Aucune notification</p>
-                              </div>
-                            ) : (
-                              notifications.map((notification) => (
-                                <div
-                                  key={notification._id}
-                                  className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                    !notification.isRead ? "bg-blue-50 border-l-4 border-blue-500" : ""
-                                  }`}
-                                  onClick={() => handleNotificationClick(notification)}
-                                >
-                                  <div className="flex items-start gap-2 sm:gap-3">
-                                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                      notification.type === "order_status" 
-                                        ? "bg-gradient-to-br from-blue-600 to-cyan-600"
-                                        : notification.type === "new_order"
-                                        ? "bg-gradient-to-br from-green-600 to-emerald-600"
-                                        : "bg-gradient-to-br from-gray-600 to-gray-700"
-                                    }`}>
-                                      {notification.type === "order_status" ? (
-                                      <Truck className="w-5 h-5 text-white" />
-                                      ) : notification.type === "new_order" ? (
-                                        <ShoppingCart className="w-5 h-5 text-white" />
-                                      ) : (
-                                        <Bell className="w-5 h-5 text-white" />
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-semibold text-xs sm:text-sm text-gray-900 break-words">
-                                            {notification.type === "order_status" 
-                                              ? "Mise à jour de réserve" 
-                                              : notification.type === "new_order"
-                                              ? "Nouvelle réserve"
-                                              : "Notification système"}
-                                      </p>
-                                          {notification.idSender && typeof notification.idSender === 'object' && (
-                                            <p className="text-xs text-gray-500 mt-0.5 break-words">
-                                              De: {notification.idSender.firstName} {notification.idSender.lastName}
-                                            </p>
-                                          )}
-                                        </div>
-                                        {!notification.isRead && (
-                                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
-                                        )}
-                                      </div>
-                                      <p className="text-xs sm:text-sm text-gray-600 mt-1.5 sm:mt-2 break-words">
-                                        {notification.message}
-                                      </p>
-                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 mt-1.5 sm:mt-2">
-                                        <p className="text-xs text-gray-400">
-                                          {new Date(notification.createdAt).toLocaleString("fr-FR", {
-                                            day: "2-digit",
-                                            month: "2-digit",
-                                            year: "numeric",
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                          })}
-                                      </p>
-                                        {notification.type === "order_status" && (
-                                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-                                            Réserve
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <NotificationPanel
+                      open={showNotifications}
+                      onClose={() => setShowNotifications(false)}
+                      anchorRef={bellRef}
+                      notifications={notifications}
+                      unreadCount={unreadCount}
+                      onMarkAllRead={() => void markAllRead().catch(() => {})}
+                      onItemClick={handleNotificationClick}
+                      describe={describeNotification}
+                      theme="blue"
+                      showSender
+                    />
+                    <RealtimeToast
+                      toast={toast}
+                      onDismiss={dismissToast}
+                      onOpen={(t) => {
+                        if (t.href) router.push(t.href);
+                      }}
+                      theme="blue"
+                      mobileBottomClassName="bottom-20"
+                    />
                   </div>
 
                   {/* Shopping Cart Icon */}
@@ -925,6 +830,12 @@ export default function HomePage() {
             </div>
           )}
         </nav>
+        <div
+          ref={scrollProgressRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-left bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400"
+          style={{ transform: "scaleX(0)" }}
+        />
       </header>
 
       <HomeSponsoredHero />
@@ -1167,186 +1078,45 @@ export default function HomePage() {
       {/* About Section - Professional Design */}
       <section id="about-section" className="py-12 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 lg:gap-16 items-center">
-            <div className={`space-y-4 sm:space-y-6 md:space-y-8 scroll-animate-left ${visibleElements.has("about-left") ? "animate" : ""}`} id="about-left">
-              <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
-                À propos
-              </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 leading-tight">
-                À PROPOS DE <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span>
-              </h2>
-              <ul className="space-y-3 sm:space-y-4 md:space-y-5 text-gray-700">
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">DZ Marketlab :</strong> Première plateforme B2B de biologie médicale en Algérie.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Partenaires certifiés :</strong> Laboratoires et fournisseurs rigoureusement vérifiés et agréés.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Catalogue complet :</strong> Accès direct aux réactifs, nouveautés, arrivages et promotions.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Recherche de proximité :</strong> Filtre géographique intelligent pour vos commandes d&apos;urgence.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Accessibilité 24h/7j :</strong> Demandes et vitrine commerciale disponibles en permanence.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 sm:gap-4 group">
-                  <div className="mt-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors duration-300">
-                    <Check className="text-blue-600 w-3 h-3 sm:w-4 sm:h-4 group-hover:text-white transform transition-transform group-hover:scale-110" />
-                  </div>
-                  <span className="text-sm sm:text-base md:text-lg leading-relaxed transition-all group-hover:text-gray-900">
-                    <strong className="font-semibold text-gray-900">Optimisation globale :</strong> Gain de temps et réduction des coûts au quotidien.
-                  </span>
-                </li>
-              </ul>
-              <button className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-sm sm:text-base md:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl mt-4 sm:mt-6 md:mt-8 inline-flex items-center gap-2">
-                <span>En savoir plus</span>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
+          <div className={`text-center mb-8 sm:mb-10 md:mb-14 scroll-animate ${visibleElements.has("about-left") ? "animate" : ""}`} id="about-left">
+            <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
+              À propos
             </div>
-            <div className={`grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 scroll-animate-right ${visibleElements.has("about-right") ? "animate" : ""}`} id="about-right">
-              <div className="space-y-3 sm:space-y-4 md:space-y-6">
-                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-blue-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <Image
-                    src="/images/about/marketplace.jpg"
-                    alt={`${BRAND_NAME} — marketplace laboratoire`}
-                    width={480}
-                    height={480}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-purple-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <Image
-                    src="/images/about/laboratoire.jpg"
-                    alt="Analyses de laboratoire et biologie médicale"
-                    width={480}
-                    height={480}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 sm:space-y-4 md:space-y-6 pt-6 sm:pt-8 md:pt-12">
-                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-green-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <Image
-                    src="/images/about/proximite.jpg"
-                    alt="Recherche de proximité et couverture géographique"
-                    width={480}
-                    height={480}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="aspect-square overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-orange-100/50 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2">
-                  <Image
-                    src="/images/about/partenaire.jpg"
-                    alt="Partenariats laboratoires et fournisseurs"
-                    width={480}
-                    height={480}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works Section - Professional */}
-      <section className="py-12 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-br from-gray-900 via-blue-900 to-cyan-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIwLjUiIG9wYWNpdHk9IjAuMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-10"></div>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 max-w-7xl">
-          <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
-            <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-white/10 backdrop-blur-sm text-blue-200 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
-              Processus
-            </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2 sm:px-4">
-              Comment ça <span className="bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">fonctionne</span> ?
-            </h2>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-blue-100 mb-6 sm:mb-8 md:mb-10 font-light px-2 sm:px-4">Simple. Rapide. Professionnel.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 lg:gap-8">
-            {processSteps.map((step, index) => {
-              const icons = [Search, FileText, ShoppingCart, Package];
-              const IconComponent = icons[index];
-              return (
-                <div
-                  key={index}
-                  className={`bg-white/10 backdrop-blur-xl rounded-2xl md:rounded-3xl p-6 md:p-8 border border-white/20 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:scale-105 hover:-translate-y-2 hover:shadow-2xl scroll-animate-scale group ${visibleElements.has(`step-${index}`) ? "animate" : ""}`}
-                  id={`step-${index}`}
-                  style={{ transitionDelay: `${index * 50}ms` }}
-                >
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl md:rounded-2xl flex items-center justify-center text-white mb-4 md:mb-6 transform transition-all duration-300 group-hover:rotate-6 group-hover:scale-110 shadow-lg">
-                    <IconComponent className="w-6 h-6 md:w-8 md:h-8" />
-                  </div>
-                  <div className="text-blue-300 text-xs md:text-sm font-bold mb-2 md:mb-3">Étape {index + 1}</div>
-                  <h3 className="text-white font-bold text-base md:text-lg lg:text-xl mb-2 md:mb-3 leading-tight">{step.title}</h3>
-                  <p className="text-blue-100 text-sm md:text-base leading-relaxed">{step.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Why Choose Section - Professional */}
-      <section className="py-12 sm:py-16 md:py-24 lg:py-32 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
-            <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
-              Avantages
-            </div>
-            <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6 scroll-animate ${visibleElements.has("why-title") ? "animate" : ""}`} id="why-title">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight px-2">
               Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
             </h2>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">Des solutions professionnelles pour tous vos besoins d'analyse</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
-            {benefits.map((benefit, index) => {
-              const IconComponent = benefit.icon;
-              return (
-                <div
-                  key={index}
-                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 scroll-animate-scale group ${visibleElements.has(`benefit-${index}`) ? "animate" : ""}`}
-                  id={`benefit-${index}`}
-                  style={{ transitionDelay: `${index * 50}ms` }}
-                >
-                  <div className="mb-4 md:mb-6 transform transition-all duration-300 inline-block group-hover:scale-110 group-hover:rotate-6">
-                    <div className="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-cyan-100 transition-all duration-300">
-                      <IconComponent className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 text-blue-600" />
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-sm md:text-base lg:text-lg transition-colors group-hover:text-blue-600">{benefit.title}</h3>
-                  <p className="text-xs md:text-sm text-gray-600 leading-relaxed">{benefit.description}</p>
-                </div>
-              );
-            })}
+
+          <div className={`scroll-animate-scale ${visibleElements.has("about-right") ? "animate" : ""}`} id="about-right">
+            <WhyChooseDzLabmarket />
+          </div>
+
+          <div className="mt-8 sm:mt-10 md:mt-14 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            {[
+              { src: "/images/1.png", alt: `${BRAND_NAME} — microscope de laboratoire` },
+              { src: "/images/2.png", alt: "Verrerie et réactifs de laboratoire" },
+              { src: "/images/3.png", alt: "Laboratoire d'analyses médicales" },
+              { src: "/images/4.png", alt: "Automates et équipements de laboratoire" },
+            ].map((img) => (
+              <div
+                key={img.src}
+                className="aspect-[4/3] overflow-hidden rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+              >
+                <Image src={img.src} alt={img.alt} width={480} height={360} className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 sm:mt-10 text-center">
+            <Link
+              href="/about"
+              className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-sm sm:text-base md:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl inline-flex items-center gap-2"
+            >
+              <span>En savoir plus</span>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
           </div>
         </div>
       </section>
@@ -2010,6 +1780,42 @@ export default function HomePage() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Why Choose Section - Professional */}
+      <section className="py-12 sm:py-16 md:py-24 lg:py-32 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
+            <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
+              Avantages
+            </div>
+            <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6 scroll-animate ${visibleElements.has("why-title") ? "animate" : ""}`} id="why-title">
+              Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">Des solutions professionnelles pour tous vos besoins d'analyse</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+            {benefits.map((benefit, index) => {
+              const IconComponent = benefit.icon;
+              return (
+                <div
+                  key={index}
+                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 scroll-animate-scale group ${visibleElements.has(`benefit-${index}`) ? "animate" : ""}`}
+                  id={`benefit-${index}`}
+                  style={{ transitionDelay: `${index * 50}ms` }}
+                >
+                  <div className="mb-4 md:mb-6 transform transition-all duration-300 inline-block group-hover:scale-110 group-hover:rotate-6">
+                    <div className="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-cyan-100 transition-all duration-300">
+                      <IconComponent className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-sm md:text-base lg:text-lg transition-colors group-hover:text-blue-600">{benefit.title}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 leading-relaxed">{benefit.description}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

@@ -12,6 +12,7 @@ import {
   Microscope,
   Package,
   Percent,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +60,12 @@ export const MARKETPLACE_MENU: HeaderMenuLink[] = [
     label: "Toutes les promotions",
     icon: Percent,
     hoverClass: "hover:bg-orange-50 hover:text-orange-600",
+  },
+  {
+    href: "/products/group-sales",
+    label: "Ventes groupées",
+    icon: Users,
+    hoverClass: "hover:bg-teal-50 hover:text-teal-700",
   },
 ];
 
