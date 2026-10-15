@@ -4,7 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { displaySerif as heroSerif } from "@/lib/fonts";
 import {
+  ArrowRight,
+  BadgeCheck,
+  CheckCircle2,
+  Clock,
+  HeartPulse,
+  MapPin,
   FlaskConical,
   Microscope,
   User,
@@ -14,7 +21,6 @@ import {
   Users,
   Phone,
   Truck,
-  Check,
   ChevronDown,
   ShoppingCart,
   Package,
@@ -83,6 +89,12 @@ const CatalogItemDetailsModal = dynamic(
 /** Title-case in the DOM (avoids ALL-CAPS hydration rewrites by browsers/extensions). Use `uppercase` CSS where all-caps look is needed. */
 const BRAND_NAME = "Dz Labmarket";
 
+const HERO_HIGHLIGHTS = [
+  { icon: Building2, title: "Multiples fournisseurs", text: "Agrégés sur une interface unique" },
+  { icon: Truck, title: "Livraisons rapides", text: "Le meilleur délai en un coup d'œil" },
+  { icon: Clock, title: "Commande 24h/24", text: "Achetez en toute autonomie" },
+  { icon: MapPin, title: "69 wilayas", text: "Visibilité nationale" },
+];
 export default function HomePage() {
   const router = useRouter();
   const { getTotalItems, addToCart } = useCart();
@@ -142,14 +154,6 @@ export default function HomePage() {
   } = useUserLocation();
   const requiresWilayaForCatalog = !isAuthenticated || userRole === "client";
   const visitorWilayaCode = resolveWilayaCode(userLocation?.wilaya);
-  const [particles, setParticles] = useState<Array<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-    animationDelay: number;
-    animationDuration: number;
-  }>>([]);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [catalogDetails, setCatalogDetails] = useState<{
     item: PublicCatalogItem;
@@ -544,19 +548,6 @@ export default function HomePage() {
     };
   }, [isAuthReady, products.length, machines.length, services.length, categories.length]);
 
-  useEffect(() => {
-    // Generate particles only on client side to avoid hydration mismatch
-    const generatedParticles = Array.from({ length: 20 }, () => ({
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      width: Math.random() * 20 + 10,
-      height: Math.random() * 20 + 10,
-      animationDelay: Math.random() * 5,
-      animationDuration: Math.random() * 10 + 10,
-    }));
-    setParticles(generatedParticles);
-  }, []);
-
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
@@ -641,7 +632,7 @@ export default function HomePage() {
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div
             className={`flex items-center justify-between transition-[height] duration-300 ease-out ${
-              isHeaderScrolled ? "h-16 md:h-20" : "h-20 md:h-28"
+              isHeaderScrolled ? "h-14 md:h-16" : "h-16 md:h-20"
             }`}
           >
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
@@ -653,8 +644,8 @@ export default function HomePage() {
                   height={200}
                   className={`w-auto object-contain transition-[height] duration-300 ease-out ${
                     isHeaderScrolled
-                      ? "h-10 sm:h-11 md:h-14 lg:h-16"
-                      : "h-12 sm:h-14 md:h-[4.5rem] lg:h-20"
+                      ? "h-9 sm:h-10 md:h-12"
+                      : "h-10 sm:h-11 md:h-14 lg:h-16"
                   }`}
                   priority
                 />
@@ -840,147 +831,150 @@ export default function HomePage() {
 
       <HomeSponsoredHero />
 
-      {/* Hero Section - Modern with Advanced Animations */}
-      <section id="accueil" className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700 overflow-hidden py-12 sm:py-16 md:py-0">
+      {/* Hero Section */}
+      <section
+        id="accueil"
+        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-[#06142e]"
+      >
+        <div aria-hidden className="absolute inset-0 -z-10">
+          {/* Served as-is: re-encoding this already-compressed JPEG visibly blurs it */}
+          <Image
+            src="/labocover-hd.jpg"
+            alt=""
+            fill
+            priority
+            unoptimized
+            className="object-cover object-center -scale-x-100"
+          />
+        </div>
+        {/* Dark on the text side only, so the photo stays clear on the right */}
         <div
           aria-hidden
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/labocover.jpeg')" }}
+          className="absolute inset-0 -z-10 bg-[#06142e]/70 md:bg-transparent md:bg-[linear-gradient(90deg,rgba(6,20,46,0.92)_0%,rgba(6,20,46,0.75)_35%,rgba(6,20,46,0.15)_62%,transparent_100%)]"
         />
-        {/* Keeps the white hero text readable over the light photo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-800/80 via-cyan-700/60 to-blue-900/80"></div>
+        <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-1/4 bg-gradient-to-t from-[#06142e]/45 to-transparent" />
 
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-        
-        {/* Floating Particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          {particles.map((particle, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full bg-white/20 animate-float"
-              style={{
-                left: `${particle.left}%`,
-                top: `${particle.top}%`,
-                width: `${particle.width}px`,
-                height: `${particle.height}px`,
-                animationDelay: `${particle.animationDelay}s`,
-                animationDuration: `${particle.animationDuration}s`,
-              }}
-            />
-          ))}
-        </div>
+        <div className="container relative mx-auto max-w-7xl flex flex-1 items-center px-4 sm:px-6 lg:px-8 pt-12 pb-8 sm:pt-16 md:pt-20">
+          <div className="max-w-2xl text-left">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white/90 backdrop-blur-md animate-fade-in-up">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              Plateforme B2B dédiée à la biologie médicale
+            </span>
 
-        {/* Gradient Orbs - Hidden on mobile, visible on larger screens */}
-        <div className="hidden sm:block absolute top-10 left-10 sm:top-20 sm:left-20 w-32 h-32 sm:w-48 sm:h-48 md:w-72 md:h-72 bg-blue-400/30 rounded-full blur-3xl animate-pulse-glow"></div>
-        <div className="hidden sm:block absolute bottom-10 right-10 sm:bottom-20 sm:right-20 w-40 h-40 sm:w-64 sm:h-64 md:w-96 md:h-96 bg-cyan-400/30 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }}></div>
-        <div className="hidden md:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 md:w-80 md:h-80 bg-white/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "2s" }}></div>
+            <h1 className={`${heroSerif.className} mt-6 text-[2rem] leading-[1.08] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white animate-fade-in-up animation-delay-200`}>
+              L&apos;approvisionnement de votre laboratoire,{" "}
+              <span className="italic text-cyan-300">simple, fiable et rapide.</span>
+            </h1>
 
-        {/* Main Content */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="space-y-4 sm:space-y-5 md:space-y-6">
-            {/* App logo — First position */}
-            <div className="inline-block mb-3 sm:mb-4 md:mb-6 animate-scale-in">
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-xl sm:rounded-2xl blur-2xl animate-pulse-glow"></div>
-                <div className="relative flex items-center justify-center bg-white rounded-2xl sm:rounded-3xl px-4 py-3 sm:px-6 sm:py-4 shadow-2xl transform hover:scale-105 transition-all duration-500 animate-bounce-slow">
-                  <Image
-                    src="/images/logo.png"
-                    alt={`${BRAND_NAME} Logo`}
-                    width={274}
-                    height={200}
-                    className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto object-contain"
-                    priority
-                  />
+            <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-white/80 animate-fade-in-up animation-delay-400">
+              {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
+              équipements&nbsp;: comparez les meilleurs prix, commandez en quelques clics et suivez
+              vos livraisons partout en Algérie.
+            </p>
+
+            <div className="mt-9 flex flex-col sm:flex-row gap-3 sm:gap-4 animate-fade-in-up animation-delay-600">
+              <Link
+                href="/allthings"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-7 py-3.5 text-sm sm:text-base font-semibold text-white shadow-lg shadow-cyan-950/40 transition-all duration-300 hover:brightness-110 hover:shadow-cyan-500/30"
+              >
+                Découvrir la marketplace
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/about"
+                className="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/5 px-7 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-sm transition-colors duration-300 hover:border-white/70 hover:bg-white/15"
+              >
+                En savoir plus
+              </Link>
+            </div>
+
+            <div className="mt-10 flex items-center gap-4 animate-fade-in-up animation-delay-800">
+              <div className="flex -space-x-3">
+                {[FlaskConical, Microscope, Truck].map((Icon, i) => (
+                  <span
+                    key={i}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#06142e] bg-white text-blue-700 shadow-md"
+                  >
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                ))}
+              </div>
+              <div className="text-sm leading-snug">
+                <p className="font-semibold text-white">Fournisseurs vérifiés</p>
+                <p className="text-white/65">Réactifs, consommables et équipements</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pointer-events-none absolute inset-y-0 right-8 hidden w-[36%] lg:block animate-fade-in-up animation-delay-600">
+            <div className="absolute right-0 top-[10%] animate-float" style={{ animationDelay: "1.5s" }}>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-lg shadow-slate-900/20 backdrop-blur-md">
+                <BadgeCheck className="h-4 w-4 text-sky-600" />
+                Fournisseur vérifié
+              </div>
+            </div>
+
+            <div className="absolute left-0 top-[24%] animate-float">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 px-4 py-3 shadow-xl shadow-slate-900/20 backdrop-blur-md">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-slate-900">Commande confirmée</p>
+                  <p className="text-xs text-slate-500">Validée par le fournisseur</p>
                 </div>
               </div>
             </div>
 
-            {/* Title with Typewriter Effect */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white mb-3 sm:mb-4 md:mb-6 animate-fade-in-up animation-delay-200 drop-shadow-2xl tracking-tight px-2 sm:px-4">
-              <span className="inline-block animate-scale-in animation-delay-300 bg-gradient-to-r from-white via-blue-50 to-white bg-clip-text text-transparent uppercase">
-                {BRAND_NAME}
-              </span>
-            </h1>
-
-            {/* Subtitle with Slide Animation */}
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-white/95 mb-3 sm:mb-4 md:mb-6 max-w-4xl mx-auto animate-fade-in-up animation-delay-400 font-medium drop-shadow-xl leading-tight px-2 sm:px-4">
-              L&apos;écosystème intelligent des laboratoires et de leurs partenaires fournisseurs
-            </p>
-
-            {/* Description */}
-            <p className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-white/85 mb-6 sm:mb-8 md:mb-12 max-w-3xl mx-auto animate-fade-in-up animation-delay-600 leading-relaxed font-light px-2 sm:px-4">
-              Accélérez vos collaborations, sécurisez vos transactions et centralisez vos échanges professionnels, que vous soyez laboratoire ou fournisseur.
-            </p>
-
-            {/* CTA Buttons with Modern Effects */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6 justify-center animate-fade-in-up animation-delay-800 px-2 sm:px-4">
-              <Link
-                href="/allthings"
-                className="group relative px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white text-blue-600 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg overflow-hidden transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-white/50 w-full sm:w-auto inline-flex items-center justify-center"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-2 md:gap-3">
-                  <span className="hidden sm:inline">Découvrir la marketplace</span>
-                  <span className="sm:hidden">Découvrir</span>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 transform group-hover:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-              <button className="px-6 py-3 sm:px-8 sm:py-4 md:px-12 md:py-6 bg-white/15 backdrop-blur-xl text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg border-2 border-white/40 hover:bg-white/25 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-white/30 w-full sm:w-auto">
-                En savoir plus
-              </button>
+            <div className="absolute bottom-[10%] right-0 animate-float" style={{ animationDelay: "3s" }}>
+              <div className="w-60 rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-900/20 backdrop-blur-md">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+                    <HeartPulse className="h-4 w-4" />
+                  </span>
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold text-slate-900">Stock en temps réel</p>
+                    <p className="text-[11px] text-slate-500">Disponibilité actualisée</p>
+                  </div>
+                </div>
+                <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
+                  <path
+                    d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Modern Animated Wave Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 overflow-hidden">
-          <svg 
-            className="w-full h-32 md:h-40 lg:h-48" 
-            viewBox="0 0 1440 200" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="white" stopOpacity="1" />
-                <stop offset="50%" stopColor="white" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="white" stopOpacity="1" />
-              </linearGradient>
-              <linearGradient id="waveGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="white" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="white" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="white" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="waveGradient3" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="white" stopOpacity="0.5" />
-                <stop offset="50%" stopColor="white" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="white" stopOpacity="0.5" />
-              </linearGradient>
-            </defs>
-            {/* Main Wave */}
-            <path 
-              d="M0,120 Q360,80 720,100 T1440,120 L1440,200 L0,200 Z" 
-              fill="url(#waveGradient)"
-            />
-            {/* Secondary Wave */}
-            <path 
-              d="M0,140 Q360,100 720,120 T1440,140 L1440,200 L0,200 Z" 
-              fill="url(#waveGradient2)"
-            />
-            {/* Accent Wave */}
-            <path 
-              d="M0,160 Q240,120 480,140 T960,160 T1440,150 L1440,200 L0,200 Z" 
-              fill="url(#waveGradient3)"
-            />
-          </svg>
-          {/* Gradient Overlay for Smooth Transition */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-b from-transparent via-white/30 to-white pointer-events-none"></div>
-          {/* Shine Effect */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 lg:h-48 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"></div>
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 animate-fade-in-up animation-delay-800">
+          <div className="grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white/95 p-4 sm:p-5 shadow-2xl shadow-black/25 ring-1 ring-black/5 backdrop-blur-xl">
+            {HERO_HIGHLIGHTS.map(({ icon: Icon, title, text }, i) => (
+              <div key={title} className={`flex items-center gap-3 min-w-0 ${i > 0 ? "lg:border-l lg:border-gray-200 lg:pl-6" : ""}`}>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{title}</p>
+                  <p className="hidden sm:block truncate text-xs text-gray-500">{text}</p>
+                </div>
+              </div>
+            ))}
+            <Link
+              href={isAuthenticated ? "/allthings" : "/register"}
+              className="col-span-2 lg:col-span-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+            >
+              {isAuthenticated ? "Commander" : "Créer un compte"}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -1082,8 +1076,8 @@ export default function HomePage() {
             <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
               À propos
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight px-2">
-              Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
+            <h2 className={`${heroSerif.className} text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-gray-900 leading-tight px-2`}>
+              Pourquoi choisir <span className="italic text-blue-600">{BRAND_NAME}</span> ?
             </h2>
           </div>
 
@@ -1091,18 +1085,25 @@ export default function HomePage() {
             <WhyChooseDzLabmarket />
           </div>
 
-          <div className="mt-8 sm:mt-10 md:mt-14 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          {/* All three photos are 3:2, so 3:2 tiles show them uncropped */}
+          <div className="mt-8 sm:mt-10 md:mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
             {[
               { src: "/images/1.png", alt: `${BRAND_NAME} — microscope de laboratoire` },
               { src: "/images/2.png", alt: "Verrerie et réactifs de laboratoire" },
-              { src: "/images/3.png", alt: "Laboratoire d'analyses médicales" },
               { src: "/images/4.png", alt: "Automates et équipements de laboratoire" },
             ].map((img) => (
               <div
                 key={img.src}
-                className="aspect-[4/3] overflow-hidden rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                className="relative aspect-[3/2] overflow-hidden rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
               >
-                <Image src={img.src} alt={img.alt} width={480} height={360} className="h-full w-full object-cover" />
+                <Image
+                  src={img.src}
+                  alt={img.alt}
+                  fill
+                  quality={90}
+                  sizes="(min-width: 640px) 33vw, 100vw"
+                  className="object-cover"
+                />
               </div>
             ))}
           </div>
@@ -1117,227 +1118,6 @@ export default function HomePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Supplier Section */}
-      <section className="relative py-12 sm:py-16 md:py-24 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-800 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.12]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.55) 1px, transparent 0)",
-            backgroundSize: "22px 22px",
-          }}
-          aria-hidden
-        />
-        <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden />
-
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 md:gap-14 items-center">
-            <div
-              className={`scroll-animate-left ${visibleElements.has("supplier-left") ? "animate" : ""}`}
-              id="supplier-left"
-            >
-              <div className="relative mx-auto max-w-xl">
-                <div
-                  className="absolute -inset-3 rounded-[2rem] border border-white/15 bg-white/5 backdrop-blur-[2px]"
-                  aria-hidden
-                />
-                <div
-                  className="absolute -bottom-4 -right-4 h-28 w-28 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-400/20 to-transparent"
-                  aria-hidden
-                />
-                <div className="relative overflow-hidden rounded-[1.6rem] shadow-2xl shadow-black/40 aspect-[4/3] md:aspect-[5/4] ring-1 ring-white/20 group">
-                  <Image
-                    src="/images/stock.jpeg"
-                    alt="Stock fournisseur — entrepôt et logistique"
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    priority={false}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/10 to-transparent" />
-                  <div
-                    className="absolute inset-0 opacity-25 mix-blend-overlay"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(135deg, rgba(255,255,255,0.18) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.18) 75%, transparent 75%, transparent)",
-                      backgroundSize: "18px 18px",
-                    }}
-                    aria-hidden
-                  />
-                  <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/90 font-semibold">
-                        Fournisseurs
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-white drop-shadow">
-                        Votre stock, visible partout
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/20">
-                      Stock
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 sm:space-y-4 md:space-y-6 animate-fade-in-right">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">
-                Vous êtes fournisseur ?
-              </h2>
-              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
-                Vendez vos réactifs, machines et services aux laboratoires partenaires et développez votre activité sur {BRAND_NAME}.
-              </p>
-              <ul className="space-y-3 sm:space-y-4">
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Clients qualifiés :</strong>{" "}
-                    La plateforme regroupe exclusivement des laboratoires d&apos;analyses médicales. Chaque visite est une opportunité commerciale réelle, sans démarchage à froid.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Croissance sans effort :</strong>{" "}
-                    Commandes 24h/24, 7j/7 et réapprovisionnements automatiques. Un chiffre d&apos;affaires prévisible et récurrent.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Réduction des coûts :</strong>{" "}
-                    Fini les visites terrain systématiques. Centralisez devis, catalogues et documents réglementaires. Moins d&apos;erreurs, moins de litiges.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Conformité &amp; transparence :</strong>{" "}
-                    Historiques centralisés, certifications intégrées (CE, IVDR, ISO). Un atout majeur en cas d&apos;audit ou de contrôle.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Intelligence commerciale :</strong>{" "}
-                    Analysez les tendances de consommation, les comportements acheteurs et visualisez votre part de marché face aux concurrents.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200 text-sm sm:text-base leading-relaxed">
-                    <strong className="font-semibold text-white">Avantage concurrentiel :</strong>{" "}
-                    Modernisez votre image, répondez aux appels d&apos;offres électroniques et créez une barrière à l&apos;entrée pour les fournisseurs non abonnés.
-                  </span>
-                </li>
-              </ul>
-              <Link
-                href="/register?type=supplier"
-                className="inline-block px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-700 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base shadow-lg shadow-black/20"
-              >
-                Créez votre compte en tant que fournisseur
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Laboratory Section */}
-      <section className="relative py-12 sm:py-16 md:py-24 overflow-hidden bg-gradient-to-br from-cyan-700 via-blue-700 to-slate-900 text-white">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.1]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.45) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-          aria-hidden
-        />
-        <div className="pointer-events-none absolute left-1/4 -top-20 h-80 w-80 rounded-full bg-cyan-300/15 blur-3xl" aria-hidden />
-        <div className="pointer-events-none absolute right-0 bottom-0 h-72 w-72 rounded-full bg-blue-400/20 blur-3xl" aria-hidden />
-
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 md:gap-14 items-center">
-            <div className={`space-y-3 sm:space-y-4 md:space-y-6 scroll-animate-left ${visibleElements.has("lab-left") ? "animate" : ""}`} id="lab-left">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">
-                Vous êtes un laboratoire d&apos;analyses médicales ?
-              </h2>
-              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-blue-100">
-                Accédez à une plateforme dédiée pour simplifier vos approvisionnements en réactifs, consommables et automates.
-              </p>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Accès à un large réseau de fournisseurs certifiés (réactifs, automates, SAV)</span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Outils de gestion et de suivi intégrés (commandes, livraisons, stocks)</span>
-                </li>
-                <li className="flex items-start gap-3 group">
-                  <Check className="text-white w-5 h-5 mt-1 flex-shrink-0 transform transition-transform group-hover:scale-125" />
-                  <span className="transition-all group-hover:text-blue-200">Support technique et assistance fournisseurs inclus.</span>
-                </li>
-              </ul>
-              <Link
-                href="/register?type=client"
-                className="inline-block px-6 py-3 sm:px-8 sm:py-4 bg-white text-blue-700 rounded-full font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 mt-4 sm:mt-6 text-sm sm:text-base shadow-lg shadow-black/20"
-              >
-                Créez votre compte en tant que laboratoire
-              </Link>
-            </div>
-
-            <div className="animate-fade-in-right">
-              <div className="relative mx-auto max-w-xl">
-                <div
-                  className="absolute -inset-3 rounded-[2rem] border border-white/15 bg-white/5"
-                  aria-hidden
-                />
-                <div
-                  className="absolute -top-5 -left-5 h-24 w-24 rounded-full border border-white/25 bg-gradient-to-br from-white/15 to-transparent"
-                  aria-hidden
-                />
-                <div className="relative overflow-hidden rounded-[1.6rem] shadow-2xl shadow-black/40 aspect-[4/3] md:aspect-[5/4] ring-1 ring-white/20 group">
-                  <Image
-                    src="/images/first.jpeg"
-                    alt="Laboratoire d'analyses — automates et équipements"
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    priority={false}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-cyan-900/10" />
-                  <div
-                    className="absolute inset-0 opacity-20"
-                    style={{
-                      backgroundImage:
-                        "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)",
-                      backgroundSize: "16px 16px",
-                    }}
-                    aria-hidden
-                  />
-                  <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-100/90 font-semibold">
-                        Laboratoires
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-white drop-shadow">
-                        Votre labo, mieux approvisionné
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/20">
-                      Labo
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -1790,7 +1570,7 @@ export default function HomePage() {
             <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
               Avantages
             </div>
-            <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6 scroll-animate ${visibleElements.has("why-title") ? "animate" : ""}`} id="why-title">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6">
               Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
             </h2>
             <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">Des solutions professionnelles pour tous vos besoins d'analyse</p>
@@ -1801,9 +1581,7 @@ export default function HomePage() {
               return (
                 <div
                   key={index}
-                  className={`bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 scroll-animate-scale group ${visibleElements.has(`benefit-${index}`) ? "animate" : ""}`}
-                  id={`benefit-${index}`}
-                  style={{ transitionDelay: `${index * 50}ms` }}
+                  className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 group"
                 >
                   <div className="mb-4 md:mb-6 transform transition-all duration-300 inline-block group-hover:scale-110 group-hover:rotate-6">
                     <div className="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-cyan-100 transition-all duration-300">
@@ -1824,7 +1602,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8 md:mb-12">
             <div className="col-span-2 sm:col-span-1">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4" >
+              <div className="inline-flex items-center rounded-xl bg-white px-3 py-2 shadow-sm mb-3 sm:mb-4">
                 <Image
                   src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}

@@ -484,7 +484,7 @@ export default function SupplierDashboardLayout({
                   unreadCount={unreadCount}
                   onMarkAllRead={() => void markAllRead().catch(() => {})}
                   onItemClick={(notification) => {
-                    setShowNotifications(false);
+                                setShowNotifications(false);
                     markRead(notification._id);
                     router.push(notificationHref(notification));
                   }}
