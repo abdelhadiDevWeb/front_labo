@@ -92,7 +92,7 @@ const BRAND_NAME = "Dz Labmarket";
 const HERO_HIGHLIGHTS = [
   { icon: Building2, title: "Multiples fournisseurs", text: "Agrégés sur une interface unique" },
   { icon: Truck, title: "Livraisons rapides", text: "Le meilleur délai en un coup d'œil" },
-  { icon: Clock, title: "Commande 24h/24", text: "Achetez en toute autonomie" },
+  { icon: Clock, title: "Réserve 24h/24", text: "Achetez en toute autonomie" },
   { icon: MapPin, title: "69 wilayas", text: "Visibilité nationale" },
 ];
 export default function HomePage() {
@@ -871,7 +871,7 @@ export default function HomePage() {
 
             <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-white/80 animate-fade-in-up animation-delay-400">
               {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
-              équipements&nbsp;: comparez les meilleurs prix, commandez en quelques clics et suivez
+              équipements&nbsp;: comparez les meilleurs prix, réservez en quelques clics et suivez
               vos livraisons partout en Algérie.
             </p>
 
@@ -923,7 +923,7 @@ export default function HomePage() {
                   <CheckCircle2 className="h-5 w-5" />
                 </span>
                 <div className="leading-tight">
-                  <p className="text-sm font-semibold text-slate-900">Commande confirmée</p>
+                  <p className="text-sm font-semibold text-slate-900">Réserve confirmée</p>
                   <p className="text-xs text-slate-500">Validée par le fournisseur</p>
                 </div>
               </div>
@@ -971,7 +971,7 @@ export default function HomePage() {
               href={isAuthenticated ? "/allthings" : "/register"}
               className="col-span-2 lg:col-span-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
             >
-              {isAuthenticated ? "Commander" : "Créer un compte"}
+              {isAuthenticated ? "Réserver" : "Créer un compte"}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
