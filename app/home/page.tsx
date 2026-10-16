@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { displaySerif as heroSerif } from "@/lib/fonts";
 import {
   ArrowRight,
   Clock,
@@ -868,16 +867,16 @@ export default function HomePage() {
         </div>
 
         <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 md:pt-16 text-center">
-          <div className="animate-float mb-5 sm:mb-6 rounded-2xl bg-white px-4 py-3 sm:px-5 sm:py-3.5 shadow-xl shadow-blue-950/25">
+          <div className="animate-float mb-5 sm:mb-6 rounded-2xl border border-white/25 bg-white/95 px-5 py-3.5 sm:px-6 sm:py-4 shadow-2xl shadow-slate-950/40 backdrop-blur-md">
             <Image
-              src="/images/logo.png"
+              src="/logo.png"
               alt={`${BRAND_NAME} Logo`}
-              width={160}
-              height={117}
-              className="h-12 sm:h-14 w-auto object-contain"
+              width={220}
+              height={120}
+              className="h-14 sm:h-16 w-auto max-w-[220px] object-contain"
               priority
             />
-            </div>
+          </div>
 
           <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
             <span className="relative flex h-2 w-2">
@@ -887,9 +886,9 @@ export default function HomePage() {
             Plateforme B2B dédiée à la biologie médicale
           </span>
 
-          <h1 className={`${heroSerif.className} mt-5 sm:mt-6 max-w-4xl text-[1.85rem] leading-[1.12] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white animate-fade-in-up animation-delay-200`}>
+          <h1 className="mt-5 sm:mt-6 max-w-4xl text-[1.85rem] leading-[1.12] sm:text-5xl lg:text-6xl font-bold tracking-tight text-white animate-fade-in-up animation-delay-200">
             L&apos;approvisionnement de votre laboratoire,{" "}
-            <span className="italic text-cyan-100">simple, fiable et rapide.</span>
+            <span className="text-cyan-100">simple, fiable et rapide.</span>
             </h1>
 
           <p className="mt-5 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400">
@@ -1086,7 +1085,7 @@ export default function HomePage() {
               <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
                 À propos
               </div>
-            <h2 className={`${heroSerif.className} text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-gray-900 leading-tight px-2`}>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-gray-900 leading-tight px-2">
               Pourquoi choisir <span className="italic text-blue-600">{BRAND_NAME}</span> ?
               </h2>
                   </div>
