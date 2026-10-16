@@ -33,6 +33,7 @@ import { getMediaUrl } from "@/lib/media-url";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
+import { revealCatalogFilters } from "@/lib/catalog-filters";
 
 const PAGE_SIZE = 48;
 
@@ -411,24 +412,24 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4 min-w-0">
             <Link
               href="/home"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="hidden sm:flex w-10 h-10 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl items-center justify-center shadow-lg">
                 <Package className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Tous les produits</h1>
-                <p className="text-sm text-gray-600">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Tous les produits</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
                   {totalCount == null
                     ? "…"
                     : `${totalCount} produit${totalCount > 1 ? "s" : ""} au total`}
@@ -438,7 +439,7 @@ export default function ProductsPage() {
           </div>
 
           {/* Search Bar */}
-          <div className="mb-4">
+          <div className="mb-3 sm:mb-4">
             <div className="relative">
               <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
@@ -446,16 +447,17 @@ export default function ProductsPage() {
                 placeholder="Rechercher un produit..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 sm:pl-12 pr-24 sm:pr-32 py-2.5 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm sm:text-base"
+                className="w-full pl-10 sm:pl-12 pr-[5.5rem] sm:pr-32 py-2.5 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm sm:text-base"
               />
               <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm"
+                type="button"
+                onClick={() => revealCatalogFilters(setShowFilters, { toggle: true })}
+                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm"
               >
-                <SlidersHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Filtres</span>
+                <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Filtres</span>
                 {showFilters && (
-                  <span className="ml-1 px-1.5 sm:px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  <span className="ml-0.5 px-1.5 sm:px-2 py-0.5 bg-white/20 rounded-full text-xs">
                     {[
                       filterCategoryId !== "all",
                       filterSousCategoryId !== "all",
@@ -472,10 +474,13 @@ export default function ProductsPage() {
 
           {/* Advanced Filters Panel */}
           {showFilters && (
-            <div className="bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-xl p-6 shadow-lg mb-4 animate-fade-in">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-blue-600" />
+            <div
+              id="catalog-filters"
+              className="scroll-mt-24 bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 shadow-lg mb-3 sm:mb-4 animate-fade-in"
+            >
+              <div className="flex items-center justify-between mb-4 gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-blue-600 shrink-0" />
                   Filtres avancés
                 </h3>
                 <button
@@ -493,7 +498,7 @@ export default function ProductsPage() {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -689,7 +694,7 @@ export default function ProductsPage() {
       )}
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {(locationStatus === "prompt" || locationStatus === "denied") && requiresWilayaForCatalog && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -762,7 +767,7 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
             {productsToShow.map((product) => {
                 const mainImage =
                   product.images && product.images.length > 0
@@ -776,7 +781,7 @@ export default function ProductsPage() {
               return (
                 <div
                   key={product.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group relative"
+                  className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 group relative min-w-0"
                 >
                   {/* Comparison Checkbox */}
                   <div className="absolute top-2 left-2 z-10">
@@ -853,10 +858,10 @@ export default function ProductsPage() {
                   </Link>
 
                   {/* Content Section */}
-                  <div className="p-5">
+                  <div className="p-3.5 sm:p-5">
                     {/* Product Name */}
                     <Link href={`/products/${product.id}`}>
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                         {product.name}
                       </h3>
                     </Link>
@@ -865,44 +870,38 @@ export default function ProductsPage() {
                     {product.supplier && (
                       <Link
                         href={`/supplier/${product.supplier.id}`}
-                        className="flex items-center gap-2 mb-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+                        className="flex items-center gap-2 mb-2 text-sm text-gray-600 hover:text-blue-600 transition-colors group min-w-0"
                       >
-                        <Building2 className="w-4 h-4 group-hover:text-blue-600" />
+                        <Building2 className="w-4 h-4 shrink-0 group-hover:text-blue-600" />
                         <span className="truncate group-hover:underline">{product.supplier.name}</span>
                       </Link>
                     )}
 
                     {/* Brand and Category */}
-                    <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-4 h-4" />
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3 text-xs sm:text-sm text-gray-600 min-w-0">
+                      <div className="flex items-center gap-1 min-w-0 max-w-full">
+                        <Tag className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">{product.category}</span>
                       </div>
                       {product.wilaya && (
-                        <>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            <span className="truncate">{product.wilaya}</span>
-                          </div>
-                        </>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{product.wilaya}</span>
+                        </div>
                       )}
-                      <span>•</span>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">{product.brand}</span>
-                      </div>
+                      <span className="font-medium truncate">{product.brand}</span>
                     </div>
 
                     {/* Price */}
-                    <div className="mb-4">
+                    <div className="mb-3 sm:mb-4">
                       <CatalogPrice
                         amount={product.price}
                         visible={!isGuest}
-                        className="text-2xl font-bold text-blue-600"
+                        className="text-xl sm:text-2xl font-bold text-blue-600"
                       />
                       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        <span>{product.deliveryTime}</span>
+                        <Clock className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{product.deliveryTime}</span>
                       </div>
                     </div>
 
@@ -923,14 +922,14 @@ export default function ProductsPage() {
                           }
                         }}
                         disabled={product.quantity === 0}
-                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                        className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all sm:hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                       >
-                        <ShoppingCart className="w-4 h-4" />
-                        <span>{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
+                        <ShoppingCart className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
                       </button>
                       <Link
                         href={`/products/${product.id}`}
-                        className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all flex items-center justify-center"
+                        className="shrink-0 px-3 sm:px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all flex items-center justify-center text-sm"
                       >
                         Voir
                       </Link>

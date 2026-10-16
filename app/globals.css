@@ -120,6 +120,54 @@ body {
   }
 }
 
+@keyframes hero-particle-drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(12px, -18px, 0);
+  }
+}
+
+@keyframes hero-glow-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hero-ecg-draw {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  40% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-hero-particle {
+  animation: hero-particle-drift 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-hero-glow {
+  animation: hero-glow-breathe 8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-hero-ecg {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: hero-ecg-draw 3.5s ease-in-out infinite;
+}
+
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 0.3;
@@ -367,6 +415,12 @@ body {
   }
   .animate-header-in {
     animation: none;
+  }
+  .animate-hero-particle,
+  .animate-hero-glow,
+  .animate-hero-ecg,
+  .animate-float {
+    animation: none !important;
   }
 }
 

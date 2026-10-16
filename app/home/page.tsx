@@ -7,8 +7,6 @@ import Link from "next/link";
 import { displaySerif as heroSerif } from "@/lib/fonts";
 import {
   ArrowRight,
-  BadgeCheck,
-  CheckCircle2,
   Clock,
   HeartPulse,
   MapPin,
@@ -242,10 +240,17 @@ export default function HomePage() {
   useEffect(() => {
     if (!isAuthReady) return;
     let frame = 0;
+    // Hysteresis: shrink/expand at different offsets so header height
+    // changes don't bounce scrollY across a single threshold.
+    const scrolledRef = { current: false };
     const update = () => {
       frame = 0;
       const y = window.scrollY;
-      setIsHeaderScrolled(y > 12);
+      const next = scrolledRef.current ? y > 10 : y > 56;
+      if (next !== scrolledRef.current) {
+        scrolledRef.current = next;
+        setIsHeaderScrolled(next);
+      }
       const max = document.documentElement.scrollHeight - window.innerHeight;
       if (scrollProgressRef.current) {
         scrollProgressRef.current.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
@@ -630,11 +635,7 @@ export default function HomePage() {
         }`}
       >
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div
-            className={`flex items-center justify-between transition-[height] duration-300 ease-out ${
-              isHeaderScrolled ? "h-14 md:h-16" : "h-16 md:h-20"
-            }`}
-          >
+          <div className="flex items-center justify-between h-16 md:h-20">
             <Link href="/home" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 group">
               <div className="transform transition-all duration-300 group-hover:scale-105">
                 <Image
@@ -642,14 +643,9 @@ export default function HomePage() {
                   alt={`${BRAND_NAME} Logo`}
                   width={274}
                   height={200}
-                  className={`w-auto object-contain transition-[height] duration-300 ease-out ${
-                    isHeaderScrolled
-                      ? "h-9 sm:h-10 md:h-12"
-                      : "h-10 sm:h-11 md:h-14 lg:h-16"
-                  }`}
+                  className="h-10 sm:h-11 md:h-14 lg:h-16 w-auto object-contain"
                   priority
                 />
-             
               </div>
             </Link>
             <div className="hidden md:flex items-center gap-5 lg:gap-8 xl:gap-10">
@@ -831,133 +827,154 @@ export default function HomePage() {
 
       <HomeSponsoredHero />
 
-      {/* Hero Section */}
+      {/* Hero Section — centered UI (recording 2026-10-15), same copy */}
       <section
         id="accueil"
-        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-[#06142e]"
+        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-[#0066ff]"
       >
-        <div aria-hidden className="absolute inset-0 -z-10">
-          {/* Served as-is: re-encoding this already-compressed JPEG visibly blurs it */}
-          <Image
-            src="/labocover-hd.jpg"
-            alt=""
-            fill
-            priority
-            unoptimized
-            className="object-cover object-center -scale-x-100"
-          />
-        </div>
-        {/* Dark on the text side only, so the photo stays clear on the right */}
+        {/* Blue→cyan stage background (same look as the reference screenshot) */}
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 bg-[#06142e]/70 md:bg-transparent md:bg-[linear-gradient(90deg,rgba(6,20,46,0.92)_0%,rgba(6,20,46,0.75)_35%,rgba(6,20,46,0.15)_62%,transparent_100%)]"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_70%_35%,#5ce1ff_0%,#2eb8ff_28%,#0088ff_58%,#0055ff_100%)]"
         />
-        <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-1/4 bg-gradient-to-t from-[#06142e]/45 to-transparent" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-[28%] -z-10 h-[55vmin] w-[55vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#ffffff55_0%,#5ce1ff33_35%,transparent_70%)] animate-hero-glow"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 -z-10 h-[14%] border-t border-white/25 bg-[linear-gradient(180deg,#4dd4ff_0%,#2eb0ff_55%,#1a9aef_100%)]"
+        />
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          {[
+            { t: "12%", l: "8%", w: "10px", h: "10px", r: "9999px", o: "0.18", d: "0s", dur: "6.5s" },
+            { t: "22%", l: "18%", w: "28px", h: "6px", r: "9999px", o: "0.14", d: "0.8s", dur: "7.5s" },
+            { t: "18%", l: "72%", w: "12px", h: "12px", r: "9999px", o: "0.16", d: "1.4s", dur: "8s" },
+            { t: "30%", l: "86%", w: "36px", h: "7px", r: "9999px", o: "0.13", d: "0.3s", dur: "6.8s" },
+            { t: "42%", l: "12%", w: "8px", h: "8px", r: "9999px", o: "0.2", d: "1.1s", dur: "7.2s" },
+            { t: "48%", l: "28%", w: "42px", h: "7px", r: "9999px", o: "0.12", d: "2s", dur: "8.5s" },
+            { t: "38%", l: "58%", w: "14px", h: "14px", r: "9999px", o: "0.15", d: "0.5s", dur: "6.2s" },
+            { t: "55%", l: "78%", w: "9px", h: "9px", r: "9999px", o: "0.18", d: "1.7s", dur: "7.8s" },
+            { t: "62%", l: "6%", w: "32px", h: "6px", r: "9999px", o: "0.12", d: "2.4s", dur: "9s" },
+            { t: "68%", l: "40%", w: "11px", h: "11px", r: "9999px", o: "0.16", d: "0.2s", dur: "6.9s" },
+            { t: "74%", l: "64%", w: "48px", h: "8px", r: "9999px", o: "0.11", d: "1.9s", dur: "8.2s" },
+            { t: "26%", l: "44%", w: "7px", h: "7px", r: "9999px", o: "0.2", d: "3s", dur: "7s" },
+            { t: "8%", l: "52%", w: "24px", h: "5px", r: "9999px", o: "0.14", d: "0.6s", dur: "7.6s" },
+            { t: "80%", l: "22%", w: "10px", h: "10px", r: "9999px", o: "0.15", d: "2.2s", dur: "8.8s" },
+            { t: "15%", l: "92%", w: "8px", h: "8px", r: "9999px", o: "0.17", d: "1.3s", dur: "6.4s" },
+          ].map((p, i) => (
+            <span
+              key={i}
+              className="absolute bg-white animate-hero-particle"
+              style={{
+                top: p.t,
+                left: p.l,
+                width: p.w,
+                height: p.h,
+                borderRadius: p.r,
+                opacity: Number(p.o),
+                animationDelay: p.d,
+                animationDuration: p.dur,
+              }}
+            />
+          ))}
+        </div>
 
-        <div className="container relative mx-auto max-w-7xl flex flex-1 items-center px-4 sm:px-6 lg:px-8 pt-12 pb-8 sm:pt-16 md:pt-20">
-          <div className="max-w-2xl text-left">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white/90 backdrop-blur-md animate-fade-in-up">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              Plateforme B2B dédiée à la biologie médicale
+        <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 md:pt-16 text-center">
+          <div className="animate-float mb-5 sm:mb-6 rounded-2xl bg-white px-4 py-3 sm:px-5 sm:py-3.5 shadow-xl shadow-blue-950/25">
+            <Image
+              src="/images/logo.png"
+              alt={`${BRAND_NAME} Logo`}
+              width={160}
+              height={117}
+              className="h-12 sm:h-14 w-auto object-contain"
+              priority
+            />
+          </div>
+
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
+            Plateforme B2B dédiée à la biologie médicale
+          </span>
 
-            <h1 className={`${heroSerif.className} mt-6 text-[2rem] leading-[1.08] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white animate-fade-in-up animation-delay-200`}>
-              L&apos;approvisionnement de votre laboratoire,{" "}
-              <span className="italic text-cyan-300">simple, fiable et rapide.</span>
-            </h1>
+          <h1 className={`${heroSerif.className} mt-5 sm:mt-6 max-w-4xl text-[1.85rem] leading-[1.12] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white animate-fade-in-up animation-delay-200`}>
+            L&apos;approvisionnement de votre laboratoire,{" "}
+            <span className="italic text-cyan-100">simple, fiable et rapide.</span>
+          </h1>
 
-            <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-white/80 animate-fade-in-up animation-delay-400">
-              {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
-              équipements&nbsp;: comparez les meilleurs prix, réservez en quelques clics et suivez
-              vos livraisons partout en Algérie.
-            </p>
+          <p className="mt-5 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400">
+            {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
+            équipements&nbsp;: comparez les meilleurs prix, réservez en quelques clics et suivez
+            vos livraisons partout en Algérie.
+          </p>
 
-            <div className="mt-9 flex flex-col sm:flex-row gap-3 sm:gap-4 animate-fade-in-up animation-delay-600">
-              <Link
-                href="/allthings"
-                className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-7 py-3.5 text-sm sm:text-base font-semibold text-white shadow-lg shadow-cyan-950/40 transition-all duration-300 hover:brightness-110 hover:shadow-cyan-500/30"
-              >
-                Découvrir la marketplace
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
-              <Link
-                href="/about"
-                className="inline-flex items-center justify-center rounded-full border border-white/40 bg-white/5 px-7 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-sm transition-colors duration-300 hover:border-white/70 hover:bg-white/15"
-              >
-                En savoir plus
-              </Link>
+          <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-fade-in-up animation-delay-600">
+            <Link
+              href="/allthings"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm sm:text-base font-semibold text-blue-700 shadow-lg shadow-blue-950/20 transition-all duration-300 hover:bg-blue-50 hover:scale-[1.03]"
+            >
+              Découvrir la marketplace
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+            <Link
+              href="/about"
+              className="inline-flex items-center justify-center rounded-xl border border-white/50 bg-white/15 px-7 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-md transition-colors duration-300 hover:bg-white/25 hover:border-white/70"
+            >
+              En savoir plus
+            </Link>
+          </div>
+
+          <div className="mt-9 sm:mt-10 flex items-center justify-center gap-4 animate-fade-in-up animation-delay-800">
+            <div className="flex -space-x-3">
+              {[FlaskConical, Microscope, Truck].map((Icon, i) => (
+                <span
+                  key={i}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-700 shadow-md"
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+              ))}
             </div>
-
-            <div className="mt-10 flex items-center gap-4 animate-fade-in-up animation-delay-800">
-              <div className="flex -space-x-3">
-                {[FlaskConical, Microscope, Truck].map((Icon, i) => (
-                  <span
-                    key={i}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#06142e] bg-white text-blue-700 shadow-md"
-                  >
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                ))}
-              </div>
-              <div className="text-sm leading-snug">
-                <p className="font-semibold text-white">Fournisseurs vérifiés</p>
-                <p className="text-white/65">Réactifs, consommables et équipements</p>
-              </div>
+            <div className="text-sm leading-snug text-left">
+              <p className="font-semibold text-white">Fournisseurs vérifiés</p>
+              <p className="text-white/70">Réactifs, consommables et équipements</p>
             </div>
           </div>
 
-          <div className="pointer-events-none absolute inset-y-0 right-8 hidden w-[36%] lg:block animate-fade-in-up animation-delay-600">
-            <div className="absolute right-0 top-[10%] animate-float" style={{ animationDelay: "1.5s" }}>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-lg shadow-slate-900/20 backdrop-blur-md">
-                <BadgeCheck className="h-4 w-4 text-sky-600" />
-                Fournisseur vérifié
-              </div>
-            </div>
+        </div>
 
-            <div className="absolute left-0 top-[24%] animate-float">
-              <div className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 px-4 py-3 shadow-xl shadow-slate-900/20 backdrop-blur-md">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                </span>
-                <div className="leading-tight">
-                  <p className="text-sm font-semibold text-slate-900">Réserve confirmée</p>
-                  <p className="text-xs text-slate-500">Validée par le fournisseur</p>
-                </div>
+        <div className="pointer-events-none absolute right-6 sm:right-10 top-[58%] z-20 hidden lg:block animate-float" style={{ animationDelay: "1.2s" }}>
+          <div className="w-60 rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-900/20 backdrop-blur-md animate-fade-in-up animation-delay-700">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+                <HeartPulse className="h-4 w-4" />
+              </span>
+              <div className="leading-tight text-left">
+                <p className="text-sm font-semibold text-slate-900">Stock en temps réel</p>
+                <p className="text-[11px] text-slate-500">Disponibilité actualisée</p>
               </div>
             </div>
-
-            <div className="absolute bottom-[10%] right-0 animate-float" style={{ animationDelay: "3s" }}>
-              <div className="w-60 rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-900/20 backdrop-blur-md">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
-                    <HeartPulse className="h-4 w-4" />
-                  </span>
-                  <div className="leading-tight">
-                    <p className="text-sm font-semibold text-slate-900">Stock en temps réel</p>
-                    <p className="text-[11px] text-slate-500">Disponibilité actualisée</p>
-                  </div>
-                </div>
-                <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
-                  <path
-                    d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </div>
+            <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
+              <path
+                d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pathLength={1}
+                className="animate-hero-ecg"
+              />
+            </svg>
           </div>
         </div>
 
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 animate-fade-in-up animation-delay-800">
-          <div className="grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white/95 p-4 sm:p-5 shadow-2xl shadow-black/25 ring-1 ring-black/5 backdrop-blur-xl">
+        <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2 sm:pb-4 animate-fade-in-up animation-delay-800">
+          <div className="grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white p-4 sm:p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5">
             {HERO_HIGHLIGHTS.map(({ icon: Icon, title, text }, i) => (
-              <div key={title} className={`flex items-center gap-3 min-w-0 ${i > 0 ? "lg:border-l lg:border-gray-200 lg:pl-6" : ""}`}>
+              <div key={title} className={`flex items-center gap-3 min-w-0 transition-transform duration-300 hover:-translate-y-0.5 ${i > 0 ? "lg:border-l lg:border-gray-200 lg:pl-6" : ""}`}>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <Icon className="h-5 w-5" />
                 </span>
@@ -968,13 +985,19 @@ export default function HomePage() {
               </div>
             ))}
             <Link
-              href={isAuthenticated ? "/allthings" : "/register"}
-              className="col-span-2 lg:col-span-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+              href="/about"
+              className="col-span-2 lg:col-span-1 group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all duration-300 hover:from-blue-700 hover:to-cyan-700 hover:scale-[1.03] hover:shadow-lg hover:shadow-cyan-500/30"
             >
-              {isAuthenticated ? "Réserver" : "Créer un compte"}
-              <ArrowRight className="h-4 w-4" />
+              En savoir plus
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
+        </div>
+
+        <div aria-hidden className="pointer-events-none relative -mb-px h-12 sm:h-16 md:h-20 w-full text-white">
+          <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+            <path d="M0 48 C240 8 480 72 720 40 C960 8 1200 56 1440 24 L1440 80 L0 80 Z" fill="currentColor" />
+          </svg>
         </div>
       </section>
 
@@ -1083,29 +1106,6 @@ export default function HomePage() {
 
           <div className={`scroll-animate-scale ${visibleElements.has("about-right") ? "animate" : ""}`} id="about-right">
             <WhyChooseDzLabmarket />
-          </div>
-
-          {/* All three photos are 3:2, so 3:2 tiles show them uncropped */}
-          <div className="mt-8 sm:mt-10 md:mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-            {[
-              { src: "/images/1.png", alt: `${BRAND_NAME} — microscope de laboratoire` },
-              { src: "/images/2.png", alt: "Verrerie et réactifs de laboratoire" },
-              { src: "/images/4.png", alt: "Automates et équipements de laboratoire" },
-            ].map((img) => (
-              <div
-                key={img.src}
-                className="relative aspect-[3/2] overflow-hidden rounded-2xl md:rounded-3xl shadow-lg border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-              >
-                <Image
-                  src={img.src}
-                  alt={img.alt}
-                  fill
-                  quality={90}
-                  sizes="(min-width: 640px) 33vw, 100vw"
-                  className="object-cover"
-                />
-              </div>
-            ))}
           </div>
 
           <div className="mt-8 sm:mt-10 text-center">

@@ -34,6 +34,7 @@ import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice from "@/components/CatalogPrice";
 import { useCart } from "@/contexts/CartContext";
+import { revealCatalogFilters } from "@/lib/catalog-filters";
 
 type CatalogKind = "machine" | "service";
 
@@ -360,20 +361,20 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/home"
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
               aria-label="Retour"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{meta.title}</h1>
-              <p className="text-sm text-gray-500">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{meta.title}</h1>
+              <p className="text-xs sm:text-sm text-gray-500 truncate">
                 {totalCount == null
                   ? "…"
                   : `${totalCount} ${meta.singular}${totalCount > 1 ? "s" : ""} au total`}
@@ -387,8 +388,8 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
           </div>
           <button
             type="button"
-            onClick={() => setShowFilters((v) => !v)}
-            className="sm:hidden px-3 py-2 rounded-xl border border-gray-300 flex items-center gap-2 text-sm"
+            onClick={() => revealCatalogFilters(setShowFilters, { toggle: true })}
+            className="lg:hidden shrink-0 px-3 py-2 rounded-xl border border-gray-300 bg-white flex items-center gap-1.5 text-sm font-medium text-gray-700 shadow-sm"
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filtres
@@ -396,11 +397,12 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6">
+      <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-4 sm:py-6">
+        <div className="grid lg:grid-cols-[280px_1fr] gap-4 sm:gap-6">
           <aside
-            className={`bg-white rounded-2xl border border-gray-200 p-4 h-fit lg:sticky lg:top-24 ${
-              showFilters ? "block" : "hidden sm:block"
+            id="catalog-filters"
+            className={`scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-4 h-fit lg:sticky lg:top-24 ${
+              showFilters ? "block" : "hidden lg:block"
             }`}
           >
             <div className="flex items-center gap-2 mb-4">
@@ -541,14 +543,14 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {filteredItems.map((item) => {
                   const image =
                     item.images?.[0] != null ? getMediaUrl(item.images[0]) : null;
                   return (
                     <div
                       key={item.id}
-                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col"
+                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col min-w-0"
                     >
                       <div className="relative h-44 bg-gray-100">
                         {image ? (

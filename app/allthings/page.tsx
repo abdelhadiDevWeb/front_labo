@@ -40,6 +40,7 @@ import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice from "@/components/CatalogPrice";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { useCart } from "@/contexts/CartContext";
+import { revealCatalogFilters } from "@/lib/catalog-filters";
 
 type ItemKind = "reactif" | "machine" | "service";
 type KindFilter = "all" | ItemKind;
@@ -480,26 +481,26 @@ export default function AllThingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
+        <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Link
                 href="/home"
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
                 aria-label="Retour"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="hidden sm:flex w-10 h-10 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl items-center justify-center shadow-lg">
                 <LayoutGrid className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                   Tout le catalogue
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs sm:text-sm text-gray-500 truncate">
                   {totalCount == null
                     ? "…"
                     : `${totalCount} élément${totalCount > 1 ? "s" : ""} au total`}
@@ -513,8 +514,8 @@ export default function AllThingsPage() {
             </div>
             <button
               type="button"
-              onClick={() => setShowFilters((v) => !v)}
-              className="sm:hidden px-3 py-2 rounded-xl border border-gray-300 flex items-center gap-2 text-sm"
+              onClick={() => revealCatalogFilters(setShowFilters, { toggle: true })}
+              className="lg:hidden shrink-0 px-3 py-2 rounded-xl border border-gray-300 bg-white flex items-center gap-1.5 text-sm font-medium text-gray-700 shadow-sm"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filtres
@@ -534,11 +535,12 @@ export default function AllThingsPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6">
+      <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-4 sm:py-6">
+        <div className="grid lg:grid-cols-[280px_1fr] gap-4 sm:gap-6">
           <aside
-            className={`bg-white rounded-2xl border border-gray-200 p-4 h-fit lg:sticky lg:top-28 space-y-4 ${
-              showFilters ? "block" : "hidden sm:block"
+            id="catalog-filters"
+            className={`scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-4 h-fit lg:sticky lg:top-28 space-y-4 ${
+              showFilters ? "block" : "hidden lg:block"
             }`}
           >
             <div className="flex items-center gap-2 font-bold text-gray-900">
@@ -701,7 +703,7 @@ export default function AllThingsPage() {
                 <p className="text-gray-600">Aucun élément trouvé</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
                 {filteredItems.map((item) => {
                   const image =
                     item.images?.[0] != null ? getMediaUrl(item.images[0]) : null;
@@ -715,7 +717,7 @@ export default function AllThingsPage() {
                   return (
                     <div
                       key={`${item.kind}-${item.id}`}
-                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col"
+                      className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col min-w-0"
                     >
                       <div className="relative h-44 bg-gray-100">
                         {image ? (
