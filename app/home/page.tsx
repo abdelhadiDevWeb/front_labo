@@ -886,10 +886,10 @@ export default function HomePage() {
             Plateforme B2B dédiée à la biologie médicale
           </span>
 
-          <h1 className="mt-5 sm:mt-6 max-w-4xl text-[1.85rem] leading-[1.12] sm:text-5xl lg:text-6xl font-bold tracking-tight text-white animate-fade-in-up animation-delay-200">
+          <h1 className="mt-5 sm:mt-6 max-w-4xl text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-white animate-fade-in-up animation-delay-200">
             L&apos;approvisionnement de votre laboratoire,{" "}
             <span className="text-cyan-100">simple, fiable et rapide.</span>
-            </h1>
+          </h1>
 
           <p className="mt-5 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400">
             {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
@@ -994,7 +994,7 @@ export default function HomePage() {
             <div className="inline-block px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
               Explorer
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-3">
               Nos catégories
             </h2>
             <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
@@ -1085,8 +1085,8 @@ export default function HomePage() {
               <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
                 À propos
               </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-gray-900 leading-tight px-2">
-              Pourquoi choisir <span className="italic text-blue-600">{BRAND_NAME}</span> ?
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 leading-tight px-2">
+              Pourquoi choisir <span className="text-blue-600">{BRAND_NAME}</span> ?
               </h2>
                   </div>
 
@@ -1116,7 +1116,12 @@ export default function HomePage() {
       <section className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 text-center mb-3 sm:mb-4 md:mb-6 px-2 sm:px-4">
+            <div className="text-center mb-3 sm:mb-4">
+              <div className="inline-block px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Aide
+              </div>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 text-center mb-3 sm:mb-4 md:mb-6 px-2 sm:px-4">
               Foire Aux Questions
             </h2>
             <div className="text-center mb-6 sm:mb-8 md:mb-12">
@@ -1163,7 +1168,7 @@ export default function HomePage() {
             />
           )}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
               Produits les plus populaires
             </h2>
             <Link
@@ -1334,7 +1339,7 @@ export default function HomePage() {
       <section id="machines" className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
               Machines
             </h2>
             <Link
@@ -1464,7 +1469,7 @@ export default function HomePage() {
       <section id="services" className="py-12 sm:py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
               Services
             </h2>
             <Link
@@ -1573,10 +1578,12 @@ export default function HomePage() {
             <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
               Avantages
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 mb-3 sm:mb-4 md:mb-6">
-              Pourquoi choisir <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent uppercase">{BRAND_NAME}</span> ?
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-3 sm:mb-4">
+              Pourquoi choisir <span className="text-blue-600">{BRAND_NAME}</span> ?
             </h2>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">Des solutions professionnelles pour tous vos besoins d'analyse</p>
+            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-2 sm:px-4">
+              Des solutions professionnelles pour tous vos besoins d&apos;analyse
+            </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
             {benefits.map((benefit, index) => {

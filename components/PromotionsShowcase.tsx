@@ -60,7 +60,7 @@ export default function PromotionsShowcase() {
             <Sparkles className="w-3.5 h-3.5" />
             Offres spéciales
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 flex items-center justify-center gap-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 flex items-center justify-center gap-2">
             <Percent className="w-8 h-8 text-orange-500" />
             Promotions en cours
           </h2>

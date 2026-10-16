@@ -78,8 +78,7 @@ const productToOption = (product: Product): SupplierCatalogOption => {
       pickStr(d, NAME_KEYS) ||
       (product.name ? String(product.name).trim() : "") ||
       "Produit",
-    price:
-      toPrice(pickStr(d, PRICE_KEYS) || product.sellingPrice || product.price) || 0,
+    price: toPrice(pickStr(d, PRICE_KEYS) || product.sellingPrice) || 0,
     brand: pickStr(d, BRAND_KEYS) || product.brand || undefined,
     images: product.images?.length
       ? product.images

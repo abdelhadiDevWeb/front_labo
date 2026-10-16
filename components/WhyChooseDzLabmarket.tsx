@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { displaySerif } from "@/lib/fonts";
 import {
   ArrowRight,
   BarChart3,
@@ -207,13 +206,13 @@ export default function WhyChooseDzLabmarket() {
             <span className="text-sm font-semibold text-white/60">{pad(1)}</span>
             {featured.title ? (
               <>
-                <h3 className={`${displaySerif.className} mt-2 text-2xl sm:text-3xl font-semibold leading-tight`}>
+                <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
                   {featured.title}
                 </h3>
                 <p className="mt-3 text-sm sm:text-base leading-relaxed text-white/75">{featured.text}</p>
               </>
             ) : (
-              <h3 className={`${displaySerif.className} mt-2 text-2xl sm:text-3xl font-semibold leading-tight`}>
+              <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
                 {featured.text}
               </h3>
             )}

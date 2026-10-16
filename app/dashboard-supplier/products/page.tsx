@@ -619,15 +619,6 @@ function ProductsPageContent() {
   const getPendingSponsorForProduct = (productId: string) =>
     pendingSponsorProducts.find((record) => record.id_product === productId);
 
-  const toggleHistoryExpand = (productId: string) => {
-    setExpandedHistoryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
-      return next;
-    });
-  };
-
   const clearSponsorImage = () => {
     setSponsorImageFile(null);
     setSponsorImagePath("");

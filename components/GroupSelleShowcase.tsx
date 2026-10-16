@@ -882,7 +882,7 @@ export default function GroupSelleShowcase({
             <Users className="w-3.5 h-3.5" />
             Achats collectifs
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 flex items-center justify-center gap-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900 flex items-center justify-center gap-2">
             <Users className="w-8 h-8 text-teal-600" />
             Ventes groupées
           </h2>
