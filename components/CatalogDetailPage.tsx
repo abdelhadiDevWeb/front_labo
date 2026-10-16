@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  ArrowLeft,
   Building2,
   Tag,
   Clock,
@@ -27,7 +26,9 @@ import { useCart } from "@/contexts/CartContext";
 import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import SupplierNameGate from "@/components/SupplierNameGate";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
+import BackButton from "@/components/BackButton";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
 import QuantityInput from "@/components/QuantityInput";
@@ -85,9 +86,11 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
         <Package className="w-14 h-14 text-gray-300" />
         <p className="text-gray-600">{error || `${label} introuvable`}</p>
-        <Link href={listHref} className="text-blue-600 font-semibold">
-          Retour à la liste
-        </Link>
+        <BackButton
+          fallbackHref={listHref}
+          className="text-blue-600 font-semibold inline-flex items-center gap-2"
+          label="Retour"
+        />
       </div>
     );
   }
@@ -119,10 +122,12 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200">
         <div className="container mx-auto max-w-5xl px-4 py-4">
-          <Link href={listHref} className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600">
-            <ArrowLeft className="w-4 h-4" />
-            Retour aux {kind === "machine" ? "machines" : "services"}
-          </Link>
+          <BackButton
+            fallbackHref={listHref}
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600"
+            iconClassName="w-4 h-4"
+            label={`Retour`}
+          />
         </div>
       </div>
 
@@ -152,26 +157,33 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             className="text-2xl font-bold text-blue-600"
           />
 
-          <div className="space-y-2 text-sm text-gray-700">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span>{item.brand}</span>
+          {canSeePrice ? (
+            <div className="space-y-2 text-sm text-gray-700">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                <span>{item.brand}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                <span>
+                  {item.category}
+                  {item.sousCategory ? ` / ${item.sousCategory}` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span>{item.deliveryTime}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              <span>
-                {item.category}
-                {item.sousCategory ? ` / ${item.sousCategory}` : ""}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>{item.deliveryTime}</span>
-            </div>
-            {item.supplier && <p className="text-gray-500">Fournisseur : {item.supplier.name}</p>}
-          </div>
+          ) : null}
 
           {item.supplier && (
+            <SupplierNameGate visible={canSeePrice}>
+              <p className="text-gray-500 text-sm">Fournisseur : {item.supplier.name}</p>
+            </SupplierNameGate>
+          )}
+
+          {canSeePrice && item.supplier ? (
             <SupplierDeliveryNotes
               deliveryNoteAll={item.supplier.deliveryNoteAll}
               deliveryByWilaya={item.supplier.deliveryByWilaya}
@@ -179,9 +191,9 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
               coversAllWilayas={item.supplier.coversAllWilayas}
               highlightWilayaCode={visitorWilayaCode}
             />
-          )}
+          ) : null}
 
-          {kind === "machine" && (
+          {canSeePrice && kind === "machine" ? (
             <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
@@ -208,9 +220,9 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
                 {item.quantity === 0 ? "Rupture de stock" : "Réserver"}
               </button>
             </div>
-          )}
+          ) : null}
 
-          {fichePdfUrl && (
+          {canSeePrice && fichePdfUrl ? (
             <button
               type="button"
               onClick={() => setShowPdf(true)}
@@ -219,13 +231,14 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
               <FileText className="w-5 h-5" />
               Voir la fiche technique
             </button>
-          )}
+          ) : null}
 
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h2 className="font-semibold text-gray-900 mb-3">Détails</h2>
             <UniqueDataFields
               data={item.unique_data}
               max={40}
+              guestOnly={!canSeePrice}
               hidePrices={!canSeePrice}
               excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
               className="max-h-none"

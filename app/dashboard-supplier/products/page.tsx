@@ -38,10 +38,16 @@ import {
   getSupplierMachines,
   getSupplierServices,
   getSupplierHistoryXls,
+  getHistoryXlsItems,
+  deleteHistoryXlsItems,
+  deleteProduct,
+  deleteMachine,
+  deleteService,
   getPublicCategories,
   Product,
   UniqueDataItem,
   HistoryXlsRecord,
+  HistoryXlsItem,
   Category,
   getSponsorPlans,
   getSupplierSponsorProducts,
@@ -74,6 +80,23 @@ interface MarketplaceItem {
 
 const kindToCategoryType = (kind: MarketplaceKind): Category["type_catgory"] =>
   kind === "service" ? "services" : kind;
+
+const itemDetailPath = (type: MarketplaceKind, id: string) =>
+  type === "product"
+    ? `/dashboard-supplier/products/${id}`
+    : type === "machine"
+      ? `/dashboard-supplier/machines/${id}`
+      : `/dashboard-supplier/services/${id}`;
+
+const pickHistoryItemName = (item: HistoryXlsItem): string => {
+  if (item.name && String(item.name).trim()) return String(item.name).trim();
+  const d = item.unique_data || {};
+  for (const key of ["Désignation", "designation", "name", "nom", "Nom"]) {
+    const v = d[key];
+    if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+  }
+  return "Sans nom";
+};
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
 const HIDDEN_UNIQUE_KEYS = new Set([
@@ -193,8 +216,18 @@ function ProductsPageContent() {
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [xlsHistory, setXlsHistory] = useState<HistoryXlsRecord[]>([]);
   const [isLoadingXlsHistory, setIsLoadingXlsHistory] = useState(true);
-  const [xlsHistoryOpen, setXlsHistoryOpen] = useState(true);
+  const [xlsHistoryOpen, setXlsHistoryOpen] = useState(false);
   const [filterXlsType, setFilterXlsType] = useState<"all" | MarketplaceKind>("all");
+  const [viewingHistory, setViewingHistory] = useState<HistoryXlsRecord | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryXlsItem[]>([]);
+  const [isLoadingHistoryItems, setIsLoadingHistoryItems] = useState(false);
+  const [historyItemsError, setHistoryItemsError] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<HistoryXlsItem | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
+  const [deleteItemError, setDeleteItemError] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -206,7 +239,6 @@ function ProductsPageContent() {
   const [sponsorProducts, setSponsorProducts] = useState<SponsorProductRecord[]>([]);
   const [subscriptionQuota, setSubscriptionQuota] = useState<SubscriptionSponsorQuota | null>(null);
   const [activeProductIds, setActiveProductIds] = useState<string[]>([]);
-  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(new Set());
   const [isLoadingSponsor, setIsLoadingSponsor] = useState(true);
   const [showVipSponsorModal, setShowVipSponsorModal] = useState(false);
   const [showSubscriptionSponsorModal, setShowSubscriptionSponsorModal] = useState(false);
@@ -326,19 +358,10 @@ function ProductsPageContent() {
       }
 
       const sponsorParam = searchParams.get("sponsor");
-      const ref = searchParams.get("ref");
-
-      if (sponsorParam === "success" && ref) {
-        const verifyResult = await verifySponsorProductPayment(ref);
-        if (verifyResult.success && verifyResult.data?.paid) {
-          setSponsorSuccess("Paiement confirmé ! Votre sponsoring est maintenant actif.");
-        } else {
-          setSponsorSuccess("Paiement réussi ! Confirmation en cours...");
-        }
-      } else if (sponsorParam === "success") {
-        setSponsorSuccess("Paiement réussi ! Votre sponsoring sera activé sous peu.");
-      } else if (sponsorParam === "failed") {
-        setSponsorError("Le paiement a échoué ou a été annulé.");
+      if (sponsorParam) {
+        const qs = searchParams.toString();
+        router.replace(`/dashboard-supplier/publicite${qs ? `?${qs}` : ""}`);
+        return;
       }
 
       await loadSponsorData();
@@ -942,6 +965,108 @@ function ProductsPageContent() {
     }
   };
 
+  const openHistoryItems = async (row: HistoryXlsRecord) => {
+    setViewingHistory(row);
+    setHistoryItems([]);
+    setHistoryItemsError(null);
+    setIsLoadingHistoryItems(true);
+    try {
+      const result = await getHistoryXlsItems(row.id);
+      if (result.success && result.data) {
+        setHistoryItems(result.data.items || []);
+      } else {
+        setHistoryItemsError(result.message || "Impossible de charger les éléments");
+      }
+    } catch (err) {
+      console.error("Load history items error:", err);
+      setHistoryItemsError("Une erreur est survenue");
+    } finally {
+      setIsLoadingHistoryItems(false);
+    }
+  };
+
+  const closeHistoryItems = () => {
+    setViewingHistory(null);
+    setHistoryItems([]);
+    setHistoryItemsError(null);
+    setItemToDelete(null);
+    setDeleteItemError(null);
+    setConfirmDeleteAll(false);
+    setDeleteAllError(null);
+  };
+
+  const confirmDeleteAllHistoryItems = async () => {
+    if (!viewingHistory) return;
+    setIsDeletingAll(true);
+    setDeleteAllError(null);
+    try {
+      const result = await deleteHistoryXlsItems(viewingHistory.id);
+      if (!result.success) {
+        setDeleteAllError(result.message || "Erreur lors de la suppression");
+        return;
+      }
+      const deletedId = viewingHistory.id;
+      setXlsHistory((prev) => prev.filter((h) => h.id !== deletedId));
+      setMarketplaceItems((prev) =>
+        prev.filter(
+          (item) =>
+            !(
+              item.kind === viewingHistory.type &&
+              historyItems.some((h) => String(h.id) === item.id)
+            )
+        )
+      );
+      setConfirmDeleteAll(false);
+      closeHistoryItems();
+    } catch (err) {
+      console.error("Delete all history items error:", err);
+      setDeleteAllError("Une erreur est survenue");
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
+  const confirmDeleteHistoryItem = async () => {
+    if (!viewingHistory || !itemToDelete) return;
+    setIsDeletingItem(true);
+    setDeleteItemError(null);
+    try {
+      const id = String(itemToDelete.id);
+      const result =
+        viewingHistory.type === "product"
+          ? await deleteProduct(id)
+          : viewingHistory.type === "machine"
+            ? await deleteMachine(id)
+            : await deleteService(id);
+
+      if (!result.success) {
+        setDeleteItemError(result.message || "Erreur lors de la suppression");
+        return;
+      }
+
+      setHistoryItems((prev) => prev.filter((i) => String(i.id) !== id));
+      setMarketplaceItems((prev) =>
+        prev.filter((item) => !(item.id === id && item.kind === viewingHistory.type))
+      );
+      setXlsHistory((prev) =>
+        prev.map((h) =>
+          h.id === viewingHistory.id
+            ? { ...h, itemsCount: Math.max(0, h.itemsCount - 1) }
+            : h
+        )
+      );
+      setViewingHistory((prev) =>
+        prev ? { ...prev, itemsCount: Math.max(0, prev.itemsCount - 1) } : prev
+      );
+      setItemToDelete(null);
+    } catch (err) {
+      console.error("Delete history item error:", err);
+      setDeleteItemError("Une erreur est survenue");
+    } finally {
+      setIsDeletingItem(false);
+    }
+  };
+
   const renderSponsorItemPicker = (modal: "vip" | "subscription") => {
     const isVip = modal === "vip";
     const selectedId = isVip ? selectedProductId : selectedSubscriptionProductId;
@@ -1182,23 +1307,189 @@ function ProductsPageContent() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Marché</h1>
-          <p className="text-gray-600 mt-1">
-            {marketplaceItems.length} élément{marketplaceItems.length > 1 ? "s" : ""} —{" "}
-            {kindCounts.product} produit{kindCounts.product > 1 ? "s" : ""},{" "}
-            {kindCounts.machine} machine{kindCounts.machine > 1 ? "s" : ""},{" "}
-            {kindCounts.service} service{kindCounts.service > 1 ? "s" : ""}
-          </p>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Marché</h1>
+            <p className="text-gray-600 mt-1">
+              {kindCounts.all} élément{kindCounts.all > 1 ? "s" : ""} dans votre catalogue
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/dashboard-supplier/add-product")}
+            className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Ajouter</span>
+          </button>
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              {
+                kind: "product" as MarketplaceKind,
+                label: "Produits",
+                count: kindCounts.product,
+                Icon: FlaskConical,
+                active:
+                  "border-green-500 bg-green-50 ring-2 ring-green-200 text-green-900",
+                idle: "border-green-100 bg-white hover:border-green-300 hover:bg-green-50/60",
+                iconBg: "bg-green-100 text-green-700",
+              },
+              {
+                kind: "machine" as MarketplaceKind,
+                label: "Machines",
+                count: kindCounts.machine,
+                Icon: Cpu,
+                active:
+                  "border-blue-500 bg-blue-50 ring-2 ring-blue-200 text-blue-900",
+                idle: "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/60",
+                iconBg: "bg-blue-100 text-blue-700",
+              },
+              {
+                kind: "service" as MarketplaceKind,
+                label: "Services",
+                count: kindCounts.service,
+                Icon: Wrench,
+                active:
+                  "border-amber-500 bg-amber-50 ring-2 ring-amber-200 text-amber-900",
+                idle: "border-amber-100 bg-white hover:border-amber-300 hover:bg-amber-50/60",
+                iconBg: "bg-amber-100 text-amber-800",
+              },
+            ] as const
+          ).map(({ kind, label, count, Icon, active, idle, iconBg }) => {
+            const selected = filterKind === kind;
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() =>
+                  handleFilterKindChange(selected ? "all" : kind)
+                }
+                className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition-all ${
+                  selected ? active : idle
+                }`}
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold tabular-nums leading-none">{count}</p>
+                  <p className="text-sm font-medium text-gray-600 mt-1">{label}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Historique XLS — head of page, closed by default */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
         <button
-          onClick={() => router.push("/dashboard-supplier/add-product")}
-          className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
+          type="button"
+          onClick={() => setXlsHistoryOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
         >
-          <Plus className="w-5 h-5" />
-          <span>Ajouter</span>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <History className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Historique XLS</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel — produits, machines et services
+              </p>
+            </div>
+          </div>
+          {xlsHistoryOpen ? (
+            <ChevronUp className="w-5 h-5 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400" />
+          )}
         </button>
+
+        {xlsHistoryOpen && (
+          <div className="border-t border-gray-100 p-4 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative sm:w-56">
+                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select
+                  value={filterXlsType}
+                  onChange={(e) =>
+                    setFilterXlsType(e.target.value as "all" | MarketplaceKind)
+                  }
+                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none appearance-none bg-white"
+                >
+                  <option value="all">Tous les types</option>
+                  <option value="product">Produits</option>
+                  <option value="machine">Machines</option>
+                  <option value="service">Services</option>
+                </select>
+              </div>
+            </div>
+
+            {isLoadingXlsHistory ? (
+              <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Chargement de l&apos;historique…</span>
+              </div>
+            ) : filteredXlsHistory.length === 0 ? (
+              <div className="text-center py-10">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium">Aucun import Excel</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Les imports XLS depuis Ajouter apparaîtront ici
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                {filteredXlsHistory.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/80 p-3 sm:p-4"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${kindBadgeClass(row.type)}`}
+                        >
+                          {kindLabel(row.type)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatXlsDate(row.created)}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {row.catgory_name || "Catégorie"}
+                        {row.sou_catgory_name ? ` → ${row.sou_catgory_name}` : ""}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {row.itemsCount} élément{row.itemsCount > 1 ? "s" : ""} créé
+                        {row.itemsCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openHistoryItems(row)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shrink-0"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Voir les{" "}
+                      {row.type === "product"
+                        ? "produits"
+                        : row.type === "machine"
+                          ? "machines"
+                          : "services"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Error Message */}
@@ -1350,701 +1641,297 @@ function ProductsPageContent() {
         </div>
       )}
 
-      {/* Historique XLS */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setXlsHistoryOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-3 p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <History className="w-5 h-5 text-emerald-700" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Historique XLS</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel
-              </p>
-            </div>
-          </div>
-          {xlsHistoryOpen ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-
-        {xlsHistoryOpen && (
-          <div className="border-t border-gray-100 p-4 sm:p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="relative sm:w-56">
-                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  value={filterXlsType}
-                  onChange={(e) =>
-                    setFilterXlsType(e.target.value as "all" | MarketplaceKind)
-                  }
-                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none appearance-none bg-white"
-                >
-                  <option value="all">Tous les types</option>
-                  <option value="product">Produits</option>
-                  <option value="machine">Machines</option>
-                  <option value="service">Services</option>
-                </select>
-              </div>
-            </div>
-
-            {isLoadingXlsHistory ? (
-              <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">Chargement de l&apos;historique…</span>
-              </div>
-            ) : filteredXlsHistory.length === 0 ? (
-              <div className="text-center py-10">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 font-medium">Aucun import Excel</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Les imports XLS depuis Ajouter apparaîtront ici
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-gray-600">
-                      <th className="px-4 py-3 font-semibold">Date</th>
-                      <th className="px-4 py-3 font-semibold">Type</th>
-                      <th className="px-4 py-3 font-semibold">Catégorie</th>
-                      <th className="px-4 py-3 font-semibold">Sous-catégorie</th>
-                      <th className="px-4 py-3 font-semibold text-right">Éléments</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredXlsHistory.map((row) => (
-                      <tr key={row.id} className="hover:bg-gray-50/80">
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                          {formatXlsDate(row.created)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${kindBadgeClass(row.type)}`}
-                          >
-                            {kindLabel(row.type)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-800">
-                          {row.catgory_name || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {row.sou_catgory_name || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                          {row.itemsCount}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Sponsor Sections */}
-      <div className="space-y-6">
-        {sponsorSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 text-green-800">
-            <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorSuccess}</p>
-          </div>
-        )}
-
-        {sponsorError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorError}</p>
-          </div>
-        )}
-
-        {/* Subscription sponsor (included in abonnement) */}
-        <div className="bg-white rounded-2xl shadow-lg border border-blue-200 p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-blue-600" />
-                Sponsoring abonnement
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Utilisez les sponsors inclus dans votre abonnement actif (sans paiement) pour vos
-                produits, machines ou services
-              </p>
-            </div>
-            <button
-              onClick={openSubscriptionSponsorModal}
-              disabled={
-                itemsAvailableForSponsor.length === 0 ||
-                !subscriptionQuota?.canCreateSubscriptionSponsor
-              }
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-5 h-5" />
-              Sponsoriser (abonnement)
-            </button>
-          </div>
-
-          {isLoadingSponsor ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            </div>
-          ) : subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.abonnement ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Abonnement</p>
-                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.abonnement.type}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Jusqu&apos;au {formatDate(subscriptionQuota.abonnement.end)}
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Durée / sponsor</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {subscriptionSponsorDurationHours > 0
-                    ? `${subscriptionSponsorDurationHours} h`
-                    : "—"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Selon votre abonnement</p>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Sponsors inclus</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {subscriptionQuota.sponsorsAllocated}
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Utilisés</p>
-                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.sponsorsUsed}</p>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Restants</p>
-                <p
-                  className={`text-lg font-bold ${
-                    subscriptionQuota.sponsorsRemaining > 0 ? "text-green-700" : "text-red-600"
-                  }`}
-                >
-                  {subscriptionQuota.sponsorsRemaining}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
-              Aucun abonnement actif. Contactez l&apos;administrateur pour activer votre compte.
-            </div>
-          )}
-
-          {subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.sponsorsAllocated <= 0 && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-              Votre abonnement n&apos;inclut pas de sponsors gratuits. Utilisez le sponsoring VIP payant
-              ci-dessous.
-            </div>
-          )}
-
-          {subscriptionQuota?.hasActiveAbonnement &&
-            subscriptionQuota.sponsorsAllocated > 0 &&
-            subscriptionQuota.sponsorsRemaining <= 0 && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-                Vous n&apos;avez plus de sponsors disponibles ({subscriptionQuota.sponsorsUsed}/
-                {subscriptionQuota.sponsorsAllocated} utilisés). Vous pouvez utiliser le sponsoring VIP.
-              </div>
-            )}
-        </div>
-
-        {/* VIP sponsor (paid via Chargily) */}
-        <div className="bg-white rounded-2xl shadow-lg border border-purple-200 p-4 sm:p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Crown className="w-6 h-6 text-purple-600" />
-                Sponsoring VIP
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Mettez en avant vos produits, machines ou services avec un pack VIP et payez en ligne
-                via Chargily
-              </p>
-            </div>
-            <button
-              onClick={openVipSponsorModal}
-              disabled={sponsorPlans.length === 0 || itemsAvailableForSponsor.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-5 h-5" />
-              Sponsoriser VIP
-            </button>
-          </div>
-
-        {pendingSponsorProducts.length > 0 && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
-            <div className="flex items-center gap-2 text-amber-900 font-semibold">
-              <CreditCard className="w-5 h-5" />
-              Paiements en attente ({pendingSponsorProducts.length})
-            </div>
-            <div className="space-y-2">
-              {pendingSponsorProducts.map((record) => (
-                <div
-                  key={record.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-lg border border-amber-100"
-                >
-                  <div className="text-sm">
-                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                      {record.product?.name || kindLabel(record.itemType || "product")}
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${kindBadgeClass(record.itemType || "product")}`}
-                      >
-                        {kindLabel(record.itemType || "product")}
-                      </span>
-                    </p>
-                    <p className="text-gray-600">
-                      {record.price.toLocaleString("fr-FR")} DA · {record.time}{" "}
-                      {record.timeUnit === "hours"
-                        ? record.time === 1
-                          ? "heure"
-                          : "heures"
-                        : record.time === 1
-                          ? "jour"
-                          : "jours"}
-                    </p>
+      {mounted &&
+        viewingHistory &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={closeHistoryItems}
+            />
+            <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-200 max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${kindBadgeClass(viewingHistory.type)}`}
+                    >
+                      {kindLabel(viewingHistory.type)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {formatXlsDate(viewingHistory.created)}
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleCompletePayment(record.id)}
-                    disabled={resumingPaymentId === record.id}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
-                  >
-                    {resumingPaymentId === record.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CreditCard className="w-4 h-4" />
-                    )}
-                    Compléter le paiement
-                  </button>
+                  <h3 className="text-lg font-bold text-gray-900 truncate">
+                    {viewingHistory.catgory_name || "Import Excel"}
+                    {viewingHistory.sou_catgory_name
+                      ? ` → ${viewingHistory.sou_catgory_name}`
+                      : ""}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {isLoadingHistoryItems
+                      ? "Chargement…"
+                      : `${historyItems.length} ${
+                          viewingHistory.type === "product"
+                            ? "produit(s)"
+                            : viewingHistory.type === "machine"
+                              ? "machine(s)"
+                              : "service(s)"
+                        }`}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeProductIds.length > 0 && (
-          <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-900">
-            {activeProductIds.length} élément{activeProductIds.length > 1 ? "s" : ""} avec sponsoring actif —
-            impossible d&apos;en créer un nouveau tant que la période n&apos;est pas terminée.
-          </div>
-        )}
-
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Plans VIP disponibles</h3>
-          {isLoadingSponsor ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-            </div>
-          ) : sponsorPlans.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sponsorPlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="border border-purple-200 rounded-xl p-4 bg-gradient-to-br from-purple-50 to-white"
-                >
-                  <div className="flex items-center gap-2 text-purple-700 font-semibold mb-2">
-                    <Clock className="w-4 h-4" />
-                    {plan.time} {plan.time === 1 ? "jour" : "jours"}
-                  </div>
-                  <div className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    {plan.price.toLocaleString("fr-FR")} DA
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">Aucun plan sponsor configuré par l&apos;administrateur.</p>
-          )}
-        </div>
-
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <History className="w-5 h-5 text-purple-600" />
-            Historique par élément
-          </h3>
-          {isLoadingSponsor ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-            </div>
-          ) : sponsorHistoryByProduct.length > 0 ? (
-            <div className="space-y-3">
-              {sponsorHistoryByProduct.map((group) => {
-                const isExpanded = expandedHistoryIds.has(group.groupKey);
-                const activeRecord = group.history.find((r) => r.isActive);
-                const pendingRecord = group.history.find((r) => !r.payment_status);
-                const historyCount = group.history.length;
-
-                return (
-                  <div
-                    key={group.groupKey}
-                    className="border border-gray-200 rounded-xl overflow-hidden"
-                  >
+                <div className="flex items-center gap-2 shrink-0">
+                  {!isLoadingHistoryItems && historyItems.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => toggleHistoryExpand(group.groupKey)}
-                      className="w-full flex items-center justify-between gap-3 p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                      onClick={() => {
+                        setDeleteAllError(null);
+                        setConfirmDeleteAll(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {group.productImage ? (
-                          <img
-                            src={getMediaUrl(group.productImage)}
-                            alt={group.productName}
-                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
-                            <span className="truncate">{group.productName}</span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${kindBadgeClass(group.itemType)}`}
-                            >
-                              {kindLabel(group.itemType)}
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {historyCount} sponsoring{historyCount > 1 ? "s" : ""}
-                            {activeRecord
-                              ? ` · actif jusqu'au ${formatDate(activeRecord.end_time)}`
-                              : ""}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {pendingRecord && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleCompletePayment(pendingRecord.id);
-                            }}
-                            disabled={resumingPaymentId === pendingRecord.id}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 disabled:opacity-50"
-                          >
-                            {resumingPaymentId === pendingRecord.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <CreditCard className="w-3 h-3" />
-                            )}
-                            Compléter
-                          </button>
-                        )}
-                        {activeRecord && (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                            Actif
-                          </span>
-                        )}
-                        {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-500" />
-                        )}
-                      </div>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Tout supprimer
                     </button>
-
-                    {isExpanded && (
-                      <div className="overflow-x-auto border-t border-gray-200">
-                        <table className="w-full min-w-[760px]">
-                          <thead>
-                            <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
-                              <th className="py-2 px-3 font-semibold">Date</th>
-                              <th className="py-2 px-3 font-semibold">Média</th>
-                              <th className="py-2 px-3 font-semibold">Durée</th>
-                              <th className="py-2 px-3 font-semibold">Prix</th>
-                              <th className="py-2 px-3 font-semibold">Période</th>
-                              <th className="py-2 px-3 font-semibold">Statut</th>
-                              <th className="py-2 px-3 font-semibold text-right">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.history.map((record) => {
-                              const status = getSponsorStatus(record);
-                              return (
-                                <tr key={record.id} className="border-b border-gray-50 text-sm">
-                                  <td className="py-2 px-3 text-gray-600">
-                                    {record.createdAt
-                                      ? formatDate(record.createdAt)
-                                      : "—"}
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    <div className="flex items-center gap-2">
-                                      {record.image ? (
-                                        <a
-                                          href={getMediaUrl(record.image)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="shrink-0"
-                                          title="Voir l'image sponsor"
-                                        >
-                                          <img
-                                            src={getMediaUrl(record.image)}
-                                            alt=""
-                                            className="h-9 w-9 rounded-md object-cover border border-gray-200"
-                                          />
-                                        </a>
-                                      ) : (
-                                        <span className="text-xs text-gray-400">—</span>
-                                      )}
-                                      {record.video ? (
-                                        <a
-                                          href={getMediaUrl(record.video)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline"
-                                          title="Voir la vidéo sponsor"
-                                        >
-                                          <Video className="w-3.5 h-3.5" />
-                                          Vidéo
-                                        </a>
-                                      ) : null}
-                                    </div>
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-700">
-                                    {record.time}{" "}
-                                    {record.timeUnit === "hours"
-                                      ? record.time === 1
-                                        ? "heure"
-                                        : "heures"
-                                      : record.time === 1
-                                        ? "jour"
-                                        : "jours"}
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-700">
-                                    {record.price.toLocaleString("fr-FR")} DA
-                                  </td>
-                                  <td className="py-2 px-3 text-gray-600">
-                                    {formatDate(record.start_time)} → {formatDate(record.end_time)}
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}
-                                    >
-                                      {status.label}
-                                    </span>
-                                  </td>
-                                  <td className="py-2 px-3 text-right">
-                                    {!record.payment_status && (
-                                      <button
-                                        type="button"
-                                        onClick={() => void handleCompletePayment(record.id)}
-                                        disabled={resumingPaymentId === record.id}
-                                        className="inline-flex items-center gap-1 px-2 py-1 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 disabled:opacity-50"
-                                      >
-                                        {resumingPaymentId === record.id ? (
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                          <CreditCard className="w-3 h-3" />
-                                        )}
-                                        Compléter le paiement
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">
-              Aucun historique de sponsoring pour vos produits, machines ou services.
-            </p>
-          )}
-        </div>
-        </div>
-      </div>
-
-      {mounted &&
-        showVipSponsorModal &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex items-center justify-between rounded-t-2xl">
-                <div className="flex items-center gap-3">
-                  <Crown className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">Sponsoring VIP</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowVipSponsorModal(false);
-                    resetSponsorMedia();
-                  }}
-                  className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <form onSubmit={handleCreateSponsor} className="p-6 space-y-4">
-                {renderSponsorItemPicker("vip")}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Plan VIP <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={selectedPlanId}
-                    onChange={(e) => setSelectedPlanId(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                  >
-                    <option value="">Sélectionner un plan</option>
-                    {sponsorPlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.time} jours — {plan.price.toLocaleString("fr-FR")} DA
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {selectedPlanId && (
-                  <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-900">
-                    Vous serez redirigé vers Chargily pour payer en ligne (EDAHABIA / CIB).
-                  </div>
-                )}
-                <div className="flex gap-3 pt-2">
+                  )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowVipSponsorModal(false);
-                      resetSponsorMedia();
-                    }}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+                    onClick={closeHistoryItems}
+                    className="rounded-lg p-2 hover:bg-gray-100"
                   >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      isCreatingSponsor ||
-                      !selectedPlanId ||
-                      !selectedProductId ||
-                      sponsorItemsForKind.length === 0
-                    }
-                    className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isCreatingSponsor ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CreditCard className="w-4 h-4" />
-                    )}
-                    Payer avec Chargily
+                    <X className="h-5 w-5 text-gray-500" />
                   </button>
                 </div>
-              </form>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                {isLoadingHistoryItems ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Chargement des éléments…</span>
+                  </div>
+                ) : historyItemsError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    {historyItemsError}
+                  </div>
+                ) : historyItems.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Package className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                    <p>Aucun élément lié à cet import</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {historyItems.map((item) => {
+                      const img =
+                        Array.isArray(item.images) && item.images[0]
+                          ? getMediaUrl(String(item.images[0]))
+                          : null;
+                      return (
+                        <li
+                          key={String(item.id)}
+                          className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3"
+                        >
+                          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                            {img ? (
+                              <img
+                                src={img}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center">
+                                <Package className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-gray-900">
+                              {pickHistoryItemName(item)}
+                            </p>
+                            {item.brand ? (
+                              <p className="truncate text-xs text-gray-500">
+                                {String(item.brand)}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  itemDetailPath(viewingHistory.type, String(item.id))
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                              title="Modifier"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteItemError(null);
+                                setItemToDelete(item);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Supprimer
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>,
           document.body
         )}
 
       {mounted &&
-        showSubscriptionSponsorModal &&
+        itemToDelete &&
+        viewingHistory &&
         createPortal(
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between rounded-t-2xl">
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">Sponsoring abonnement</h3>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                if (!isDeletingItem) {
+                  setItemToDelete(null);
+                  setDeleteItemError(null);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Confirmer la suppression
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Voulez-vous vraiment supprimer{" "}
+                    <span className="font-semibold text-gray-900">
+                      « {pickHistoryItemName(itemToDelete)} »
+                    </span>
+                    ? Cette action est irréversible.
+                  </p>
+                </div>
+              </div>
+              {deleteItemError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {deleteItemError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
                 <button
+                  type="button"
+                  disabled={isDeletingItem}
                   onClick={() => {
-                    setShowSubscriptionSponsorModal(false);
-                    resetSponsorMedia();
+                    setItemToDelete(null);
+                    setDeleteItemError(null);
                   }}
-                  className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg"
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <X className="w-6 h-6" />
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingItem}
+                  onClick={() => void confirmDeleteHistoryItem()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeletingItem ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Supprimer
                 </button>
               </div>
-              <form onSubmit={handleCreateSubscriptionSponsor} className="p-6 space-y-4">
-                {subscriptionQuota && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 space-y-2">
-                    <p>
-                      <strong>Abonnement:</strong> {subscriptionQuota.abonnement?.type}
-                    </p>
-                    <p>
-                      <strong>Quota restant:</strong> {subscriptionQuota.sponsorsRemaining} /{" "}
-                      {subscriptionQuota.sponsorsAllocated}
-                    </p>
-                    <p>
-                      <strong>Durée du sponsoring:</strong>{" "}
-                      {subscriptionSponsorDurationHours > 0
-                        ? `${subscriptionSponsorDurationHours} heure${subscriptionSponsorDurationHours === 1 ? "" : "s"}`
-                        : "non définie"}{" "}
-                      · Sans paiement
-                    </p>
-                    {subscriptionSponsorPeriodPreview && (
-                      <div className="mt-2 pt-2 border-t border-blue-200 space-y-1 text-xs text-blue-800">
-                        <p>
-                          <strong>Début (estimé):</strong>{" "}
-                          {formatDateTime(subscriptionSponsorPeriodPreview.start)}
-                        </p>
-                        <p>
-                          <strong>Fin (estimée):</strong>{" "}
-                          {formatDateTime(subscriptionSponsorPeriodPreview.end)}
-                        </p>
-                        <p className="text-blue-700/80">
-                          Calcul: maintenant + {subscriptionSponsorPeriodPreview.hours} h
-                          {subscriptionQuota.abonnement?.end &&
-                          subscriptionSponsorPeriodPreview.end.getTime() ===
-                            new Date(subscriptionQuota.abonnement.end).getTime()
-                            ? " (limité à la fin de l'abonnement)"
-                            : ""}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {renderSponsorItemPicker("subscription")}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowSubscriptionSponsorModal(false);
-                      resetSponsorMedia();
-                    }}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      isCreatingSubscriptionSponsor ||
-                      !selectedSubscriptionProductId ||
-                      sponsorItemsForKind.length === 0 ||
-                      !subscriptionQuota?.canCreateSubscriptionSponsor
-                    }
-                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isCreatingSubscriptionSponsor ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                    Activer (gratuit)
-                  </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {mounted &&
+        confirmDeleteAll &&
+        viewingHistory &&
+        createPortal(
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => {
+                if (!isDeletingAll) {
+                  setConfirmDeleteAll(false);
+                  setDeleteAllError(null);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
-              </form>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Supprimer tout l&apos;import
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Cela supprimera les {historyItems.length}{" "}
+                    {viewingHistory.type === "product"
+                      ? "produit(s)"
+                      : viewingHistory.type === "machine"
+                        ? "machine(s)"
+                        : "service(s)"}
+                    {viewingHistory.catgory_name
+                      ? ` (${viewingHistory.catgory_name}${
+                          viewingHistory.sou_catgory_name
+                            ? ` → ${viewingHistory.sou_catgory_name}`
+                            : ""
+                        })`
+                      : ""}
+                    . Action irréversible.
+                  </p>
+                </div>
+              </div>
+              {deleteAllError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {deleteAllError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={() => {
+                    setConfirmDeleteAll(false);
+                    setDeleteAllError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={() => void confirmDeleteAllHistoryItems()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeletingAll ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Tout supprimer
+                </button>
+              </div>
             </div>
           </div>,
           document.body

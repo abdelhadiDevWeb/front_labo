@@ -32,6 +32,8 @@ export function useUserLocation() {
   const [location, setLocation] = useState<GeoPoint | null>(null);
   const [status, setStatus] = useState<LocationStatus>("loading");
   const [source, setSource] = useState<"profile" | "browser" | null>(null);
+  /** True only after initial resolve finishes (not mid-flight budget timeout). */
+  const [isResolved, setIsResolved] = useState(false);
 
   const applyBrowserPosition = useCallback(async (latitude: number, longitude: number) => {
     const wilaya = await reverseGeocodeWilaya(latitude, longitude);
@@ -50,10 +52,12 @@ export function useUserLocation() {
   const requestBrowserLocation = useCallback(() => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       setStatus("denied");
+      setIsResolved(true);
       return;
     }
 
     setStatus("loading");
+    setIsResolved(false);
 
     void (async () => {
       try {
@@ -64,6 +68,8 @@ export function useUserLocation() {
         await applyBrowserPosition(position.coords.latitude, position.coords.longitude);
       } catch {
         setStatus("denied");
+      } finally {
+        setIsResolved(true);
       }
     })();
   }, [applyBrowserPosition]);
@@ -74,10 +80,12 @@ export function useUserLocation() {
 
     const resolveLocation = async () => {
       setStatus("loading");
+      setIsResolved(false);
 
       const budget = window.setTimeout(() => {
         if (!cancelled) {
-          // Don't leave the UI stuck on loading forever (geo permission prompt / hang)
+          // Don't leave the UI stuck on loading forever (geo permission prompt / hang).
+          // Catalog still waits on isResolved so this does not trigger an early fetch.
           setStatus((prev) => (prev === "loading" ? "prompt" : prev));
         }
       }, LOCATION_BUDGET_MS);
@@ -146,6 +154,7 @@ export function useUserLocation() {
         }
       } finally {
         window.clearTimeout(budget);
+        if (!cancelled) setIsResolved(true);
       }
     };
 
@@ -156,5 +165,5 @@ export function useUserLocation() {
     };
   }, [applyBrowserPosition]);
 
-  return { location, status, source, requestBrowserLocation };
+  return { location, status, source, isResolved, requestBrowserLocation };
 }

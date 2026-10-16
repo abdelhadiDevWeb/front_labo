@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Package, Loader2, ArrowLeft, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail, Star } from "lucide-react";
+import { ShoppingBag, Package, Loader2, CheckCircle, Truck, Clock, Filter, Printer, Phone, Upload, FileText, X, Eye, Building2, Mail, Star } from "lucide-react";
+import BackButton from "@/components/BackButton";
 import { createPayment, getPaymentsByCommandes, Payment, apiFetch, getSessionRole, confirmOrderArrival } from "@/lib/api";
 import { consumePendingPaymentOrderIds } from "@/lib/flow-session";
 import { printInvoiceSafely } from "@/lib/invoice-print";
@@ -352,12 +353,11 @@ export default function OrdersPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <Link
-                href="/home"
+              <BackButton
+                fallbackHref="/home"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </Link>
+                iconClassName="w-5 h-5 text-gray-600"
+              />
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shrink-0">
                   <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-white" />

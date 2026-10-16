@@ -27,6 +27,7 @@ import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { getMediaUrl } from "@/lib/media-url";
 import { scrollPageToTop } from "@/lib/scroll-to-top";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import BackButton from "@/components/BackButton";
 
 export default function ProductDetailPage() {
   const router = useRouter();
@@ -120,13 +121,12 @@ export default function ProductDetailPage() {
   if (error || !product) {
     return (
       <div className="space-y-6">
-        <button
-          onClick={() => router.back()}
+        <BackButton
+          fallbackHref="/dashboard-supplier/products"
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Retour</span>
-        </button>
+          iconClassName="w-5 h-5"
+          label={<span>Retour</span>}
+        />
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h3>
@@ -270,13 +270,12 @@ export default function ProductDetailPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Back Button */}
-      <button
-        onClick={() => router.back()}
+      <BackButton
+        fallbackHref="/dashboard-supplier/products"
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
-      >
-        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        <span>Retour aux produits</span>
-      </button>
+        iconClassName="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+        label={<span>Retour</span>}
+      />
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Left Column - Images and Video */}

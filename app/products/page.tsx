@@ -13,7 +13,6 @@ import {
   Clock,
   Image as ImageIcon,
   Loader2,
-  ArrowLeft,
   Scale,
   X,
   Check,
@@ -34,6 +33,7 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
+import BackButton from "@/components/BackButton";
 
 const PAGE_SIZE = 48;
 
@@ -64,13 +64,21 @@ export default function ProductsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [displayProducts, setDisplayProducts] = useState<PublicProduct[]>([]);
   const [isSorting, setIsSorting] = useState(false);
-  const { location: userLocation, status: locationStatus, source: locationSource, requestBrowserLocation } =
-    useUserLocation();
+  const {
+    location: userLocation,
+    status: locationStatus,
+    source: locationSource,
+    isResolved: locationResolved,
+    requestBrowserLocation,
+  } = useUserLocation();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
+  /** Wait until auth + location settle so we fetch once and show once. */
+  const catalogReady = authReady && locationResolved;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -79,15 +87,15 @@ export default function ProductsPage() {
         setIsGuest(true);
         setUserRole(null);
         setIsAuthenticated(false);
-        return;
+      } else {
+        setIsGuest(false);
+        setUserRole(session.role);
+        setIsAuthenticated(session.role === "client");
       }
-
-      setIsGuest(false);
-      setUserRole(session.role);
-      setIsAuthenticated(session.role === "client");
+      setAuthReady(true);
     };
 
-    checkAuth();
+    void checkAuth();
   }, []);
 
   useEffect(() => {
@@ -106,6 +114,9 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    // One fetch when auth + location are both settled — not on later wilaya/status noise.
+    if (!catalogReady) return;
+
     let cancelled = false;
 
     const loadProducts = async () => {
@@ -163,7 +174,8 @@ export default function ProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
+  }, [catalogReady]);
 
   const loadMoreProducts = useCallback(async () => {
     if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
@@ -407,7 +419,7 @@ export default function ProductsPage() {
     router.push("/products/compare");
   };
 
-  if (isLoading) {
+  if (!catalogReady || isLoading) {
     return <AppLoadingScreen />;
   }
 
@@ -417,12 +429,11 @@ export default function ProductsPage() {
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4 min-w-0">
-            <Link
-              href="/home"
+            <BackButton
+              fallbackHref="/home"
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </Link>
+              iconClassName="w-5 h-5 text-gray-600"
+            />
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="hidden sm:flex w-10 h-10 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl items-center justify-center shadow-lg">
                 <Package className="w-6 h-6 text-white" />

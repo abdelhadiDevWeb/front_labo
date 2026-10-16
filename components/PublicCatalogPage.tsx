@@ -11,7 +11,6 @@ import {
   Clock,
   Image as ImageIcon,
   Loader2,
-  ArrowLeft,
   SlidersHorizontal,
   DollarSign,
   Eye,
@@ -35,6 +34,7 @@ import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice from "@/components/CatalogPrice";
 import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
+import BackButton from "@/components/BackButton";
 
 type CatalogKind = "machine" | "service";
 
@@ -91,6 +91,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   const [showFilters, setShowFilters] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const [detailsItem, setDetailsItem] = useState<PublicCatalogItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginAlertOpen, setLoginAlertOpen] = useState(false);
@@ -98,10 +99,13 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   const {
     location: userLocation,
     status: locationStatus,
+    isResolved: locationResolved,
     requestBrowserLocation,
   } = useUserLocation();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
+  /** Wait until auth + location settle so we fetch once and show once. */
+  const catalogReady = authReady && locationResolved;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -109,10 +113,11 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       if (!session) {
         setIsGuest(true);
         setUserRole(null);
-        return;
+      } else {
+        setIsGuest(false);
+        setUserRole(session.role);
       }
-      setIsGuest(false);
-      setUserRole(session.role);
+      setAuthReady(true);
     };
     void checkAuth();
   }, []);
@@ -137,6 +142,9 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   }, [meta.categoryType]);
 
   useEffect(() => {
+    // One fetch when auth + location are both settled — not on later wilaya/status noise.
+    if (!catalogReady) return;
+
     let cancelled = false;
 
     const load = async () => {
@@ -200,7 +208,8 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     return () => {
       cancelled = true;
     };
-  }, [kind, meta.title, requiresWilayaForCatalog, userLocation?.wilaya, locationStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
+  }, [catalogReady]);
 
   const loadMoreItems = useCallback(async () => {
     if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
@@ -365,13 +374,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Link
-              href="/home"
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
-              aria-label="Retour"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
+            <BackButton fallbackHref="/home" />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{meta.title}</h1>
               <p className="text-xs sm:text-sm text-gray-500 truncate">
@@ -523,7 +526,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
               />
             )}
 
-            {isLoading ? (
+            {!catalogReady || isLoading ? (
               <div className="flex justify-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
               </div>

@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   "/dashboard-supplier",
   "/suppliers",
   "/favorable",
+  "/statistics",
 ];
 
 /** Never index these (private app + auth utilities). */
@@ -16,6 +17,7 @@ const NOINDEX_PREFIXES = [
   "/dashboard",
   "/dashboard-supplier",
   "/orders",
+  "/statistics",
   "/profile",
   "/favorable",
   "/suppliers",
@@ -63,6 +65,8 @@ export const config = {
     "/favorable/:path*",
     "/orders",
     "/orders/:path*",
+    "/statistics",
+    "/statistics/:path*",
     "/profile",
     "/profile/:path*",
     "/client/:path*",

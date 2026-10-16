@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Percent,
   Package,
-  ArrowLeft,
   Sparkles,
   Search,
   SlidersHorizontal,
@@ -14,6 +13,7 @@ import { getPublicPromotions, markPromotionsSeen, PublicPromotion } from "@/lib/
 import PromotionCard from "@/components/PromotionCard";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { scrollToCatalogFilters } from "@/lib/catalog-filters";
+import BackButton from "@/components/BackButton";
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<PublicPromotion[]>([]);
@@ -65,14 +65,12 @@ export default function PromotionsPage() {
       <header className="bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 text-white">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10">
           <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
-            <Link
-              href="/home#promotions-section"
+            <BackButton
+              fallbackHref="/home#promotions-section"
               className="inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Retour à l&apos;accueil</span>
-              <span className="sm:hidden">Retour</span>
-            </Link>
+              iconClassName="w-4 h-4"
+              label={<span>Retour</span>}
+            />
             <button
               type="button"
               onClick={() => scrollToCatalogFilters()}

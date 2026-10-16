@@ -3,9 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Package,
   Truck,
   CheckCircle,
@@ -27,6 +25,7 @@ import { printInvoiceSafely } from "@/lib/invoice-print";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
+import BackButton from "@/components/BackButton";
 
 interface OrderProduct {
   productId: string;
@@ -406,12 +405,11 @@ export default function SupplierOrdersPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <Link
-                href="/dashboard-supplier"
+              <BackButton
+                fallbackHref="/dashboard-supplier"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </Link>
+                iconClassName="w-5 h-5 text-gray-600"
+              />
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Package className="w-6 h-6 text-white" />

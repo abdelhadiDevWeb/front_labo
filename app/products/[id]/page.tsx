@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   ShoppingCart,
   Package,
   Clock,
@@ -24,7 +23,11 @@ import { getProductById, PublicProduct, getSessionRole } from "@/lib/api";
 import LoginAlert from "@/components/LoginAlert";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import CatalogPrice from "@/components/CatalogPrice";
+import UniqueDataFields from "@/components/UniqueDataFields";
+import SupplierNameGate from "@/components/SupplierNameGate";
+import BackButton from "@/components/BackButton";
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
+import { productToUniqueData } from "@/lib/unique-data-display";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
 import QuantityInput from "@/components/QuantityInput";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -127,13 +130,12 @@ export default function ProductDetailPage() {
           <p className="text-gray-600 mb-6">
             Le produit que vous recherchez n&apos;existe pas ou n&apos;est plus disponible.
           </p>
-          <Link
-            href="/products"
+          <BackButton
+            fallbackHref="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Retour aux produits</span>
-          </Link>
+            iconClassName="w-5 h-5"
+            label={<span>Retour</span>}
+          />
         </div>
       </div>
     );
@@ -151,13 +153,12 @@ export default function ProductDetailPage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link
-            href="/products"
+          <BackButton
+            fallbackHref="/products"
             className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Retour aux produits</span>
-          </Link>
+            iconClassName="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+            label={<span>Retour</span>}
+          />
         </div>
       </header>
 
@@ -334,43 +335,61 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      {product.category}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        product.productType === "Labo médical"
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-pink-100 text-pink-700"
-                      }`}
-                    >
-                      {product.productType}
-                    </span>
-                  </div>
+                  {userRole ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                        {product.category}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          product.productType === "Labo médical"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-pink-100 text-pink-700"
+                        }`}
+                      >
+                        {product.productType}
+                      </span>
+                    </div>
+                  ) : null}
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-gray-600 text-xs sm:text-sm mb-4">
-                    <div className="flex items-center gap-1">
-                      <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>{product.brand}</span>
+                  {userRole ? (
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-gray-600 text-xs sm:text-sm mb-4">
+                      <div className="flex items-center gap-1">
+                        <Tag className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span>{product.brand}</span>
+                      </div>
+                      <span className="hidden sm:inline">•</span>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span>{product.deliveryTime}</span>
+                      </div>
                     </div>
-                    <span className="hidden sm:inline">•</span>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>{product.deliveryTime}</span>
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
-                <span
-                  className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold ${
-                    product.quantity > 0
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {product.quantity > 0 ? "En stock" : "Rupture"}
-                </span>
+                {userRole ? (
+                  <span
+                    className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold ${
+                      product.quantity > 0
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {product.quantity > 0 ? "En stock" : "Rupture"}
+                  </span>
+                ) : null}
               </div>
+            </div>
+
+            {/* Guest / full details */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Détails</h2>
+              <UniqueDataFields
+                data={productToUniqueData(product)}
+                max={40}
+                guestOnly={!userRole}
+                hidePrices={!userRole}
+                className="max-h-none"
+              />
             </div>
 
             {/* Price */}
@@ -390,114 +409,120 @@ export default function ProductDetailPage() {
                   <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <span>Informations du fournisseur</span>
                 </h2>
-                <div className="space-y-3">
-                  <Link
-                    href={`/supplier/${product.supplier.id}`}
-                    className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors group"
-                  >
-                    <Building2 className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600">Nom</p>
-                      <p className="font-semibold text-gray-900 group-hover:text-blue-600 group-hover:underline">
-                        {product.supplier.name}
-                      </p>
-                    </div>
-                  </Link>
-                  {product.supplier.email && (
-                    <div className="flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-600">Email</p>
-                        <p className="font-semibold text-gray-900">{product.supplier.email}</p>
+                <SupplierNameGate visible={Boolean(userRole)}>
+                  <div className="space-y-3">
+                    <Link
+                      href={`/supplier/${product.supplier.id}`}
+                      className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors group"
+                    >
+                      <Building2 className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Nom</p>
+                        <p className="font-semibold text-gray-900 group-hover:text-blue-600 group-hover:underline">
+                          {product.supplier.name}
+                        </p>
                       </div>
-                    </div>
-                  )}
-                  {product.supplier.phone && (
-                    <div className="flex items-center gap-3">
-                      <Phone className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-600">Téléphone</p>
-                        <p className="font-semibold text-gray-900">{product.supplier.phone}</p>
+                    </Link>
+                    {product.supplier.email && (
+                      <div className="flex items-center gap-3">
+                        <Mail className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Email</p>
+                          <p className="font-semibold text-gray-900">{product.supplier.email}</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {product.supplier.address && (
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-600">Adresse</p>
-                        <p className="font-semibold text-gray-900">{product.supplier.address}</p>
+                    )}
+                    {product.supplier.phone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Téléphone</p>
+                          <p className="font-semibold text-gray-900">{product.supplier.phone}</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                    {product.supplier.address && (
+                      <div className="flex items-center gap-3">
+                        <MapPin className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Adresse</p>
+                          <p className="font-semibold text-gray-900">{product.supplier.address}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SupplierNameGate>
               </div>
             )}
 
-            {/* Stock & Delivery */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Stock & Livraison</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Package className="w-5 h-5 text-blue-600" />
+            {userRole ? (
+              <>
+                {/* Stock & Delivery */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Stock & Livraison</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Package className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Quantité en stock</p>
+                        <p className="text-xl font-bold text-blue-700">{product.quantity}</p>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200 flex items-center gap-3">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Délai de livraison</p>
+                        <p className="text-xl font-bold text-yellow-700">{product.deliveryTime}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Quantité en stock</p>
-                    <p className="text-xl font-bold text-blue-700">{product.quantity}</p>
-                  </div>
+                  {product.supplier && (
+                    <div className="mt-4">
+                      <SupplierDeliveryNotes
+                        deliveryNoteAll={product.supplier.deliveryNoteAll}
+                        deliveryByWilaya={product.supplier.deliveryByWilaya}
+                        wilayas={product.supplier.wilayas}
+                        coversAllWilayas={product.supplier.coversAllWilayas}
+                        highlightWilayaCode={visitorWilayaCode}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200 flex items-center gap-3">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Délai de livraison</p>
-                    <p className="text-xl font-bold text-yellow-700">{product.deliveryTime}</p>
-                  </div>
-                </div>
-              </div>
-              {product.supplier && (
-                <div className="mt-4">
-                  <SupplierDeliveryNotes
-                    deliveryNoteAll={product.supplier.deliveryNoteAll}
-                    deliveryByWilaya={product.supplier.deliveryByWilaya}
-                    wilayas={product.supplier.wilayas}
-                    coversAllWilayas={product.supplier.coversAllWilayas}
-                    highlightWilayaCode={visitorWilayaCode}
-                  />
-                </div>
-              )}
-            </div>
 
-            {/* Quantity and Add to Cart */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
-                <QuantityInput
-                  value={quantity}
-                  onChange={setQuantity}
-                  max={typeof product.quantity === "number" ? product.quantity : undefined}
-                  disabled={product.quantity === 0}
-                />
-                {product.quantity > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    {product.quantity} disponible{product.quantity > 1 ? "s" : ""}
-                    {quantity >= product.quantity && " — quantité maximale atteinte"}
-                  </p>
-                )}
-              </div>
+                {/* Quantity and Add to Cart */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
+                    <QuantityInput
+                      value={quantity}
+                      onChange={setQuantity}
+                      max={typeof product.quantity === "number" ? product.quantity : undefined}
+                      disabled={product.quantity === 0}
+                    />
+                    {product.quantity > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {product.quantity} disponible{product.quantity > 1 ? "s" : ""}
+                        {quantity >= product.quantity && " — quantité maximale atteinte"}
+                      </p>
+                    )}
+                  </div>
 
-              <button
-                onClick={handleAddToCart}
-                disabled={product.quantity === 0}
-                className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
-                <span className="hidden sm:inline">{product.quantity === 0 ? "Rupture de stock" : "Ajouter au panier"}</span>
-                <span className="sm:hidden">{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
-              </button>
-            </div>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={product.quantity === 0}
+                    className="w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-base sm:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span className="hidden sm:inline">{product.quantity === 0 ? "Rupture de stock" : "Ajouter au panier"}</span>
+                    <span className="sm:hidden">{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </main>

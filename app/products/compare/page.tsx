@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Scale,
   Package,
   DollarSign,
@@ -21,6 +20,7 @@ import { getCompareProductIds, setCompareProductIds, clearCompareProductIds } fr
 import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import BackButton from "@/components/BackButton";
 
 const getMediaUrl = (mediaPath: string) => {
   return buildMediaUrl(mediaPath) || "";
@@ -104,13 +104,12 @@ function CompareProductsContent() {
           <p className="text-gray-600 mb-6">
             {error || "Veuillez sélectionner au moins 2 produits pour la comparaison"}
           </p>
-          <Link
-            href="/products"
+          <BackButton
+            fallbackHref="/products"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Retour aux produits</span>
-          </Link>
+            iconClassName="w-5 h-5"
+            label={<span>Retour</span>}
+          />
         </div>
       </div>
     );
@@ -135,12 +134,11 @@ function CompareProductsContent() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link
-                href="/products"
+              <BackButton
+                fallbackHref="/products"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </Link>
+                iconClassName="w-5 h-5 text-gray-600"
+              />
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Scale className="w-6 h-6 text-white" />
@@ -322,12 +320,11 @@ function CompareProductsContent() {
 
         {/* Action Buttons */}
         <div className="mt-8 flex justify-center gap-4">
-          <Link
-            href="/products"
-            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all"
-          >
-            Retour aux produits
-          </Link>
+          <BackButton
+            fallbackHref="/products"
+            className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all inline-flex items-center gap-2"
+            label="Retour"
+          />
           {products.map((product) => (
             <Link
               key={product.id}

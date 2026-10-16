@@ -16,6 +16,7 @@ import {
 import { PublicCatalogItem, getSessionRole } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import SupplierNameGate from "@/components/SupplierNameGate";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import { useCart } from "@/contexts/CartContext";
@@ -182,35 +183,40 @@ export default function CatalogItemDetailsModal({
                   className="text-2xl font-bold text-blue-600"
                 />
 
-                <div className="space-y-2 text-sm text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-gray-400" />
-                    <span>{item.brand || "—"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-gray-400" />
-                    <span>
-                      {item.category || "—"}
-                      {item.sousCategory ? ` / ${item.sousCategory}` : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span>{item.deliveryTime || "—"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-gray-400" />
-                    <span>Stock : {item.quantity ?? "—"}</span>
-                  </div>
-                  {item.supplier && (
+                {canSeePrice ? (
+                  <div className="space-y-2 text-sm text-gray-700">
                     <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-gray-400" />
+                      <span>{item.brand || "—"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-gray-400" />
+                      <span>
+                        {item.category || "—"}
+                        {item.sousCategory ? ` / ${item.sousCategory}` : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span>{item.deliveryTime || "—"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-400" />
+                      <span>Stock : {item.quantity ?? "—"}</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {item.supplier && (
+                  <SupplierNameGate visible={canSeePrice}>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
                       <MapPin className="w-4 h-4 text-gray-400" />
                       <span>{item.supplier.name}</span>
                     </div>
-                  )}
-                </div>
+                  </SupplierNameGate>
+                )}
 
-                {fichePdfUrl && (
+                {canSeePrice && fichePdfUrl ? (
                   <button
                     type="button"
                     onClick={() => setShowPdf(true)}
@@ -219,9 +225,9 @@ export default function CatalogItemDetailsModal({
                     <FileText className="w-4 h-4" />
                     Voir le PDF
                   </button>
-                )}
+                ) : null}
 
-                {kind === "machine" && (
+                {canSeePrice && kind === "machine" ? (
                   <button
                     type="button"
                     onClick={() => void handleReserve()}
@@ -231,7 +237,7 @@ export default function CatalogItemDetailsModal({
                     <ShoppingCart className="w-4 h-4" />
                     {item.quantity === 0 ? "Rupture de stock" : "Réserver"}
                   </button>
-                )}
+                ) : null}
 
                 <Link
                   href={detailHref}
@@ -242,23 +248,22 @@ export default function CatalogItemDetailsModal({
               </div>
             </div>
 
-            {item.unique_data && (
-              <section>
-                <h4 className="text-sm font-bold text-gray-900 mb-3">
-                  Détails {label.toLowerCase()}
-                </h4>
-                <UniqueDataFields
-                  data={item.unique_data}
-                  max={30}
-                  hidePrices={!canSeePrice}
-                  excludeKeys={[
-                    "Fiche Technique",
-                    "ficheTechnique",
-                    "fiche technique",
-                  ]}
-                />
-              </section>
-            )}
+            <section>
+              <h4 className="text-sm font-bold text-gray-900 mb-3">
+                Détails {label.toLowerCase()}
+              </h4>
+              <UniqueDataFields
+                data={item.unique_data}
+                max={30}
+                guestOnly={!canSeePrice}
+                hidePrices={!canSeePrice}
+                excludeKeys={[
+                  "Fiche Technique",
+                  "ficheTechnique",
+                  "fiche technique",
+                ]}
+              />
+            </section>
           </div>
         </div>
       </div>

@@ -11,7 +11,6 @@ import {
   Clock,
   Image as ImageIcon,
   Loader2,
-  ArrowLeft,
   SlidersHorizontal,
   DollarSign,
   Eye,
@@ -38,6 +37,7 @@ import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import CartPanel from "@/components/CartPanel";
 import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice from "@/components/CatalogPrice";
+import BackButton from "@/components/BackButton";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
@@ -147,6 +147,7 @@ export default function AllThingsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const [detailsItem, setDetailsItem] = useState<PublicCatalogItem | null>(null);
   const [detailsKind, setDetailsKind] = useState<"machine" | "service">("machine");
   const [cartOpen, setCartOpen] = useState(false);
@@ -157,10 +158,13 @@ export default function AllThingsPage() {
   const {
     location: userLocation,
     status: locationStatus,
+    isResolved: locationResolved,
     requestBrowserLocation,
   } = useUserLocation();
 
   const requiresWilayaForCatalog = isGuest || userRole === "client";
+  /** Wait until auth + location settle so we fetch once and show once. */
+  const catalogReady = authReady && locationResolved;
   const clientWilayaCode = useMemo(
     () => resolveWilayaCode(userLocation?.wilaya),
     [userLocation?.wilaya]
@@ -178,10 +182,11 @@ export default function AllThingsPage() {
       if (!session) {
         setIsGuest(true);
         setUserRole(null);
-        return;
+      } else {
+        setIsGuest(false);
+        setUserRole(session.role);
       }
-      setIsGuest(false);
-      setUserRole(session.role);
+      setAuthReady(true);
     };
     void checkAuth();
   }, []);
@@ -212,71 +217,82 @@ export default function AllThingsPage() {
     return {};
   }, [requiresWilayaForCatalog, locationStatus, userLocation?.wilaya]);
 
-  const loadInitial = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setItems([]);
-    setTotalCount(null);
-    setCursors({ reactif: null, machine: null, service: null });
-    setHasMoreMap({ reactif: false, machine: false, service: false });
-
-    const base = { ...wilayaFilters(), limit: PAGE_SIZE };
-
-    try {
-      const [productsRes, machinesRes, servicesRes] = await Promise.all([
-        getAllProducts(base),
-        getPublicMachines(base),
-        getPublicServices(base),
-      ]);
-
-      const nextItems: UnifiedItem[] = [];
-      let total = 0;
-
-      if (productsRes.success && productsRes.data) {
-        nextItems.push(...(productsRes.data.products || []).map(productToUnified));
-        total += productsRes.data.totalCount ?? productsRes.data.products?.length ?? 0;
-        setCursors((c) => ({ ...c, reactif: productsRes.data?.nextCursor ?? null }));
-        setHasMoreMap((h) => ({ ...h, reactif: Boolean(productsRes.data?.hasMore) }));
-      }
-      if (machinesRes.success && machinesRes.data) {
-        nextItems.push(
-          ...(machinesRes.data.machines || []).map((m) => catalogToUnified(m, "machine"))
-        );
-        total += machinesRes.data.totalCount ?? machinesRes.data.machines?.length ?? 0;
-        setCursors((c) => ({ ...c, machine: machinesRes.data?.nextCursor ?? null }));
-        setHasMoreMap((h) => ({ ...h, machine: Boolean(machinesRes.data?.hasMore) }));
-      }
-      if (servicesRes.success && servicesRes.data) {
-        nextItems.push(
-          ...(servicesRes.data.services || []).map((s) => catalogToUnified(s, "service"))
-        );
-        total += servicesRes.data.totalCount ?? servicesRes.data.services?.length ?? 0;
-        setCursors((c) => ({ ...c, service: servicesRes.data?.nextCursor ?? null }));
-        setHasMoreMap((h) => ({ ...h, service: Boolean(servicesRes.data?.hasMore) }));
-      }
-
-      if (
-        !productsRes.success &&
-        !machinesRes.success &&
-        !servicesRes.success
-      ) {
-        setError("Erreur lors du chargement du catalogue");
-        setTotalCount(0);
-      } else {
-        setItems(nextItems);
-        setTotalCount(total);
-      }
-    } catch {
-      setError("Une erreur est survenue");
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wilayaFilters]);
-
   useEffect(() => {
+    if (!catalogReady) return;
+
+    let cancelled = false;
+
+    const loadInitial = async () => {
+      setIsLoading(true);
+      setError(null);
+      setItems([]);
+      setTotalCount(null);
+      setCursors({ reactif: null, machine: null, service: null });
+      setHasMoreMap({ reactif: false, machine: false, service: false });
+
+      const base = { ...wilayaFilters(), limit: PAGE_SIZE };
+
+      try {
+        const [productsRes, machinesRes, servicesRes] = await Promise.all([
+          getAllProducts(base),
+          getPublicMachines(base),
+          getPublicServices(base),
+        ]);
+
+        if (cancelled) return;
+
+        const nextItems: UnifiedItem[] = [];
+        let total = 0;
+
+        if (productsRes.success && productsRes.data) {
+          nextItems.push(...(productsRes.data.products || []).map(productToUnified));
+          total += productsRes.data.totalCount ?? productsRes.data.products?.length ?? 0;
+          setCursors((c) => ({ ...c, reactif: productsRes.data?.nextCursor ?? null }));
+          setHasMoreMap((h) => ({ ...h, reactif: Boolean(productsRes.data?.hasMore) }));
+        }
+        if (machinesRes.success && machinesRes.data) {
+          nextItems.push(
+            ...(machinesRes.data.machines || []).map((m) => catalogToUnified(m, "machine"))
+          );
+          total += machinesRes.data.totalCount ?? machinesRes.data.machines?.length ?? 0;
+          setCursors((c) => ({ ...c, machine: machinesRes.data?.nextCursor ?? null }));
+          setHasMoreMap((h) => ({ ...h, machine: Boolean(machinesRes.data?.hasMore) }));
+        }
+        if (servicesRes.success && servicesRes.data) {
+          nextItems.push(
+            ...(servicesRes.data.services || []).map((s) => catalogToUnified(s, "service"))
+          );
+          total += servicesRes.data.totalCount ?? servicesRes.data.services?.length ?? 0;
+          setCursors((c) => ({ ...c, service: servicesRes.data?.nextCursor ?? null }));
+          setHasMoreMap((h) => ({ ...h, service: Boolean(servicesRes.data?.hasMore) }));
+        }
+
+        if (
+          !productsRes.success &&
+          !machinesRes.success &&
+          !servicesRes.success
+        ) {
+          setError("Erreur lors du chargement du catalogue");
+          setTotalCount(0);
+        } else {
+          setItems(nextItems);
+          setTotalCount(total);
+        }
+      } catch {
+        if (cancelled) return;
+        setError("Une erreur est survenue");
+        setTotalCount(0);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
     void loadInitial();
-  }, [loadInitial]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
+  }, [catalogReady]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || isLoading || isLoadingMore || loadMoreLockRef.current) return;
@@ -476,7 +492,7 @@ export default function AllThingsPage() {
     userLocation?.wilaya,
   ]);
 
-  if (isLoading) {
+  if (!catalogReady || isLoading) {
     return <AppLoadingScreen />;
   }
 
@@ -486,13 +502,7 @@ export default function AllThingsPage() {
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 max-w-7xl py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Link
-                href="/home"
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 shrink-0"
-                aria-label="Retour"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
+              <BackButton fallbackHref="/home" />
               <div className="hidden sm:flex w-10 h-10 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl items-center justify-center shadow-lg">
                 <LayoutGrid className="w-6 h-6 text-white" />
               </div>

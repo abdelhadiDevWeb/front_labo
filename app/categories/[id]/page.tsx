@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Building2,
   Clock,
   FlaskConical,
@@ -25,10 +24,10 @@ import { getMediaUrl } from "@/lib/media-url";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
+import BackButton from "@/components/BackButton";
 
 export default function CategoryPage() {
   const params = useParams();
-  const router = useRouter();
   const categoryId = params.id as string;
   const { addToCart } = useCart();
   const { canSeePrice } = useCanSeeCatalogPrice();
@@ -127,9 +126,11 @@ export default function CategoryPage() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
         <Package className="mb-4 h-16 w-16 text-gray-300" />
         <p className="mb-4 text-gray-600">{error || "Catégorie introuvable"}</p>
-        <Link href="/home" className="text-blue-600 hover:text-blue-700 font-medium">
-          Retour à l&apos;accueil
-        </Link>
+        <BackButton
+          fallbackHref="/home"
+          className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-2"
+          label="Retour"
+        />
       </div>
     );
   }
@@ -141,12 +142,11 @@ export default function CategoryPage() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-md">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4 sm:px-6">
-          <button
-            onClick={() => router.back()}
+          <BackButton
+            fallbackHref="/home"
             className="rounded-lg p-2 hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-700" />
-          </button>
+            iconClassName="h-5 w-5 text-gray-700"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-bold text-gray-900 sm:text-xl">
               {category.name_catgory}

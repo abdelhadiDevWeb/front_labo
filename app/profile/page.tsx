@@ -9,7 +9,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  ArrowLeft,
   Edit2,
   Save,
   X,
@@ -28,6 +27,7 @@ import {
 import { checkAuthSession, getProfile, updateProfile, updatePassword, getDevices, Device } from "@/lib/api";
 import { validateStrongPassword } from "@/lib/password-validation";
 import { performLogout } from "@/lib/perform-logout";
+import BackButton from "@/components/BackButton";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -182,13 +182,12 @@ export default function ProfilePage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-12">
         {/* Header */}
         <div className="mb-6 sm:mb-8 animate-fade-in-up">
-          <Link
-            href="/home"
+          <BackButton
+            fallbackHref="/home"
             className="inline-flex items-center gap-2 text-sm sm:text-base text-gray-600 hover:text-blue-600 transition-colors mb-3 sm:mb-4 group"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span>Retour à l'accueil</span>
-          </Link>
+            iconClassName="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+            label={<span>Retour</span>}
+          />
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform">
               <User className="w-6 h-6 sm:w-8 sm:h-8 text-white" />

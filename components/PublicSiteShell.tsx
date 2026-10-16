@@ -119,24 +119,34 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                 Accueil
                 <span className={navUnderline} />
               </Link>
-              <Link href="/about" className={navLinkClass}>
-                À propos
-                <span className={navUnderline} />
-              </Link>
-              <HomeDesktopNavMenus showSuppliers={isAuthenticated} promotionAlert={isAuthenticated} />
-              <Link href="/contact" className={navLinkClass}>
-                Contact
-                <span className={navUnderline} />
-              </Link>
-              {isAuthenticated && isClientUser && (
-                <Link
-                  href="/orders"
-                  className={`${navLinkClass} flex items-center gap-2`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Mes Réserves</span>
+              {!isAuthenticated && (
+                <Link href="/about" className={navLinkClass}>
+                  À propos
                   <span className={navUnderline} />
                 </Link>
+              )}
+              <HomeDesktopNavMenus showSuppliers={isAuthenticated} promotionAlert={isAuthenticated} />
+              {!isAuthenticated && (
+                <Link href="/contact" className={navLinkClass}>
+                  Contact
+                  <span className={navUnderline} />
+                </Link>
+              )}
+              {isAuthenticated && isClientUser && (
+                <>
+                  <Link href="/statistics" className={navLinkClass}>
+                    Statistiques
+                    <span className={navUnderline} />
+                  </Link>
+                  <Link
+                    href="/orders"
+                    className={`${navLinkClass} flex items-center gap-2`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Mes Réserves</span>
+                    <span className={navUnderline} />
+                  </Link>
+                </>
               )}
             </div>
 
@@ -195,34 +205,47 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
                 >
                   Accueil
                 </Link>
-                <Link
-                  href="/about"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                >
-                  À propos
-                </Link>
+                {!isAuthenticated && (
+                  <Link
+                    href="/about"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
+                  >
+                    À propos
+                  </Link>
+                )}
                 <HomeMobileNavMenus
                   onNavigate={() => setMobileMenuOpen(false)}
                   showSuppliers={isAuthenticated}
                   promotionAlert={isAuthenticated}
                 />
-                <Link
-                  href="/contact"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                >
-                  Contact
-                </Link>
-                {isAuthenticated && isClientUser && (
+                {!isAuthenticated && (
                   <Link
-                    href="/orders"
+                    href="/contact"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
+                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Mes Réserves</span>
+                    Contact
                   </Link>
+                )}
+                {isAuthenticated && isClientUser && (
+                  <>
+                    <Link
+                      href="/statistics"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
+                    >
+                      Statistiques
+                    </Link>
+                    <Link
+                      href="/orders"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Mes Réserves</span>
+                    </Link>
+                  </>
                 )}
                 {isAuthenticated && isClientUser ? (
                   <>

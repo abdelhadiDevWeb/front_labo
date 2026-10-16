@@ -15,6 +15,33 @@ const HIDDEN_UNIQUE_KEYS = new Set([
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
 
+/** Fields guests may see before login (labo / public catalog). */
+const GUEST_VISIBLE_FIELD_GROUPS: Array<{ label: string; keys: string[] }> = [
+  { label: "Nom", keys: ["Nom", "nom", "name", "Désignation", "designation"] },
+  { label: "Conditionnement", keys: ["Conditionnement", "conditionnement"] },
+  { label: "DDP", keys: ["DDP", "ddp"] },
+];
+
+export const isGuestVisibleFieldKey = (key: string): boolean => {
+  const k = key.toLowerCase().trim();
+  return GUEST_VISIBLE_FIELD_GROUPS.some((g) =>
+    g.keys.some((allowed) => allowed.toLowerCase() === k)
+  );
+};
+
+/** Guest-safe unique_data rows: Nom, Conditionnement, DDP only (when present). */
+export const getGuestUniqueDataEntries = (
+  data: Record<string, unknown> | null | undefined
+): Array<[string, string]> => {
+  if (!data) return [];
+  const rows: Array<[string, string]> = [];
+  for (const group of GUEST_VISIBLE_FIELD_GROUPS) {
+    const value = pickFromUniqueData(data, group.keys, "");
+    if (value) rows.push([group.label, value]);
+  }
+  return rows;
+};
+
 export const pickFromUniqueData = (
   data: Record<string, unknown> | null | undefined,
   keys: string[],

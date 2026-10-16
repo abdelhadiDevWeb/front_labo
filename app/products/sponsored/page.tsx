@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Megaphone,
   Package,
-  ArrowLeft,
   Sparkles,
   Search,
   SlidersHorizontal,
@@ -14,6 +13,7 @@ import { getSponsoredProducts, SponsoredPublicProduct } from "@/lib/api";
 import SponsoredProductCard from "@/components/SponsoredProductCard";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { scrollToCatalogFilters } from "@/lib/catalog-filters";
+import BackButton from "@/components/BackButton";
 
 export default function SponsoredProductsPage() {
   const [products, setProducts] = useState<SponsoredPublicProduct[]>([]);
@@ -61,14 +61,17 @@ export default function SponsoredProductsPage() {
       <header className="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10">
           <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
-            <Link
-              href="/home#sponsored-section"
+            <BackButton
+              fallbackHref="/home#sponsored-section"
               className="inline-flex items-center gap-2 text-sm text-blue-100 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Retour à l&apos;accueil</span>
-              <span className="sm:hidden">Retour</span>
-            </Link>
+              iconClassName="w-4 h-4"
+              label={
+                <>
+                  <span className="hidden sm:inline">Retour</span>
+                  <span className="sm:hidden">Retour</span>
+                </>
+              }
+            />
             <button
               type="button"
               onClick={() => scrollToCatalogFilters()}

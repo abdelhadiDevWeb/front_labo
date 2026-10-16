@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Construction, MessageCircle, Radio, Users, Video } from "lucide-react";
+import { Construction, MessageCircle, Radio, Users, Video } from "lucide-react";
+import BackButton from "@/components/BackButton";
 
 const UPCOMING_FEATURES = [
   {
@@ -78,13 +79,12 @@ export default function LivePage() {
         </div>
 
         <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-          <Link
-            href="/home"
+          <BackButton
+            fallbackHref="/home"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-cyan-700"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Retour à l&apos;accueil
-          </Link>
+            iconClassName="h-4 w-4"
+            label="Retour"
+          />
           <Link
             href="/allthings"
             className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-6 py-3 font-semibold text-blue-700 transition-colors hover:bg-blue-50"

@@ -53,6 +53,7 @@ import { showBrowserNotification } from "@/lib/browser-notification";
 import WhyChooseDzLabmarket from "@/components/WhyChooseDzLabmarket";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import SupplierNameGate from "@/components/SupplierNameGate";
 import CatalogPrice from "@/components/CatalogPrice";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import {
@@ -298,12 +299,12 @@ export default function HomePage() {
   // Wait for session + wilaya before fetching — skip while logout/session overlay is up
   // (in-flight fetches aborted by hard reload surface as noisy "Failed to fetch").
   useEffect(() => {
-    if (!isAuthReady) {
-      setIsLoadingProducts(true);
-      setIsLoadingMachines(true);
-      setIsLoadingServices(true);
-      return;
-    }
+      if (!isAuthReady) {
+        setIsLoadingProducts(true);
+        setIsLoadingMachines(true);
+        setIsLoadingServices(true);
+        return;
+      }
 
     let cancelled = false;
 
@@ -320,11 +321,11 @@ export default function HomePage() {
       const filters = {
         ...(canFilterByWilaya
           ? wilayaCode
-            ? { wilayaCode }
-            : userLocation?.wilaya
-              ? { wilayaCode: userLocation.wilaya }
+          ? { wilayaCode }
+          : userLocation?.wilaya
+            ? { wilayaCode: userLocation.wilaya }
               : {}
-          : {}),
+            : {}),
         limit: 8,
       };
 
@@ -617,8 +618,8 @@ export default function HomePage() {
   // Early-return the same shell as `loading.tsx` until session resolves.
   // Do not render header alongside the loader — that mismatches Suspense fallback HTML.
   if (!isAuthReady) {
-    return (
-      <div className="min-h-screen bg-white overflow-x-hidden">
+  return (
+    <div className="min-h-screen bg-white overflow-x-hidden">
         <AppLoadingScreen />
       </div>
     );
@@ -653,21 +654,31 @@ export default function HomePage() {
                 Accueil
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </a>
+              {!isAuthenticated && (
               <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 À propos
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </Link>
+              )}
               <HomeDesktopNavMenus showSuppliers={isAuthenticated} promotionAlert={isAuthenticated} />
+              {!isAuthenticated && (
               <Link href="/contact" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group">
                 Contact
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
               </Link>
+              )}
               {isAuthenticated && isClientUser && (
+                <>
+                  <Link href="/statistics" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
+                    <span>Statistiques</span>
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
+                  </Link>
                 <Link href="/orders" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium text-sm uppercase tracking-wide relative group flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
                   <span>Mes Réserves</span>
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
+                </>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -757,22 +768,31 @@ export default function HomePage() {
                 <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Accueil
                 </a>
+                {!isAuthenticated && (
                 <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   À propos
                 </Link>
+                )}
                 <HomeMobileNavMenus
                   onNavigate={() => setMobileMenuOpen(false)}
                   showSuppliers={isAuthenticated}
                   promotionAlert={isAuthenticated}
                 />
+                {!isAuthenticated && (
                 <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
                   Contact
                 </Link>
+                )}
                 {isAuthenticated && isClientUser && (
+                  <>
+                    <Link href="/statistics" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                      Statistiques
+                    </Link>
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
                     <span>Mes Réserves</span>
                   </Link>
+                  </>
                 )}
                 {isAuthenticated && isClientUser ? (
                   <>
@@ -827,57 +847,24 @@ export default function HomePage() {
 
       <HomeSponsoredHero />
 
-      {/* Hero Section — centered UI (recording 2026-10-15), same copy */}
+      {/* Hero Section — full-bleed lab cover background */}
       <section
         id="accueil"
-        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-[#0066ff]"
+        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-slate-950"
       >
-        {/* Blue→cyan stage background (same look as the reference screenshot) */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_70%_35%,#5ce1ff_0%,#2eb8ff_28%,#0088ff_58%,#0055ff_100%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[28%] -z-10 h-[55vmin] w-[55vmin] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#ffffff55_0%,#5ce1ff33_35%,transparent_70%)] animate-hero-glow"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 -z-10 h-[14%] border-t border-white/25 bg-[linear-gradient(180deg,#4dd4ff_0%,#2eb0ff_55%,#1a9aef_100%)]"
-        />
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          {[
-            { t: "12%", l: "8%", w: "10px", h: "10px", r: "9999px", o: "0.18", d: "0s", dur: "6.5s" },
-            { t: "22%", l: "18%", w: "28px", h: "6px", r: "9999px", o: "0.14", d: "0.8s", dur: "7.5s" },
-            { t: "18%", l: "72%", w: "12px", h: "12px", r: "9999px", o: "0.16", d: "1.4s", dur: "8s" },
-            { t: "30%", l: "86%", w: "36px", h: "7px", r: "9999px", o: "0.13", d: "0.3s", dur: "6.8s" },
-            { t: "42%", l: "12%", w: "8px", h: "8px", r: "9999px", o: "0.2", d: "1.1s", dur: "7.2s" },
-            { t: "48%", l: "28%", w: "42px", h: "7px", r: "9999px", o: "0.12", d: "2s", dur: "8.5s" },
-            { t: "38%", l: "58%", w: "14px", h: "14px", r: "9999px", o: "0.15", d: "0.5s", dur: "6.2s" },
-            { t: "55%", l: "78%", w: "9px", h: "9px", r: "9999px", o: "0.18", d: "1.7s", dur: "7.8s" },
-            { t: "62%", l: "6%", w: "32px", h: "6px", r: "9999px", o: "0.12", d: "2.4s", dur: "9s" },
-            { t: "68%", l: "40%", w: "11px", h: "11px", r: "9999px", o: "0.16", d: "0.2s", dur: "6.9s" },
-            { t: "74%", l: "64%", w: "48px", h: "8px", r: "9999px", o: "0.11", d: "1.9s", dur: "8.2s" },
-            { t: "26%", l: "44%", w: "7px", h: "7px", r: "9999px", o: "0.2", d: "3s", dur: "7s" },
-            { t: "8%", l: "52%", w: "24px", h: "5px", r: "9999px", o: "0.14", d: "0.6s", dur: "7.6s" },
-            { t: "80%", l: "22%", w: "10px", h: "10px", r: "9999px", o: "0.15", d: "2.2s", dur: "8.8s" },
-            { t: "15%", l: "92%", w: "8px", h: "8px", r: "9999px", o: "0.17", d: "1.3s", dur: "6.4s" },
-          ].map((p, i) => (
-            <span
-              key={i}
-              className="absolute bg-white animate-hero-particle"
-              style={{
-                top: p.t,
-                left: p.l,
-                width: p.w,
-                height: p.h,
-                borderRadius: p.r,
-                opacity: Number(p.o),
-                animationDelay: p.d,
-                animationDuration: p.dur,
-              }}
-            />
-          ))}
+        <div aria-hidden className="absolute inset-0 -z-10">
+          <Image
+            src="/labocover.jpeg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-[center_40%] animate-hero-cover-kenburns will-change-transform"
+          />
+          {/* Readable modern overlay — cool teal/blue wash matching the photo */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/75 via-sky-950/55 to-slate-950/80" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(56,189,248,0.22)_0%,transparent_55%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/70 to-transparent" />
         </div>
 
         <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 md:pt-16 text-center">
@@ -890,20 +877,20 @@ export default function HomePage() {
               className="h-12 sm:h-14 w-auto object-contain"
               priority
             />
-          </div>
+            </div>
 
           <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
+              </span>
             Plateforme B2B dédiée à la biologie médicale
           </span>
 
           <h1 className={`${heroSerif.className} mt-5 sm:mt-6 max-w-4xl text-[1.85rem] leading-[1.12] sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white animate-fade-in-up animation-delay-200`}>
             L&apos;approvisionnement de votre laboratoire,{" "}
             <span className="italic text-cyan-100">simple, fiable et rapide.</span>
-          </h1>
+            </h1>
 
           <p className="mt-5 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400">
             {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
@@ -912,20 +899,20 @@ export default function HomePage() {
           </p>
 
           <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-fade-in-up animation-delay-600">
-            <Link
+              <Link
               href="/allthings"
               className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm sm:text-base font-semibold text-blue-700 shadow-lg shadow-blue-950/20 transition-all duration-300 hover:bg-blue-50 hover:scale-[1.03]"
             >
               Découvrir la marketplace
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Link>
+              </Link>
             <Link
               href="/about"
               className="inline-flex items-center justify-center rounded-xl border border-white/50 bg-white/15 px-7 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-md transition-colors duration-300 hover:bg-white/25 hover:border-white/70"
             >
-              En savoir plus
+                En savoir plus
             </Link>
-          </div>
+            </div>
 
           <div className="mt-9 sm:mt-10 flex items-center justify-center gap-4 animate-fade-in-up animation-delay-800">
             <div className="flex -space-x-3">
@@ -941,8 +928,8 @@ export default function HomePage() {
             <div className="text-sm leading-snug text-left">
               <p className="font-semibold text-white">Fournisseurs vérifiés</p>
               <p className="text-white/70">Réactifs, consommables et équipements</p>
-            </div>
           </div>
+        </div>
 
         </div>
 
@@ -958,7 +945,7 @@ export default function HomePage() {
               </div>
             </div>
             <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
-              <path
+            <path 
                 d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
                 stroke="currentColor"
                 strokeWidth={2.5}
@@ -966,9 +953,9 @@ export default function HomePage() {
                 strokeLinejoin="round"
                 pathLength={1}
                 className="animate-hero-ecg"
-              />
-            </svg>
-          </div>
+            />
+          </svg>
+        </div>
         </div>
 
         <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2 sm:pb-4 animate-fade-in-up animation-delay-800">
@@ -1096,28 +1083,28 @@ export default function HomePage() {
       <section id="about-section" className="py-12 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className={`text-center mb-8 sm:mb-10 md:mb-14 scroll-animate ${visibleElements.has("about-left") ? "animate" : ""}`} id="about-left">
-            <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
-              À propos
-            </div>
+              <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
+                À propos
+              </div>
             <h2 className={`${heroSerif.className} text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-gray-900 leading-tight px-2`}>
               Pourquoi choisir <span className="italic text-blue-600">{BRAND_NAME}</span> ?
-            </h2>
-          </div>
+              </h2>
+                  </div>
 
           <div className={`scroll-animate-scale ${visibleElements.has("about-right") ? "animate" : ""}`} id="about-right">
             <WhyChooseDzLabmarket />
-          </div>
+            </div>
 
           <div className="mt-8 sm:mt-10 text-center">
-            <Link
+              <Link
               href="/about"
               className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-bold text-sm sm:text-base md:text-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl inline-flex items-center gap-2"
-            >
+              >
               <span>En savoir plus</span>
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
-            </Link>
+              </Link>
           </div>
         </div>
       </section>
@@ -1214,7 +1201,7 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : "Aucun produit disponible pour le moment"}
+                    : "Aucun produit disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1279,6 +1266,7 @@ export default function HomePage() {
                       </Link>
 
                       {product.supplier && (
+                        <SupplierNameGate visible={Boolean(userRole)}>
                         <Link
                           href={`/supplier/${product.supplier.id}`}
                           className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
@@ -1291,9 +1279,15 @@ export default function HomePage() {
                             </span>
                           )}
                         </Link>
+                        </SupplierNameGate>
                       )}
 
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
                       <CatalogPrice
                         amount={product.price}
                         visible={Boolean(userRole)}
@@ -1371,7 +1365,7 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : "Aucune machine disponible pour le moment"}
+                    : "Aucune machine disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1413,7 +1407,12 @@ export default function HomePage() {
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
                         {displayName}
                       </h3>
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
                       <CatalogPrice
                         amount={machine.price}
                         visible={Boolean(userRole)}
@@ -1496,7 +1495,7 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : "Aucun service disponible pour le moment"}
+                    : "Aucun service disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1538,7 +1537,12 @@ export default function HomePage() {
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
                         {displayName}
                       </h3>
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
                       <CatalogPrice
                         amount={service.price}
                         visible={Boolean(userRole)}

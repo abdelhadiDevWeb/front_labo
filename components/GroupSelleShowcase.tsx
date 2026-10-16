@@ -405,54 +405,56 @@ function GroupSellDetailsModal({
                 <Package className="w-4 h-4 text-teal-600" />
                 Infos produit
               </h4>
-              <div className="grid sm:grid-cols-2 gap-2 text-sm mb-3">
-                <DetailRow
-                  icon={<Building2 className="w-3.5 h-3.5" />}
-                  label="Marque"
-                  value={product?.brand || "—"}
-                />
-                <DetailRow
-                  icon={<Tag className="w-3.5 h-3.5" />}
-                  label="Catégorie"
-                  value={product?.category || "—"}
-                />
-                <DetailRow
-                  icon={<Package className="w-3.5 h-3.5" />}
-                  label="Stock fournisseur"
-                  value={
-                    product?.stockQuantity != null
-                      ? String(product.stockQuantity)
-                      : "—"
-                  }
-                />
-                <DetailRow
-                  icon={<Truck className="w-3.5 h-3.5" />}
-                  label="Délai de livraison"
-                  value={product?.deliveryTime || "—"}
-                />
-                {product?.productType && (
+              {canSeePrice ? (
+                <div className="grid sm:grid-cols-2 gap-2 text-sm mb-3">
+                  <DetailRow
+                    icon={<Building2 className="w-3.5 h-3.5" />}
+                    label="Marque"
+                    value={product?.brand || "—"}
+                  />
                   <DetailRow
                     icon={<Tag className="w-3.5 h-3.5" />}
-                    label="Type"
-                    value={product.productType}
+                    label="Catégorie"
+                    value={product?.category || "—"}
                   />
-                )}
-                {product?.conditionnement && (
                   <DetailRow
                     icon={<Package className="w-3.5 h-3.5" />}
-                    label="Conditionnement"
-                    value={product.conditionnement}
+                    label="Stock fournisseur"
+                    value={
+                      product?.stockQuantity != null
+                        ? String(product.stockQuantity)
+                        : "—"
+                    }
                   />
-                )}
-                {location && (
                   <DetailRow
-                    icon={<MapPin className="w-3.5 h-3.5" />}
-                    label="Localisation"
-                    value={location}
+                    icon={<Truck className="w-3.5 h-3.5" />}
+                    label="Délai de livraison"
+                    value={product?.deliveryTime || "—"}
                   />
-                )}
-              </div>
-              {fichePdfUrl && (
+                  {product?.productType && (
+                    <DetailRow
+                      icon={<Tag className="w-3.5 h-3.5" />}
+                      label="Type"
+                      value={product.productType}
+                    />
+                  )}
+                  {product?.conditionnement && (
+                    <DetailRow
+                      icon={<Package className="w-3.5 h-3.5" />}
+                      label="Conditionnement"
+                      value={product.conditionnement}
+                    />
+                  )}
+                  {location && (
+                    <DetailRow
+                      icon={<MapPin className="w-3.5 h-3.5" />}
+                      label="Localisation"
+                      value={location}
+                    />
+                  )}
+                </div>
+              ) : null}
+              {canSeePrice && fichePdfUrl ? (
                 <button
                   type="button"
                   onClick={() => setShowPdf(true)}
@@ -461,15 +463,14 @@ function GroupSellDetailsModal({
                   <FileText className="w-4 h-4" />
                   Voir le PDF
                 </button>
-              )}
-              {product?.unique_data && (
-                <UniqueDataFields
-                  data={product.unique_data}
-                  max={20}
-                  hidePrices={!canSeePrice}
-                  excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
-                />
-              )}
+              ) : null}
+              <UniqueDataFields
+                data={product?.unique_data}
+                max={20}
+                guestOnly={!canSeePrice}
+                hidePrices={!canSeePrice}
+                excludeKeys={["Fiche Technique", "ficheTechnique", "fiche technique"]}
+              />
               {product?.id && (
                 <Link
                   href={`/products/${product.id}`}

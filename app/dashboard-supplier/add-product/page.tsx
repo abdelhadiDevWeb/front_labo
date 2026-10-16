@@ -12,8 +12,6 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Sparkles,
-  TrendingUp,
   FileText,
   Image as ImageIcon,
   Cpu,
@@ -22,10 +20,9 @@ import {
   Layers,
   History,
   Eye,
-  ChevronDown,
-  ChevronUp,
   Edit,
   Trash2,
+  ArrowRight,
 } from "lucide-react";
 import {
   apiFetch,
@@ -100,8 +97,9 @@ const pickItemName = (item: HistoryXlsItem): string => {
 
 export default function AddProductPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"single" | "excel">("single");
+  const [activeTab, setActiveTab] = useState<"single" | "excel" | "history">("single");
   const [excelImportType, setExcelImportType] = useState<ExcelImportType>(null);
+  const contentSectionRef = useRef<HTMLDivElement | null>(null);
   const [excelTypeLabo, setExcelTypeLabo] = useState<LaboTypeValue | "">("");
   const [excelCategoryId, setExcelCategoryId] = useState("");
   const [excelSousCategoryId, setExcelSousCategoryId] = useState("");
@@ -124,7 +122,6 @@ export default function AddProductPage() {
   // XLS history
   const [xlsHistory, setXlsHistory] = useState<HistoryXlsRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [historyOpen, setHistoryOpen] = useState(true);
   const [viewingHistory, setViewingHistory] = useState<HistoryXlsRecord | null>(null);
   const [historyItems, setHistoryItems] = useState<HistoryXlsItem[]>([]);
   const [isLoadingHistoryItems, setIsLoadingHistoryItems] = useState(false);
@@ -969,14 +966,14 @@ export default function AddProductPage() {
       return (
         <div className="p-5 bg-red-50 border-l-4 border-red-500 rounded-xl shadow flex items-start gap-4">
           <AlertCircle className="w-6 h-6 text-red-600 shrink-0" />
-          <div>
+            <div>
             <p className="font-semibold text-red-900 mb-1">Aucun abonnement actif</p>
             <p className="text-sm text-red-700">
               {message ||
                 "Vous devez avoir un abonnement actif pour ajouter des produits, machines ou services."}
-            </p>
+              </p>
+            </div>
           </div>
-        </div>
       );
     }
 
@@ -988,7 +985,7 @@ export default function AddProductPage() {
             Annonces publiées : <strong>{quota.used}</strong> (produits, machines et services) —
             aucune limite définie pour votre abonnement « {quota.subscriptionType} ».
           </span>
-        </div>
+              </div>
       );
     }
 
@@ -1015,213 +1012,184 @@ export default function AddProductPage() {
               : "Limite atteinte"}{" "}
             <span className="font-normal">— abonnement « {quota.subscriptionType} »</span>
           </p>
-        </div>
+            </div>
         <div className="w-full bg-white/70 rounded-full h-2.5 overflow-hidden">
           <div className={`h-2.5 rounded-full ${toneClasses.bar}`} style={{ width: `${percent}%` }} />
-        </div>
+              </div>
         {remaining <= 0 && message && (
           <p className="mt-3 text-sm text-red-700">{message}</p>
         )}
-      </div>
+            </div>
     );
   };
 
+  const goToSection = (tab: "single" | "excel" | "history") => {
+    setError(null);
+    setSuccess(null);
+    if (tab === "single") {
+      setActiveTab("single");
+      setSingleType(null);
+      resetSingleForm();
+    } else if (tab === "excel") {
+      setActiveTab("excel");
+      setExcelImportType(null);
+      resetExcelImportState();
+    } else {
+      setActiveTab("history");
+      void loadXlsHistory();
+    }
+    requestAnimationFrame(() => {
+      contentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const navCards: Array<{
+    id: "single" | "excel" | "history";
+    title: string;
+    subtitle: string;
+    icon: typeof Plus;
+    accent: string;
+    iconBg: string;
+    activeRing: string;
+    delay: string;
+    badge?: string;
+  }> = [
+    {
+      id: "single",
+      title: "Ajout un par un",
+      subtitle: "Formulaire guidé",
+      icon: Plus,
+      accent: "from-emerald-500 to-green-600",
+      iconBg: "bg-emerald-400/25",
+      activeRing: "ring-emerald-400/70",
+      delay: "animation-delay-200",
+    },
+    {
+      id: "excel",
+      title: "Import XLS",
+      subtitle: "Import en masse",
+      icon: FileSpreadsheet,
+      accent: "from-teal-500 to-cyan-600",
+      iconBg: "bg-teal-400/25",
+      activeRing: "ring-teal-400/70",
+      delay: "animation-delay-300",
+    },
+    {
+      id: "history",
+      title: "Historique XLS",
+      subtitle: "Vos imports",
+      icon: History,
+      accent: "from-slate-600 to-slate-800",
+      iconBg: "bg-white/20",
+      activeRing: "ring-slate-300/80",
+      delay: "animation-delay-400",
+      badge:
+        xlsHistory.length > 0
+          ? `${xlsHistory.length}`
+          : undefined,
+    },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header with Gradient */}
-      <div className="relative bg-gradient-to-r from-green-600 via-emerald-600 to-green-700 rounded-2xl p-8 shadow-xl overflow-hidden">
-        {/* Decorative Background Elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
-        <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-        
+      {/* Header — compact modern action cards */}
+      <div className="relative bg-gradient-to-br from-emerald-700 via-green-600 to-teal-700 rounded-2xl p-4 sm:p-5 shadow-lg overflow-hidden">
+        <div className="absolute -top-16 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none animate-pulse-glow" />
+        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-teal-300/20 blur-2xl pointer-events-none animate-pulse-glow" style={{ animationDelay: "1s" }} />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent_50%)] pointer-events-none" />
+
         <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-              <Package className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Ajouter un Produit</h1>
-              <p className="text-green-100 text-sm sm:text-base">
-                Créez un nouveau produit ou importez plusieurs produits depuis Excel
+          <div className="flex items-center gap-3 mb-3.5 animate-fade-in-up">
+            <div className="w-10 h-10 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-md">
+              <Package className="w-5 h-5 text-white" />
+              </div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate">
+                Ajouter au catalogue
+              </h1>
+              <p className="text-emerald-50/85 text-xs sm:text-sm">
+                Choisissez une méthode
               </p>
-            </div>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-              <div className="flex items-center gap-2 text-white/90 text-xs mb-1">
-                <Sparkles className="w-4 h-4" />
-                <span>Rapide</span>
-              </div>
-              <p className="text-white font-bold text-lg">Ajout unique</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-              <div className="flex items-center gap-2 text-white/90 text-xs mb-1">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Bulk</span>
-              </div>
-              <p className="text-white font-bold text-lg">Import Excel</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-              <div className="flex items-center gap-2 text-white/90 text-xs mb-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>Efficace</span>
-              </div>
-              <p className="text-white font-bold text-lg">Gestion</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-              <div className="flex items-center gap-2 text-white/90 text-xs mb-1">
-                <CheckCircle className="w-4 h-4" />
-                <span>Sécurisé</span>
-              </div>
-              <p className="text-white font-bold text-lg">Validé</p>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Historique XLS */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setHistoryOpen((v) => !v)}
-          className="w-full flex items-center justify-between gap-3 p-4 sm:p-5 text-left hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <History className="w-5 h-5 text-emerald-700" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+            {navCards.map((card) => {
+              const Icon = card.icon;
+              const isActive = activeTab === card.id;
+              return (
+          <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => goToSection(card.id)}
+                  className={`group relative text-left rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3 border overflow-hidden animate-scale-in ${card.delay} transition-all duration-300 ease-out will-change-transform ${
+                    isActive
+                      ? `bg-white text-gray-900 shadow-lg ring-2 ${card.activeRing} -translate-y-0.5`
+                      : "bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                  }`}
+                >
+                  {/* shimmer on hover */}
+                  <span
+                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+                    aria-hidden
+                  />
+                  <div className="relative flex items-center gap-2.5">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 ${
+                        isActive
+                          ? `bg-gradient-to-br ${card.accent} text-white shadow-sm scale-105`
+                          : `${card.iconBg} text-white group-hover:scale-110`
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Historique XLS</h2>
-              <p className="text-sm text-gray-500">
-                {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel de votre compte
-              </p>
-            </div>
-          </div>
-          {historyOpen ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-
-        {historyOpen && (
-          <div className="border-t border-gray-100 p-4 sm:p-5">
-            {isLoadingHistory ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">Chargement de l&apos;historique…</span>
-              </div>
-            ) : xlsHistory.length === 0 ? (
-              <div className="text-center py-8">
-                <FileSpreadsheet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 font-medium">Aucun import Excel</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Vos imports depuis l&apos;onglet Excel apparaîtront ici
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {xlsHistory.map((row) => (
-                  <div
-                    key={row.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/80 p-3 sm:p-4"
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${historyTypeBadge(row.type)}`}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p
+                          className={`text-sm font-bold truncate ${
+                            isActive ? "text-gray-900" : "text-white"
+                          }`}
                         >
-                          {historyTypeLabel(row.type)}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatHistoryDate(row.created)}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {row.catgory_name || "Catégorie"}
-                        {row.sou_catgory_name ? ` → ${row.sou_catgory_name}` : ""}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {row.itemsCount} élément{row.itemsCount > 1 ? "s" : ""} créé
-                        {row.itemsCount > 1 ? "s" : ""}
+                          {card.title}
+                        </p>
+                        {card.badge ? (
+                          <span
+                            className={`inline-flex h-4.5 min-w-[1.15rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none ${
+                              isActive
+                                ? "bg-slate-100 text-slate-700"
+                                : "bg-white/20 text-white"
+                            }`}
+                          >
+                            {card.badge}
+                          </span>
+                        ) : null}
+            </div>
+                      <p
+                        className={`text-[11px] leading-tight truncate ${
+                          isActive ? "text-gray-500" : "text-white/70"
+                        }`}
+                      >
+                        {card.subtitle}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void openHistoryItems(row)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shrink-0"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Voir les{" "}
-                      {row.type === "product"
-                        ? "produits"
-                        : row.type === "machine"
-                          ? "machines"
-                          : "services"}
-                    </button>
+                    <ArrowRight
+                      className={`w-3.5 h-3.5 shrink-0 transition-all duration-300 ${
+                        isActive
+                          ? "text-emerald-600 translate-x-0.5"
+                          : "text-white/45 group-hover:text-white group-hover:translate-x-1"
+                      }`}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
+          </button>
+              );
+            })}
           </div>
-        )}
-      </div>
-
-      {/* Tab Selector - Modern Design */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2">
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setActiveTab("single");
-              setSingleType(null);
-              resetSingleForm();
-              setError(null);
-              setSuccess(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all duration-300 relative overflow-hidden group ${
-              activeTab === "single"
-                ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/50 transform scale-105"
-                : "text-gray-700 hover:bg-gray-50 hover:scale-102"
-            }`}
-          >
-            <div className={`p-2 rounded-lg ${activeTab === "single" ? "bg-white/20" : "bg-green-100"}`}>
-              <Plus className={`w-5 h-5 ${activeTab === "single" ? "text-white" : "text-green-600"}`} />
-            </div>
-            <span className="text-sm sm:text-base">Ajouter un par un</span>
-            {activeTab === "single" && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("excel");
-              setExcelImportType(null);
-              resetExcelImportState();
-              setError(null);
-              setSuccess(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all duration-300 relative overflow-hidden group ${
-              activeTab === "excel"
-                ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/50 transform scale-105"
-                : "text-gray-700 hover:bg-gray-50 hover:scale-102"
-            }`}
-          >
-            <div className={`p-2 rounded-lg ${activeTab === "excel" ? "bg-white/20" : "bg-green-100"}`}>
-              <FileSpreadsheet className={`w-5 h-5 ${activeTab === "excel" ? "text-white" : "text-green-600"}`} />
-            </div>
-            <span className="text-sm sm:text-base">Importer depuis Excel</span>
-            {activeTab === "excel" && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-            )}
-          </button>
         </div>
       </div>
 
       {renderListingQuotaBanner()}
 
+      <div ref={contentSectionRef} className="space-y-6 scroll-mt-6">
       {/* Messages - Enhanced Design */}
       {success && (
         <div className="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-xl shadow-lg flex items-start gap-4 animate-fade-in-up">
@@ -2315,6 +2283,97 @@ export default function AddProductPage() {
         </div>
       )}
 
+      {/* Historique XLS section */}
+      {activeTab === "history" && (
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-50 to-gray-100 border-b border-gray-200 px-6 sm:px-8 py-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center shadow-lg">
+                <History className="w-6 h-6 text-white" />
+    </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Historique XLS</h2>
+                <p className="text-sm text-gray-600">
+                  {xlsHistory.length} import{xlsHistory.length > 1 ? "s" : ""} Excel —
+                  produits, machines et services
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            {isLoadingHistory ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Chargement de l&apos;historique…</span>
+              </div>
+            ) : xlsHistory.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                  <FileSpreadsheet className="w-7 h-7 text-slate-400" />
+                </div>
+                <p className="text-gray-800 font-semibold">Aucun import Excel</p>
+                <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+                  Vos imports depuis « Import XLS » apparaîtront ici
+                </p>
+                <button
+                  type="button"
+                  onClick={() => goToSection("excel")}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Aller à l&apos;import XLS
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {xlsHistory.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white p-4 hover:border-emerald-200 hover:shadow-md transition-all"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${historyTypeBadge(row.type)}`}
+                        >
+                          {historyTypeLabel(row.type)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatHistoryDate(row.created)}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {row.catgory_name || "Catégorie"}
+                        {row.sou_catgory_name ? ` → ${row.sou_catgory_name}` : ""}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {row.itemsCount} élément{row.itemsCount > 1 ? "s" : ""} créé
+                        {row.itemsCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openHistoryItems(row)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shrink-0"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Voir les{" "}
+                      {row.type === "product"
+                        ? "produits"
+                        : row.type === "machine"
+                          ? "machines"
+                          : "services"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      </div>
+
       {mounted &&
         viewingHistory &&
         createPortal(
@@ -2335,7 +2394,7 @@ export default function AddProductPage() {
                     <span className="text-xs text-gray-500">
                       {formatHistoryDate(viewingHistory.created)}
                     </span>
-    </div>
+                  </div>
                   <h3 className="text-lg font-bold text-gray-900 truncate">
                     {viewingHistory.catgory_name || "Import Excel"}
                     {viewingHistory.sou_catgory_name

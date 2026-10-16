@@ -14,6 +14,7 @@ import { getReactNativeWebView } from "@/lib/security";
 const LAB_PATH_PREFIXES = [
   "/home",
   "/orders",
+  "/statistics",
   "/profile",
   "/favorable",
   "/suppliers",

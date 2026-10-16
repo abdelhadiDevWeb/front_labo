@@ -25,6 +25,7 @@ import {
   CheckCircle,
   Percent,
   Users,
+  Megaphone,
 } from "lucide-react";
 import { getSessionRole, getProfile, ClientData, NotificationData, createProblem, apiFetch } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
@@ -41,6 +42,7 @@ import ListingQuotaHeaderAlert, {
 const menuItems = [
   { icon: LayoutDashboard, label: "Tableau de bord", href: "/dashboard-supplier" },
   { icon: Package, label: "Marché", href: "/dashboard-supplier/products" },
+  { icon: Megaphone, label: "Publicité", href: "/dashboard-supplier/publicite" },
   { icon: Percent, label: "Promotions", href: "/dashboard-supplier/promotions" },
   { icon: Users, label: "Vente groupée", href: "/dashboard-supplier/sell-by-group" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },

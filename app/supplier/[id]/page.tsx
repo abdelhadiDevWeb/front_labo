@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 import {
-  ArrowLeft,
   Building2,
   Mail,
   Phone,
@@ -225,13 +225,12 @@ export default function SupplierDetailsPage() {
           <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Fournisseur non trouvé</h2>
           <p className="text-gray-600 mb-6">{error || "Le fournisseur demandé n'existe pas"}</p>
-          <Link
-            href="/home"
+          <BackButton
+            fallbackHref="/suppliers"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour à l'accueil
-          </Link>
+            iconClassName="w-4 h-4"
+            label="Retour"
+          />
         </div>
       </div>
     );
@@ -256,12 +255,11 @@ export default function SupplierDetailsPage() {
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <Link
-              href="/home"
+            <BackButton
+              fallbackHref="/suppliers"
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </Link>
+              iconClassName="w-5 h-5 text-gray-600"
+            />
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Détails du fournisseur</h1>
           </div>
         </div>

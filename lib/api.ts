@@ -825,13 +825,50 @@ const formData = new FormData();
   }
 };
 
-// Get supplier products
-export const getSupplierProducts = async (): Promise<ApiResponse<{ products: Product[]; total: number }>> => {
+export type SupplierCatalogListParams = {
+  search?: string;
+  limit?: number;
+  cursor?: string;
+  /** Omit these catalog item ids from results (e.g. already sponsored). */
+  excludeIds?: string[];
+};
+
+const buildSupplierCatalogQuery = (params?: SupplierCatalogListParams): string => {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  if (params.search?.trim()) qs.set("search", params.search.trim());
+  if (typeof params.limit === "number" && Number.isFinite(params.limit)) {
+    qs.set("limit", String(Math.trunc(params.limit)));
+  }
+  if (params.cursor?.trim()) qs.set("cursor", params.cursor.trim());
+  if (params.excludeIds?.length) {
+    const unique = Array.from(
+      new Set(params.excludeIds.map((id) => String(id).trim()).filter(Boolean))
+    ).slice(0, 200);
+    if (unique.length) qs.set("excludeIds", unique.join(","));
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+};
+
+// Get supplier products (optional backend search + limit)
+export const getSupplierProducts = async (
+  params?: SupplierCatalogListParams
+): Promise<
+  ApiResponse<{
+    products: Product[];
+    total: number;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    limit?: number;
+  }>
+> => {
   try {
-const response = await apiFetch(`${getApiBaseUrl()}/products`, {
+    const response = await apiFetch(`${getApiBaseUrl()}/products${buildSupplierCatalogQuery(params)}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",},
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {
@@ -976,14 +1013,25 @@ export interface UniqueDataItem {
   updatedAt?: string;
 }
 
-export const getSupplierMachines = async (): Promise<
-  ApiResponse<{ machines: UniqueDataItem[]; total: number }>
+export const getSupplierMachines = async (
+  params?: SupplierCatalogListParams
+): Promise<
+  ApiResponse<{
+    machines: UniqueDataItem[];
+    total: number;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    limit?: number;
+  }>
 > => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/machines`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/machines${buildSupplierCatalogQuery(params)}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       return {
@@ -1001,14 +1049,25 @@ export const getSupplierMachines = async (): Promise<
   }
 };
 
-export const getSupplierServices = async (): Promise<
-  ApiResponse<{ services: UniqueDataItem[]; total: number }>
+export const getSupplierServices = async (
+  params?: SupplierCatalogListParams
+): Promise<
+  ApiResponse<{
+    services: UniqueDataItem[];
+    total: number;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    limit?: number;
+  }>
 > => {
   try {
-    const response = await apiFetch(`${getApiBaseUrl()}/services`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/services${buildSupplierCatalogQuery(params)}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       return {
@@ -2038,13 +2097,23 @@ const response = await apiFetch(`${getApiBaseUrl()}/commandes/supplier/statistic
   }
 };
 
+export type StatsPeriod = "1m" | "3m" | "6m" | "1y";
+/** @deprecated Prefer StatsPeriod — kept for labo page imports */
+export type ClientStatsPeriod = StatsPeriod;
+
 // Detailed Supplier Statistics interfaces
 export interface DetailedSupplierStatistics {
+  period?: StatsPeriod;
+  periodLabel?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  periodRangeLabel?: string;
   totalRevenue: number;
   totalProductsSold: number;
   totalOrders: number;
   totalClients: number;
   monthlyRevenue: { [key: string]: number };
+  monthlyOrders?: { [key: string]: number };
   dailyRevenue: { [key: string]: number };
   dailyRevenueMonth?: string;
   bestProducts: Array<{
@@ -2065,14 +2134,18 @@ export interface DetailedSupplierStatistics {
     productsCount: number;
   }>;
   ordersByStatus: {
+    "en attente"?: number;
+    refusée?: number;
     "en cours": number;
     "on route": number;
-    "arrived": number;
+    arrived: number;
   };
   revenueByStatus: {
+    "en attente"?: number;
+    refusée?: number;
     "en cours": number;
     "on route": number;
-    "arrived": number;
+    arrived: number;
   };
   comparison?: {
     currentMonthRevenue: number;
@@ -2088,17 +2161,106 @@ export interface DetailedSupplierStatistics {
   }>;
 }
 
-// Get detailed supplier statistics
-export const getSupplierDetailedStatistics = async (month?: "current" | "previous"): Promise<ApiResponse<DetailedSupplierStatistics>> => {
+export interface DetailedClientStatistics {
+  period?: ClientStatsPeriod;
+  periodLabel?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  periodRangeLabel?: string;
+  totalSpent: number;
+  totalItemsBought: number;
+  totalOrders: number;
+  totalSuppliers: number;
+  monthlySpend: { [key: string]: number };
+  monthlyOrders: { [key: string]: number };
+  dailySpend: { [key: string]: number };
+  dailySpendMonth?: string;
+  topProducts: Array<{
+    name: string;
+    quantity: number;
+    spent: number;
+    orders: number;
+    itemType: string;
+  }>;
+  topProductsBySpend: Array<{ name: string; spent: number }>;
+  topSuppliers: Array<{
+    supplier: {
+      _id: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    };
+    totalSpent: number;
+    ordersCount: number;
+    itemsCount: number;
+  }>;
+  ordersByStatus: {
+    "en attente": number;
+    refusée: number;
+    "en cours": number;
+    "on route": number;
+    arrived: number;
+  };
+  spendByStatus: {
+    "en attente": number;
+    refusée: number;
+    "en cours": number;
+    "on route": number;
+    arrived: number;
+  };
+  bySource: { cart: number; group_sell: number };
+  comparison?: {
+    currentMonthSpend: number;
+    previousMonthSpend: number;
+    currentMonthOrders: number;
+    previousMonthOrders: number;
+    spendChange: number;
+    ordersChange: number;
+  };
+}
+
+/** Labo client — statistics from their own réserves / commandes */
+export const getClientDetailedStatistics = async (
+  period: ClientStatsPeriod = "1m"
+): Promise<ApiResponse<DetailedClientStatistics>> => {
   try {
-const url = month 
-      ? `${getApiBaseUrl()}/commandes/supplier/statistics/detailed?month=${month}`
-      : `${getApiBaseUrl()}/commandes/supplier/statistics/detailed`;
-    
+    const url = `${getApiBaseUrl()}/commandes/client/statistics/detailed?period=${period}`;
+
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch client statistics",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    devError("Get client detailed statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+// Get detailed supplier statistics
+export const getSupplierDetailedStatistics = async (
+  period: StatsPeriod = "1m"
+): Promise<ApiResponse<DetailedSupplierStatistics>> => {
+  try {
+    const url = `${getApiBaseUrl()}/commandes/supplier/statistics/detailed?period=${period}`;
+
     const response = await apiFetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",},
+        "Content-Type": "application/json",
+      },
     });
 
     if (!response.ok) {

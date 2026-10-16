@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Building2, CheckCircle, Heart, Loader2, MapPin, Search, Sparkles } from "lucide-react";
+import { Building2, CheckCircle, Heart, Loader2, MapPin, Search, Sparkles } from "lucide-react";
+import BackButton from "@/components/BackButton";
 import {
   addSupplierToFavorites,
   getAllSuppliersPublic,
@@ -79,13 +80,12 @@ export default function SuppliersPage() {
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2">
-            <Link
-              href="/home"
-              aria-label="Retour à l'accueil"
+            <BackButton
+              fallbackHref="/home"
+              ariaLabel="Retour"
               className="-ml-2 shrink-0 rounded-lg p-2 transition-colors hover:bg-gray-100"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </Link>
+              iconClassName="h-5 w-5 text-gray-600"
+            />
             <h1 className="truncate text-xl font-bold text-gray-900 sm:text-3xl">Fournisseurs</h1>
           </div>
           <Link

@@ -1,6 +1,6 @@
 "use client";
 
-import { User, LogOut, UserCircle, ChevronDown } from "lucide-react";
+import { User, LogOut, UserCircle, ChevronDown, BarChart3 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { performLogout } from "@/lib/perform-logout";
@@ -39,6 +39,11 @@ export default function UserDropdown({ userEmail }: UserDropdownProps) {
     router.push("/profile");
   };
 
+  const handleStatistics = () => {
+    setIsOpen(false);
+    router.push("/statistics");
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -68,6 +73,16 @@ export default function UserDropdown({ userEmail }: UserDropdownProps) {
 
           {/* Menu Items */}
           <div className="py-2">
+            <button
+              onClick={handleStatistics}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
+            >
+              <BarChart3 className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
+              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">
+                Statistiques
+              </span>
+            </button>
+
             <button
               onClick={handleProfile}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"

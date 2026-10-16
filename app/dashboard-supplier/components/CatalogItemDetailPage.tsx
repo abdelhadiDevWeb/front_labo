@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   AlertCircle,
   Edit,
   Trash2,
@@ -30,6 +29,7 @@ import {
   isFicheTechniqueField,
   typeHasFicheTechnique,
 } from "@/lib/catalog-form-fields";
+import BackButton from "@/components/BackButton";
 
 type CatalogKind = "machine" | "service";
 
@@ -285,13 +285,12 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
   if (error || !item) {
     return (
       <div className="space-y-6">
-        <button
-          onClick={() => router.push(labels.listPath)}
+        <BackButton
+          fallbackHref={labels.listPath}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Retour</span>
-        </button>
+          iconClassName="w-5 h-5"
+          label={<span>Retour</span>}
+        />
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-12 text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h3>
@@ -303,13 +302,12 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <button
-        onClick={() => router.push(labels.listPath)}
+      <BackButton
+        fallbackHref={labels.listPath}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
-      >
-        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        <span>Retour au marché</span>
-      </button>
+        iconClassName="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+        label={<span>Retour</span>}
+      />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="space-y-4">

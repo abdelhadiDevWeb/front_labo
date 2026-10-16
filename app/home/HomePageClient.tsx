@@ -48,6 +48,7 @@ import dynamic from "next/dynamic";
 import { getBaseUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
+import SupplierNameGate from "@/components/SupplierNameGate";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
 import {
   getUniqueDataTitle,
@@ -1664,21 +1665,28 @@ export default function HomePage() {
                       </Link>
 
                       {product.supplier && (
-                        <Link
-                          href={`/supplier/${product.supplier.id}`}
-                          className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                        >
-                          <Building2 className="w-4 h-4" />
-                          <span className="truncate hover:underline">{product.supplier.name}</span>
-                          {product.supplier.certife && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
-                              Certifie
-                            </span>
-                          )}
-                        </Link>
+                        <SupplierNameGate visible={Boolean(userRole)}>
+                          <Link
+                            href={`/supplier/${product.supplier.id}`}
+                            className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                          >
+                            <Building2 className="w-4 h-4" />
+                            <span className="truncate hover:underline">{product.supplier.name}</span>
+                            {product.supplier.certife && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                                Certifie
+                              </span>
+                            )}
+                          </Link>
+                        </SupplierNameGate>
                       )}
 
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
 
                       <div className="flex gap-2">
                         <button
@@ -1786,7 +1794,12 @@ export default function HomePage() {
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
                         {displayName}
                       </h3>
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
                       <div className="mt-auto flex gap-2">
                         <button
                           type="button"
@@ -1899,7 +1912,12 @@ export default function HomePage() {
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
                         {displayName}
                       </h3>
-                      <UniqueDataFields data={uniqueData} max={8} hidePrices={!userRole} />
+                      <UniqueDataFields
+                        data={uniqueData}
+                        max={8}
+                        guestOnly={!userRole}
+                        hidePrices={!userRole}
+                      />
                       <button
                         type="button"
                         onClick={() =>

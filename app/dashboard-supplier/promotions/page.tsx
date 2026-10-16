@@ -19,26 +19,17 @@ import {
   Cpu,
   Wrench,
 } from "lucide-react";
-import AppLoadingScreen from "@/components/AppLoadingScreen";
+import SupplierCatalogSearchSelect, {
+  type SupplierCatalogOption,
+} from "@/components/SupplierCatalogSearchSelect";
 import {
-  getSupplierProducts,
-  getSupplierMachines,
-  getSupplierServices,
   getSupplierPromotions,
   createPromotion,
   updatePromotion,
   deletePromotion,
   CatalogItemType,
   Promotion,
-  UniqueDataItem,
 } from "@/lib/api";
-
-type PromoItem = {
-  id: string;
-  kind: CatalogItemType;
-  name: string;
-  price: number;
-};
 
 const KIND_OPTIONS: {
   kind: CatalogItemType;
@@ -61,52 +52,12 @@ const kindBadgeClass = (kind: CatalogItemType) =>
       ? "bg-blue-100 text-blue-700"
       : "bg-amber-100 text-amber-800";
 
-const NAME_KEYS = ["name", "Désignation", "designation", "nom"];
-const SELLING_PRICE_KEYS = ["sellingPrice", "Prix TTC", "prixTTC", "prix vente"];
-const PURCHASE_PRICE_KEYS = ["purchasePrice", "Prix HT", "prixHT", "prix d'achat"];
-
-function pickValue(data: Record<string, unknown>, keys: string[]): unknown {
-  for (const key of keys) {
-    const value = data[key];
-    if (value !== undefined && value !== null && value !== "") return value;
-  }
-  const lower = new Map(Object.entries(data).map(([k, v]) => [k.toLowerCase().trim(), v]));
-  for (const key of keys) {
-    const value = lower.get(key.toLowerCase().trim());
-    if (value !== undefined && value !== null && value !== "") return value;
-  }
-  return undefined;
-}
-
-function toPrice(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const n = parseFloat(value.replace(",", ".").replace(/[^\d.-]/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
-function catalogToPromoItem(item: UniqueDataItem, kind: CatalogItemType): PromoItem {
-  const d = item.unique_data || {};
-  const name = pickValue(d, NAME_KEYS);
-  const selling = toPrice(pickValue(d, SELLING_PRICE_KEYS));
-  return {
-    id: String(item.id),
-    kind,
-    name: name ? String(name).trim() : kindOption(kind).label,
-    price: selling || toPrice(pickValue(d, PURCHASE_PRICE_KEYS)),
-  };
-}
-
-function formatPrice(price: number) {
-  return price > 0 ? `${price.toFixed(2)} DA` : "prix non défini";
-}
-
 type PromotionFormState = {
   itemType: CatalogItemType;
   id_product: string;
   id_product_free: string;
+  productLabel: string;
+  freeLabel: string;
   normal_price: string;
   price_discount: string;
   min_quantity: string;
@@ -118,6 +69,8 @@ const emptyForm: PromotionFormState = {
   itemType: "product",
   id_product: "",
   id_product_free: "",
+  productLabel: "",
+  freeLabel: "",
   price_discount: "",
   normal_price: "",
   min_quantity: "1",
@@ -166,24 +119,25 @@ function discountPercent(normal: number, discount: number) {
 function PromotionFormFields({
   form,
   setForm,
-  items,
   onKindChange,
   onProductSelect,
   isUpdate,
 }: {
   form: PromotionFormState;
   setForm: Dispatch<SetStateAction<PromotionFormState>>;
-  items: PromoItem[];
   onKindChange: (kind: CatalogItemType, isUpdate?: boolean) => void;
-  onProductSelect: (productId: string, isUpdate?: boolean) => void;
+  onProductSelect: (
+    productId: string,
+    option: SupplierCatalogOption | null,
+    isUpdate?: boolean
+  ) => void;
   isUpdate?: boolean;
 }) {
   const normalNum = parseFloat(normalizeDecimalInput(form.normal_price));
   const discountNum = parseFloat(normalizeDecimalInput(form.price_discount));
   const option = kindOption(form.itemType);
-  const itemsOfKind = items.filter((item) => item.kind === form.itemType);
-  const selectedItem = itemsOfKind.find((item) => item.id === form.id_product);
-  const normalPriceLocked = Boolean(selectedItem && selectedItem.price > 0);
+  const hasSelected = Boolean(form.id_product);
+  const normalPriceLocked = hasSelected && parseFloat(form.normal_price) > 0;
 
   return (
     <>
@@ -194,7 +148,6 @@ function PromotionFormFields({
         <div className="grid grid-cols-3 gap-2">
           {KIND_OPTIONS.map(({ kind, label, Icon }) => {
             const selected = form.itemType === kind;
-            const count = items.filter((item) => item.kind === kind).length;
             return (
               <button
                 key={kind}
@@ -208,7 +161,6 @@ function PromotionFormFields({
               >
                 <Icon className="w-5 h-5" />
                 {label}
-                <span className="text-[11px] font-normal text-gray-500">{count}</span>
               </button>
             );
           })}
@@ -219,25 +171,18 @@ function PromotionFormFields({
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           {option.label} <span className="text-red-500">*</span>
         </label>
-        <select
-          required
-          value={form.id_product || ""}
-          onChange={(e) => onProductSelect(e.target.value, isUpdate)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
-        >
-          <option value="">Sélectionner {option.article}</option>
-          {itemsOfKind.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} — {formatPrice(item.price)}
-            </option>
-          ))}
-        </select>
-        {itemsOfKind.length === 0 && (
-          <p className="text-xs text-amber-700 mt-2">
-            Vous n&apos;avez aucun{form.itemType === "machine" ? "e" : ""} {option.label.toLowerCase()} dans
-            votre MarketPlace.
-          </p>
-        )}
+        <SupplierCatalogSearchSelect
+          kind={form.itemType}
+          value={form.id_product}
+          selectedLabel={form.productLabel || undefined}
+          onChange={(id, selected) => onProductSelect(id, selected, isUpdate)}
+          placeholder={`Rechercher ${option.article}…`}
+          emptyLabel={`Aucun ${option.label.toLowerCase()} trouvé`}
+          focusRingClassName="focus:ring-green-500 focus:border-green-500"
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          Tapez pour rechercher dans votre catalogue (recherche serveur).
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -249,9 +194,9 @@ function PromotionFormFields({
             type="text"
             inputMode="decimal"
             required
-            readOnly={normalPriceLocked || !selectedItem}
+            readOnly={normalPriceLocked || !hasSelected}
             autoComplete="off"
-            placeholder={selectedItem ? "Ex: 2000" : `Sélectionnez ${option.article}`}
+            placeholder={hasSelected ? "Ex: 2000" : `Sélectionnez ${option.article}`}
             value={form.normal_price}
             onChange={(e) => {
               const value = e.target.value.replace(/[^\d.,]/g, "");
@@ -260,13 +205,13 @@ function PromotionFormFields({
               }
             }}
             className={`w-full px-4 py-3 border-2 rounded-xl outline-none ${
-              normalPriceLocked || !selectedItem
+              normalPriceLocked || !hasSelected
                 ? "border-gray-200 bg-gray-50 text-gray-700 cursor-default"
                 : "border-green-200 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
             }`}
           />
           <p className="text-xs text-gray-500 mt-1">
-            {selectedItem && !normalPriceLocked
+            {hasSelected && !normalPriceLocked
               ? `Aucun prix défini pour ce ${option.label.toLowerCase()} — saisissez le prix normal`
               : `Prix de vente actuel ${
                   form.itemType === "machine"
@@ -338,22 +283,22 @@ function PromotionFormFields({
           {option.label} offert{form.itemType === "machine" ? "e" : ""} gratuitement{" "}
           <span className="text-gray-400 font-normal">(optionnel)</span>
         </label>
-        <select
-          value={form.id_product_free || ""}
-          onChange={(e) =>
-            setForm((prev) => ({ ...prev, id_product_free: e.target.value }))
+        <SupplierCatalogSearchSelect
+          kind={form.itemType}
+          value={form.id_product_free}
+          selectedLabel={form.freeLabel || undefined}
+          excludeIds={form.id_product ? [form.id_product] : []}
+          onChange={(id, selected) =>
+            setForm((prev) => ({
+              ...prev,
+              id_product_free: id,
+              freeLabel: selected?.name || "",
+            }))
           }
-          className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/40"
-        >
-          <option value="">Aucun — rien d&apos;offert</option>
-          {itemsOfKind
-            .filter((item) => item.id !== form.id_product)
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} — {formatPrice(item.price)}
-              </option>
-            ))}
-        </select>
+          placeholder={`Rechercher ${option.article} offert…`}
+          emptyLabel={`Aucun ${option.label.toLowerCase()} trouvé`}
+          focusRingClassName="focus:ring-amber-500 focus:border-amber-500"
+        />
         <p className="text-xs text-gray-500 mt-1">
           Si renseigné, le client reçoit cet élément gratuitement lorsqu&apos;il achète celui en
           promotion (quantité minimum respectée).
@@ -391,7 +336,6 @@ function PromotionFormFields({
 }
 
 export default function PromotionsPage() {
-  const [items, setItems] = useState<PromoItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -415,28 +359,7 @@ export default function PromotionsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [productsResult, machinesResult, servicesResult, promotionsResult] = await Promise.all([
-        getSupplierProducts(),
-        getSupplierMachines(),
-        getSupplierServices(),
-        getSupplierPromotions(),
-      ]);
-      const products =
-        productsResult.success && productsResult.data ? productsResult.data.products || [] : [];
-      const machines =
-        machinesResult.success && machinesResult.data ? machinesResult.data.machines || [] : [];
-      const services =
-        servicesResult.success && servicesResult.data ? servicesResult.data.services || [] : [];
-      setItems([
-        ...products.map((product) => ({
-          id: product.id,
-          kind: "product" as const,
-          name: product.name,
-          price: product.sellingPrice,
-        })),
-        ...machines.map((machine) => catalogToPromoItem(machine, "machine")),
-        ...services.map((service) => catalogToPromoItem(service, "service")),
-      ]);
+      const promotionsResult = await getSupplierPromotions();
       if (promotionsResult.success && promotionsResult.data) {
         setPromotions(promotionsResult.data.promotions);
       } else if (!promotionsResult.success) {
@@ -459,26 +382,38 @@ export default function PromotionsPage() {
             itemType: kind,
             id_product: "",
             id_product_free: "",
+            productLabel: "",
+            freeLabel: "",
             normal_price: "",
             price_discount: "",
           }
     );
   };
 
-  const handleProductSelect = (productId: string, isUpdate = false) => {
+  const handleProductSelect = (
+    productId: string,
+    option: SupplierCatalogOption | null,
+    isUpdate = false
+  ) => {
     const setForm = isUpdate ? setUpdateForm : setCreateForm;
     setForm((prev) => {
-      const item = items.find((i) => i.id === productId && i.kind === prev.itemType);
-      if (!item) {
-        return { ...prev, id_product: "", normal_price: "" };
+      if (!productId || !option) {
+        return {
+          ...prev,
+          id_product: "",
+          productLabel: "",
+          normal_price: "",
+        };
       }
       return {
         ...prev,
         id_product: productId,
-        normal_price: item.price > 0 ? String(item.price) : "",
-        // Update keeps the existing promo price; create starts empty so the supplier types it
-        price_discount: isUpdate || prev.id_product === productId ? prev.price_discount : "",
+        productLabel: option.name,
+        normal_price: option.price > 0 ? String(option.price) : "",
+        price_discount:
+          isUpdate || prev.id_product === productId ? prev.price_discount : "",
         id_product_free: prev.id_product_free === productId ? "" : prev.id_product_free,
+        freeLabel: prev.id_product_free === productId ? "" : prev.freeLabel,
       };
     });
   };
@@ -488,6 +423,7 @@ export default function PromotionsPage() {
     if (!q) return true;
     return (
       promotion.product?.name.toLowerCase().includes(q) ||
+      promotion.freeProduct?.name?.toLowerCase().includes(q) ||
       kindOption(promotion.itemType || "product").label.toLowerCase().includes(q) ||
       promotion.id.toLowerCase().includes(q) ||
       promotion.normal_price.toString().includes(q) ||
@@ -497,6 +433,7 @@ export default function PromotionsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -548,6 +485,8 @@ export default function PromotionsPage() {
       itemType: promotion.itemType || "product",
       id_product: promotion.id_product,
       id_product_free: promotion.id_product_free || "",
+      productLabel: promotion.product?.name || "",
+      freeLabel: promotion.freeProduct?.name || "",
       price_discount: String(promotion.price_discount),
       normal_price: String(promotion.normal_price),
       min_quantity: String(promotion.min_quantity),
@@ -650,13 +589,10 @@ export default function PromotionsPage() {
         </div>
         <button
           onClick={() => {
-            const firstKind =
-              KIND_OPTIONS.find((o) => items.some((item) => item.kind === o.kind))?.kind ?? "product";
-            setCreateForm({ ...emptyForm, itemType: firstKind });
+            setCreateForm(emptyForm);
             setShowCreateModal(true);
           }}
-          disabled={items.length === 0}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
         >
           <Plus className="w-5 h-5" />
           Nouvelle promotion
@@ -739,11 +675,14 @@ export default function PromotionsPage() {
                       <td className="py-3 px-3 text-sm text-gray-600">
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-4 h-4 text-gray-400" />
-                          {toDateInputValue(promotion.start_day)} → {toDateInputValue(promotion.end_day)}
+                          {toDateInputValue(promotion.start_day)} →{" "}
+                          {toDateInputValue(promotion.end_day)}
                         </span>
                       </td>
                       <td className="py-3 px-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}
+                        >
                           {status.label}
                         </span>
                       </td>
@@ -785,76 +724,101 @@ export default function PromotionsPage() {
         )}
       </div>
 
-      {mounted && showCreateModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Plus className="w-6 h-6" />
-                Nouvelle promotion
-              </h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-white/80 hover:text-white p-2">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <PromotionFormFields
-                form={createForm}
-                setForm={setCreateForm}
-                items={items}
-                onKindChange={handleKindChange}
-                onProductSelect={handleProductSelect}
-              />
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-3 border rounded-xl">
-                  Annuler
-                </button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Créer
+      {mounted &&
+        showCreateModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Plus className="w-6 h-6" />
+                  Nouvelle promotion
+                </h3>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-white/80 hover:text-white p-2"
+                >
+                  <X className="w-6 h-6" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+              <form onSubmit={handleCreate} className="p-6 space-y-4">
+                <PromotionFormFields
+                  form={createForm}
+                  setForm={setCreateForm}
+                  onKindChange={handleKindChange}
+                  onProductSelect={handleProductSelect}
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 px-4 py-3 border rounded-xl"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Créer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
 
-      {mounted && showUpdateModal && selectedPromotion && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Edit className="w-6 h-6" />
-                Modifier la promotion
-              </h3>
-              <button onClick={() => setShowUpdateModal(false)} className="text-white/80 hover:text-white p-2">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleUpdate} className="p-6 space-y-4">
-              <PromotionFormFields
-                form={updateForm}
-                setForm={setUpdateForm}
-                items={items}
-                onKindChange={handleKindChange}
-                onProductSelect={handleProductSelect}
-                isUpdate
-              />
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowUpdateModal(false)} className="flex-1 px-4 py-3 border rounded-xl">
-                  Annuler
-                </button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Enregistrer
+      {mounted &&
+        showUpdateModal &&
+        selectedPromotion &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Edit className="w-6 h-6" />
+                  Modifier la promotion
+                </h3>
+                <button
+                  onClick={() => setShowUpdateModal(false)}
+                  className="text-white/80 hover:text-white p-2"
+                >
+                  <X className="w-6 h-6" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+              <form onSubmit={handleUpdate} className="p-6 space-y-4">
+                <PromotionFormFields
+                  form={updateForm}
+                  setForm={setUpdateForm}
+                  onKindChange={handleKindChange}
+                  onProductSelect={handleProductSelect}
+                  isUpdate
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowUpdateModal(false)}
+                    className="flex-1 px-4 py-3 border rounded-xl"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Enregistrer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
