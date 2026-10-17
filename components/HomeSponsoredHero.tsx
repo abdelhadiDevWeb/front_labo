@@ -28,7 +28,6 @@ import { getMediaUrl } from "@/lib/media-url";
 import { catalogItemHref } from "@/lib/catalog-item";
 import CatalogPrice from "@/components/CatalogPrice";
 
-const BANNER_H = 200;
 const AUTO_MS = 5500;
 /** A video slide advances when the video ends, or after this cap for long videos. */
 const VIDEO_MAX_MS = 45_000;
@@ -241,12 +240,11 @@ export default function HomeSponsoredHero() {
   return (
     <section
       id="sponsored-section"
-      className="relative border-b border-neutral-200 scroll-mt-24"
-      style={{ height: BANNER_H }}
+      className="relative h-[140px] sm:h-[200px] border-b border-neutral-200 scroll-mt-24"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="relative h-full overflow-hidden bg-neutral-900" style={{ height: BANNER_H }}>
+      <div className="relative h-full overflow-hidden bg-neutral-900">
         {products.map((p, i) => {
           const src = (p.sponsorImage || p.images?.[0])
             ? getMediaUrl(p.sponsorImage || p.images![0])
@@ -349,10 +347,10 @@ export default function HomeSponsoredHero() {
                 <button
                   type="button"
                   onClick={openLightbox}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1 text-[11px] sm:text-xs font-semibold text-white shadow-lg shadow-rose-900/30 hover:bg-rose-700 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 sm:px-3 text-[11px] sm:text-xs font-semibold text-white shadow-lg shadow-rose-900/30 active:bg-rose-700 sm:hover:bg-rose-700 transition-colors"
                 >
-                  <PlayCircle className="h-4 w-4" />
-                  Voir la vidéo
+                  <PlayCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  Vidéo
                 </button>
               ) : null}
             </div>

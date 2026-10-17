@@ -680,7 +680,7 @@ export default function HomePage() {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               {isAuthenticated && isClientUser ? (
                 <>
                   {/* Notifications */}
@@ -689,13 +689,13 @@ export default function HomePage() {
                       ref={bellRef}
                       type="button"
                       onClick={() => setShowNotifications(!showNotifications)}
-                      className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors group"
+                      className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl active:bg-gray-100 sm:hover:bg-gray-100 transition-colors group"
                       aria-label="Notifications"
                       aria-expanded={showNotifications}
                     >
                       <Bell className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                           {unreadCount > 9 ? "9+" : unreadCount}
                         </span>
                       )}
@@ -726,13 +726,14 @@ export default function HomePage() {
 
                   {/* Shopping Cart Icon */}
                   <button
+                    type="button"
                     onClick={() => setCartOpen(true)}
-                    className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors group"
+                    className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl active:bg-gray-100 sm:hover:bg-gray-100 transition-colors group"
+                    aria-label="Panier"
                   >
                     <ShoppingCart className="w-6 h-6 text-gray-700 group-hover:text-blue-600 transition-colors" />
-                    {/* Cart Badge */}
                     {cartItemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
                         {cartItemCount}
                       </span>
                     )}
@@ -744,17 +745,19 @@ export default function HomePage() {
               ) : (
                 <Link
                   href="/login"
-                  className="hidden sm:inline-flex px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl items-center gap-2 text-sm md:text-base"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md active:opacity-90 sm:px-6 sm:py-2.5 sm:text-sm md:px-8 md:py-3 md:text-base"
                 >
                   <span>Connexion</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="hidden sm:block w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
               )}
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-700 hover:text-blue-600 transition-colors"
+                className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-700 active:bg-gray-100"
+                aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
@@ -762,13 +765,13 @@ export default function HomePage() {
           </div>
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200 animate-fade-in">
-              <div className="flex flex-col gap-4">
-                <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+            <div className="md:hidden py-3 border-t border-gray-200 animate-fade-in max-h-[min(70svh,28rem)] overflow-y-auto">
+              <div className="flex flex-col gap-1">
+                <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
                   Accueil
                 </a>
                 {!isAuthenticated && (
-                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
                   À propos
                 </Link>
                 )}
@@ -778,16 +781,16 @@ export default function HomePage() {
                   promotionAlert={isAuthenticated}
                 />
                 {!isAuthenticated && (
-                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
                   Contact
                 </Link>
                 )}
                 {isAuthenticated && isClientUser && (
                   <>
-                    <Link href="/statistics" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">
+                    <Link href="/statistics" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
                       Statistiques
                     </Link>
-                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2">
+                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center gap-2 text-gray-700 active:text-blue-600 font-medium px-1">
                     <ShoppingBag className="w-4 h-4" />
                     <span>Mes Réserves</span>
                   </Link>
@@ -796,11 +799,12 @@ export default function HomePage() {
                 {isAuthenticated && isClientUser ? (
                   <>
                     <button
+                      type="button"
                       onClick={() => {
                         setCartOpen(true);
                         setMobileMenuOpen(false);
                       }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all duration-300 text-center flex items-center justify-center gap-2"
+                      className="mt-2 min-h-12 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold active:bg-blue-700 text-center flex items-center justify-center gap-2"
                     >
                       <ShoppingCart className="w-5 h-5" />
                       Panier
@@ -808,17 +812,18 @@ export default function HomePage() {
                     <Link
                       href="/profile"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-300 text-center"
+                      className="min-h-12 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold active:bg-gray-200 text-center flex items-center justify-center"
                     >
                       Mon profil
                     </Link>
                     <button
+                      type="button"
                       onClick={() => {
                         setIsAuthReady(false);
                         setMobileMenuOpen(false);
                         void performLogout(router, { clearCart: true, redirectTo: "/home" });
                       }}
-                      className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 text-center"
+                      className="min-h-12 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold active:bg-red-700 text-center"
                     >
                       Déconnexion
                     </button>
@@ -827,7 +832,7 @@ export default function HomePage() {
                   <Link
                     href="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 text-center"
+                    className="mt-2 min-h-12 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold text-center flex items-center justify-center"
                   >
                     Connexion
                   </Link>
@@ -846,10 +851,10 @@ export default function HomePage() {
 
       <HomeSponsoredHero />
 
-      {/* Hero Section — full-bleed lab cover background */}
+      {/* Hero Section — phone-first, full-bleed lab cover */}
       <section
         id="accueil"
-        className="relative isolate flex min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-slate-950"
+        className="relative isolate flex min-h-[min(72svh,560px)] sm:min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-slate-950"
       >
         <div aria-hidden className="absolute inset-0 -z-10">
           <Image
@@ -858,62 +863,60 @@ export default function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="object-cover object-[center_40%] animate-hero-cover-kenburns will-change-transform"
+            className="object-cover object-[center_35%] sm:object-[center_40%] animate-hero-cover-kenburns will-change-transform"
           />
-          {/* Readable modern overlay — cool teal/blue wash matching the photo */}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/75 via-sky-950/55 to-slate-950/80" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(56,189,248,0.22)_0%,transparent_55%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-slate-950/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-sky-950/60 to-slate-950/85" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(56,189,248,0.2)_0%,transparent_55%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-slate-950/80 to-transparent" />
         </div>
 
-        <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 md:pt-16 text-center">
-          <div className="animate-float mb-5 sm:mb-6 rounded-2xl border border-white/25 bg-white/95 px-5 py-3.5 sm:px-6 sm:py-4 shadow-2xl shadow-slate-950/40 backdrop-blur-md">
+        <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-7 pb-5 sm:pt-14 md:pt-16 text-center">
+          <div className="mb-3.5 sm:mb-6 rounded-2xl border border-white/25 bg-white/95 px-4 py-2.5 sm:px-6 sm:py-4 shadow-2xl shadow-slate-950/40 backdrop-blur-md">
             <Image
               src="/logo.png"
               alt={`${BRAND_NAME} Logo`}
               width={220}
               height={120}
-              className="h-14 sm:h-16 w-auto max-w-[220px] object-contain"
+              className="h-11 sm:h-16 w-auto max-w-[170px] sm:max-w-[220px] object-contain"
               priority
             />
           </div>
 
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
-            <span className="relative flex h-2 w-2">
+          <span className="inline-flex max-w-[92%] items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-            Plateforme B2B dédiée à la biologie médicale
+            </span>
+            <span className="truncate">Plateforme B2B — biologie médicale</span>
           </span>
 
-          <h1 className="mt-5 sm:mt-6 max-w-4xl text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-white animate-fade-in-up animation-delay-200">
+          <h1 className="mt-3.5 sm:mt-6 max-w-4xl text-[1.4rem] sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.15] text-white animate-fade-in-up animation-delay-200 px-1">
             L&apos;approvisionnement de votre laboratoire,{" "}
-            <span className="text-cyan-100">simple, fiable et rapide.</span>
+            <span className="text-cyan-100">simple et rapide.</span>
           </h1>
 
-          <p className="mt-5 sm:mt-6 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400">
-            {BRAND_NAME} centralise l&apos;accès aux fournisseurs de réactifs, consommables et
-            équipements&nbsp;: comparez les meilleurs prix, réservez en quelques clics et suivez
-            vos livraisons partout en Algérie.
+          <p className="mt-3 sm:mt-6 max-w-2xl mx-auto text-sm sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400 line-clamp-3 sm:line-clamp-none">
+            {BRAND_NAME} centralise réactifs, consommables et équipements&nbsp;: comparez,
+            réservez et suivez vos livraisons partout en Algérie.
           </p>
 
-          <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-fade-in-up animation-delay-600">
-              <Link
+          <div className="mt-5 sm:mt-9 flex w-full max-w-md sm:max-w-none flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 animate-fade-in-up animation-delay-600">
+            <Link
               href="/allthings"
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm sm:text-base font-semibold text-blue-700 shadow-lg shadow-blue-950/20 transition-all duration-300 hover:bg-blue-50 hover:scale-[1.03]"
+              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm sm:text-base font-semibold text-blue-700 shadow-lg shadow-blue-950/20 transition-colors active:bg-blue-50 sm:hover:bg-blue-50"
             >
               Découvrir la marketplace
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
             <Link
               href="/about"
-              className="inline-flex items-center justify-center rounded-xl border border-white/50 bg-white/15 px-7 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-md transition-colors duration-300 hover:bg-white/25 hover:border-white/70"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/50 bg-white/15 px-5 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-md transition-colors active:bg-white/25 sm:hover:bg-white/25"
             >
-                En savoir plus
+              En savoir plus
             </Link>
-            </div>
+          </div>
 
-          <div className="mt-9 sm:mt-10 flex items-center justify-center gap-4 animate-fade-in-up animation-delay-800">
+          <div className="mt-6 sm:mt-10 hidden sm:flex items-center justify-center gap-4 animate-fade-in-up animation-delay-800">
             <div className="flex -space-x-3">
               {[FlaskConical, Microscope, Truck].map((Icon, i) => (
                 <span
@@ -927,13 +930,15 @@ export default function HomePage() {
             <div className="text-sm leading-snug text-left">
               <p className="font-semibold text-white">Fournisseurs vérifiés</p>
               <p className="text-white/70">Réactifs, consommables et équipements</p>
+            </div>
           </div>
         </div>
 
-        </div>
-
-        <div className="pointer-events-none absolute right-6 sm:right-10 top-[58%] z-20 hidden lg:block animate-float" style={{ animationDelay: "1.2s" }}>
-          <div className="w-60 rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-900/20 backdrop-blur-md animate-fade-in-up animation-delay-700">
+        <div
+          className="pointer-events-none absolute right-6 sm:right-10 top-[58%] z-20 hidden lg:block animate-float"
+          style={{ animationDelay: "1.2s" }}
+        >
+          <div className="w-60 rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-900/20 backdrop-blur-md">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
                 <HeartPulse className="h-4 w-4" />
@@ -944,7 +949,7 @@ export default function HomePage() {
               </div>
             </div>
             <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
-            <path 
+              <path
                 d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
                 stroke="currentColor"
                 strokeWidth={2.5}
@@ -952,35 +957,52 @@ export default function HomePage() {
                 strokeLinejoin="round"
                 pathLength={1}
                 className="animate-hero-ecg"
-            />
-          </svg>
-        </div>
+              />
+            </svg>
+          </div>
         </div>
 
-        <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-2 sm:pb-4 animate-fade-in-up animation-delay-800">
-          <div className="grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white p-4 sm:p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5">
+        <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-4 animate-fade-in-up animation-delay-800">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {HERO_HIGHLIGHTS.map(({ icon: Icon, title }) => (
+              <div
+                key={title}
+                className="flex shrink-0 items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-md ring-1 ring-black/5"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{title}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden sm:grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white p-4 sm:p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5">
             {HERO_HIGHLIGHTS.map(({ icon: Icon, title, text }, i) => (
-              <div key={title} className={`flex items-center gap-3 min-w-0 transition-transform duration-300 hover:-translate-y-0.5 ${i > 0 ? "lg:border-l lg:border-gray-200 lg:pl-6" : ""}`}>
+              <div
+                key={title}
+                className={`flex items-center gap-3 min-w-0 ${i > 0 ? "lg:border-l lg:border-gray-200 lg:pl-6" : ""}`}
+              >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <Icon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{title}</p>
-                  <p className="hidden sm:block truncate text-xs text-gray-500">{text}</p>
+                  <p className="truncate text-xs text-gray-500">{text}</p>
                 </div>
               </div>
             ))}
             <Link
               href="/about"
-              className="col-span-2 lg:col-span-1 group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all duration-300 hover:from-blue-700 hover:to-cyan-700 hover:scale-[1.03] hover:shadow-lg hover:shadow-cyan-500/30"
+              className="col-span-2 lg:col-span-1 group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-sm font-semibold text-white shadow-md"
             >
               En savoir plus
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
 
-        <div aria-hidden className="pointer-events-none relative -mb-px h-12 sm:h-16 md:h-20 w-full text-white">
+        <div aria-hidden className="pointer-events-none relative -mb-px h-8 sm:h-16 md:h-20 w-full text-white">
           <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
             <path d="M0 48 C240 8 480 72 720 40 C960 8 1200 56 1440 24 L1440 80 L0 80 Z" fill="currentColor" />
           </svg>
@@ -988,7 +1010,7 @@ export default function HomePage() {
       </section>
 
       {/* Categories Section */}
-      <section id="categories" className="py-12 sm:py-16 md:py-20 bg-white">
+      <section id="categories" className="py-8 sm:py-16 md:py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center mb-8 sm:mb-12">
             <div className="inline-block px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
@@ -1003,9 +1025,9 @@ export default function HomePage() {
           </div>
 
           {isLoadingCategories ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-4 md:gap-6">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl bg-gray-100 aspect-[4/5]" />
+                <div key={i} className="animate-pulse rounded-xl sm:rounded-2xl bg-gray-100 aspect-square" />
               ))}
             </div>
           ) : categories.length === 0 ? (
@@ -1014,7 +1036,7 @@ export default function HomePage() {
               <p className="text-gray-500">Aucune catégorie disponible pour le moment</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-4 md:gap-6">
               {categories.map((cat) => {
                 const catImage = getMediaUrl(cat.image);
                 const type = cat.type_catgory || "product";
@@ -1030,7 +1052,7 @@ export default function HomePage() {
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.id}`}
-                    className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-blue-200"
+                    className="group overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 sm:hover:shadow-xl sm:hover:border-blue-200"
                   >
                     <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                       {catImage ? (
@@ -1051,23 +1073,23 @@ export default function HomePage() {
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       <span
-                        className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${typeClass}`}
+                        className={`absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold ${typeClass}`}
                       >
                         {typeLabel}
                       </span>
-                      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-                        <h3 className="font-bold text-white text-sm sm:text-base line-clamp-2">
+                      <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-4">
+                        <h3 className="font-bold text-white text-xs sm:text-base line-clamp-2">
                           {cat.name_catgory}
                         </h3>
                         {cat.sousCategories.length > 0 && (
-                          <p className="text-xs text-white/80 mt-1">
+                          <p className="hidden sm:block text-xs text-white/80 mt-1">
                             {cat.sousCategories.length} sous-catégorie
                             {cat.sousCategories.length > 1 ? "s" : ""}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="p-3 sm:p-4">
+                    <div className="hidden sm:block p-3 sm:p-4">
                       <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{cat.des}</p>
                     </div>
                   </Link>
@@ -1078,8 +1100,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* About Section - Professional Design */}
-      <section id="about-section" className="py-12 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50">
+      {/* About Section */}
+      <section id="about-section" className="py-8 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className={`text-center mb-8 sm:mb-10 md:mb-14 scroll-animate ${visibleElements.has("about-left") ? "animate" : ""}`} id="about-left">
               <div className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 text-blue-600 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4">
@@ -1113,7 +1135,7 @@ export default function HomePage() {
       <GroupSelleShowcase />
 
       {/* FAQ Section */}
-      <section className="py-12 sm:py-16 md:py-24 bg-white">
+      <section className="py-8 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-3 sm:mb-4">
@@ -1154,8 +1176,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Popular Products Section */}
-      <section id="marketplace" className="py-12 sm:py-16 md:py-24 bg-gray-50">
+      {/* Popular Products Section — phone 2-col app cards */}
+      <section id="marketplace" className="py-8 sm:py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {requiresWilayaForCatalog && (
             <CatalogLocationBanner
@@ -1167,27 +1189,27 @@ export default function HomePage() {
               catalogLabel="produits, machines et services"
             />
           )}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
-              Produits les plus populaires
+          <div className="flex items-center justify-between mb-5 sm:mb-8 md:mb-12 gap-3">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+              Produits populaires
             </h2>
             <Link
               href="/products"
-              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
+              className="shrink-0 min-h-10 inline-flex items-center justify-center px-3.5 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium active:bg-blue-700 sm:hover:bg-blue-700 text-xs sm:text-sm md:text-base"
             >
-              Voir tous les produits
+              Voir tout
             </Link>
           </div>
           {isLoadingProducts ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {[...Array(8)].map((_, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                  className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
                 >
-                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-2 sm:mb-4" />
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2" />
+                  <div className="h-4 sm:h-6 bg-gray-200 rounded w-1/2" />
                 </div>
               ))}
             </div>
@@ -1205,101 +1227,106 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                    : "Aucun produit disponible pour le moment"}
+                  : "Aucun produit disponible pour le moment"}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {products.map((product, index) => {
                 const uniqueData = productToUniqueData(product);
                 const displayName = getUniqueDataTitle(uniqueData, product.name);
-                const mainImage = product.images && product.images.length > 0
-                  ? getMediaUrl(product.images[0])
-                  : null;
+                const mainImage =
+                  product.images && product.images.length > 0
+                    ? getMediaUrl(product.images[0])
+                    : null;
 
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group"
                     id={`product-${index}`}
-                    style={{ 
+                    className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-200 overflow-hidden sm:hover:shadow-2xl transition-shadow duration-300 group flex flex-col"
+                    style={{
                       transitionDelay: `${index * 50}ms`,
-                      ...(visibleElements.has(`product-${index}`) ? { opacity: 1, transform: "scale(1)" } : {})
+                      ...(visibleElements.has(`product-${index}`)
+                        ? { opacity: 1, transform: "scale(1)" }
+                        : {}),
                     }}
                   >
-                    {/* Image Section */}
-                    <Link href={`/products/${product.id}`}>
-                      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                        {mainImage ? (
-                          <img
-                            src={mainImage}
-                            alt={displayName}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = "/icon.png";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FlaskConical className="w-16 h-16 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="absolute top-3 right-3">
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-                            Produit
-                          </span>
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="relative aspect-square sm:h-48 sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
+                    >
+                      {mainImage ? (
+                        <img
+                          src={mainImage}
+                          alt={displayName}
+                          className="w-full h-full object-cover sm:group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = "/icon.png";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FlaskConical className="w-10 h-10 sm:w-16 sm:h-16 text-gray-400" />
                         </div>
-                        {product.quantity === 0 && (
-                          <div className="absolute top-3 left-3">
-                            <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-semibold">
-                              Rupture de stock
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      )}
+                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700">
+                        Produit
+                      </span>
+                      {product.quantity === 0 && (
+                        <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-2 py-0.5 sm:px-3 sm:py-1 bg-red-500 text-white rounded-full text-[10px] sm:text-xs font-semibold">
+                          Rupture
+                        </span>
+                      )}
                     </Link>
 
-                    {/* Content Section */}
-                    <div className="p-5 space-y-3">
+                    <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
                       <Link href={`/products/${product.id}`}>
-                        <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
                           {displayName}
                         </h3>
                       </Link>
 
                       {product.supplier && (
-                        <SupplierNameGate visible={Boolean(userRole)}>
-                        <Link
-                          href={`/supplier/${product.supplier.id}`}
-                          className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                        >
-                          <Building2 className="w-4 h-4" />
-                          <span className="truncate hover:underline">{product.supplier.name}</span>
-                          {product.supplier.certife && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
-                              Certifie
-                            </span>
-                          )}
-                        </Link>
-                        </SupplierNameGate>
+                        <div className="hidden sm:block">
+                          <SupplierNameGate visible={Boolean(userRole)}>
+                            <Link
+                              href={`/supplier/${product.supplier.id}`}
+                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                            >
+                              <Building2 className="w-4 h-4 shrink-0" />
+                              <span className="truncate hover:underline">
+                                {product.supplier.name}
+                              </span>
+                              {product.supplier.certife && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                                  Certifie
+                                </span>
+                              )}
+                            </Link>
+                          </SupplierNameGate>
+                        </div>
                       )}
 
-                      <UniqueDataFields
-                        data={uniqueData}
-                        max={8}
-                        guestOnly={!userRole}
-                        hidePrices={!userRole}
-                      />
+                      <div className="hidden sm:block">
+                        <UniqueDataFields
+                          data={uniqueData}
+                          max={8}
+                          guestOnly={!userRole}
+                          hidePrices={!userRole}
+                        />
+                      </div>
                       <CatalogPrice
                         amount={product.price}
                         visible={Boolean(userRole)}
-                        className="text-xl font-bold text-blue-600"
+                        className="text-base sm:text-xl font-bold text-blue-600"
                       />
 
-                      <div className="flex gap-2">
+                      <div className="mt-auto flex gap-1.5 sm:gap-2">
                         <button
+                          type="button"
                           onClick={() => {
                             if (isClientUser) {
                               addToCart({
@@ -1314,14 +1341,14 @@ export default function HomePage() {
                             }
                           }}
                           disabled={product.quantity === 0}
-                          className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                          className="flex-1 min-h-10 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold active:opacity-90 sm:hover:from-blue-700 sm:hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2"
                         >
-                          <ShoppingCart className="w-4 h-4" />
-                          <span>{product.quantity === 0 ? "Rupture" : "Ajouter"}</span>
+                          <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          {product.quantity === 0 ? "Rupture" : "Ajouter"}
                         </button>
                         <Link
                           href={`/products/${product.id}`}
-                          className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all flex items-center justify-center"
+                          className="hidden sm:inline-flex px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 items-center justify-center"
                         >
                           Voir
                         </Link>
@@ -1336,28 +1363,28 @@ export default function HomePage() {
       </section>
 
       {/* Machines Section */}
-      <section id="machines" className="py-12 sm:py-16 md:py-24 bg-white">
+      <section id="machines" className="py-8 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+          <div className="flex items-center justify-between mb-5 sm:mb-8 md:mb-12 gap-3">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
               Machines
             </h2>
             <Link
               href="/machines"
-              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
+              className="shrink-0 min-h-10 inline-flex items-center justify-center px-3.5 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-full font-medium active:bg-blue-700 sm:hover:bg-blue-700 text-xs sm:text-sm md:text-base"
             >
-              Voir toutes les machines
+              Voir tout
             </Link>
           </div>
           {isLoadingMachines ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {[...Array(4)].map((_, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                  className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
                 >
-                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-2 sm:mb-4"></div>
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2"></div>
                 </div>
               ))}
             </div>
@@ -1373,7 +1400,7 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {machines.map((machine) => {
                 const uniqueData = machine.unique_data || {};
                 const displayName = getUniqueDataTitle(uniqueData, machine.name);
@@ -1384,14 +1411,20 @@ export default function HomePage() {
                 return (
                   <div
                     key={machine.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group flex flex-col"
+                    className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-200 overflow-hidden sm:hover:shadow-2xl transition-shadow duration-300 group flex flex-col"
                   >
-                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCatalogDetails({ item: machine, kind: "machine" })
+                      }
+                      className="relative aspect-square sm:h-48 sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden text-left"
+                    >
                       {mainImage ? (
                         <img
                           src={mainImage}
                           alt={displayName}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover sm:group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.onerror = null;
@@ -1400,29 +1433,39 @@ export default function HomePage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Microscope className="w-16 h-16 text-gray-400" />
+                          <Microscope className="w-10 h-10 sm:w-16 sm:h-16 text-gray-400" />
                         </div>
                       )}
-                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 text-blue-700">
                         Machine
                       </span>
-                    </div>
-                    <div className="p-5 space-y-3 flex-1 flex flex-col">
-                      <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
-                        {displayName}
-                      </h3>
-                      <UniqueDataFields
-                        data={uniqueData}
-                        max={8}
-                        guestOnly={!userRole}
-                        hidePrices={!userRole}
-                      />
+                    </button>
+                    <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCatalogDetails({ item: machine, kind: "machine" })
+                        }
+                        className="text-left"
+                      >
+                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
+                          {displayName}
+                        </h3>
+                      </button>
+                      <div className="hidden sm:block">
+                        <UniqueDataFields
+                          data={uniqueData}
+                          max={8}
+                          guestOnly={!userRole}
+                          hidePrices={!userRole}
+                        />
+                      </div>
                       <CatalogPrice
                         amount={machine.price}
                         visible={Boolean(userRole)}
-                        className="text-xl font-bold text-blue-600"
+                        className="text-base sm:text-xl font-bold text-blue-600"
                       />
-                      <div className="mt-auto flex gap-2">
+                      <div className="mt-auto flex gap-1.5 sm:gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -1440,9 +1483,9 @@ export default function HomePage() {
                             }
                           }}
                           disabled={machine.quantity === 0}
-                          className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          className="flex-1 min-h-10 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold active:opacity-90 sm:hover:from-blue-700 sm:hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 sm:gap-2"
                         >
-                          <ShoppingCart className="w-4 h-4" />
+                          <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           {machine.quantity === 0 ? "Rupture" : "Réserver"}
                         </button>
                         <button
@@ -1450,7 +1493,7 @@ export default function HomePage() {
                           onClick={() =>
                             setCatalogDetails({ item: machine, kind: "machine" })
                           }
-                          className="px-4 py-2.5 border-2 border-blue-600 text-blue-700 rounded-xl font-semibold hover:bg-blue-50 flex items-center justify-center gap-2 transition-colors"
+                          className="hidden sm:flex px-4 py-2.5 border-2 border-blue-600 text-blue-700 rounded-xl font-semibold hover:bg-blue-50 items-center justify-center gap-2 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           Détails
@@ -1466,28 +1509,28 @@ export default function HomePage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="py-12 sm:py-16 md:py-24 bg-gray-50">
+      <section id="services" className="py-8 sm:py-16 md:py-24 bg-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 md:mb-12 gap-3 sm:gap-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+          <div className="flex items-center justify-between mb-5 sm:mb-8 md:mb-12 gap-3">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
               Services
             </h2>
             <Link
               href="/services"
-              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-amber-600 text-white rounded-full font-medium hover:bg-amber-700 transition-all transform hover:scale-105 text-xs sm:text-sm md:text-base w-full sm:w-auto inline-block text-center"
+              className="shrink-0 min-h-10 inline-flex items-center justify-center px-3.5 py-2 sm:px-6 sm:py-3 bg-amber-600 text-white rounded-full font-medium active:bg-amber-700 sm:hover:bg-amber-700 text-xs sm:text-sm md:text-base"
             >
-              Voir tous les services
+              Voir tout
             </Link>
           </div>
           {isLoadingServices ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {[...Array(4)].map((_, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
+                  className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-6 shadow-lg border border-gray-100 animate-pulse"
                 >
-                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-3 sm:mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="aspect-square bg-gray-200 rounded-lg sm:rounded-xl mb-2 sm:mb-4"></div>
+                  <div className="h-3 sm:h-4 bg-gray-200 rounded mb-2"></div>
                 </div>
               ))}
             </div>
@@ -1503,7 +1546,7 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
               {services.map((service) => {
                 const uniqueData = service.unique_data || {};
                 const displayName = getUniqueDataTitle(uniqueData, service.name);
@@ -1514,14 +1557,20 @@ export default function HomePage() {
                 return (
                   <div
                     key={service.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group flex flex-col"
+                    className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-200 overflow-hidden sm:hover:shadow-2xl transition-shadow duration-300 group flex flex-col"
                   >
-                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCatalogDetails({ item: service, kind: "service" })
+                      }
+                      className="relative aspect-square sm:h-48 sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden text-left"
+                    >
                       {mainImage ? (
                         <img
                           src={mainImage}
                           alt={displayName}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover sm:group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.onerror = null;
@@ -1530,37 +1579,47 @@ export default function HomePage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Laptop className="w-16 h-16 text-gray-400" />
+                          <Laptop className="w-10 h-10 sm:w-16 sm:h-16 text-gray-400" />
                         </div>
                       )}
-                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-100 text-amber-800">
                         Service
                       </span>
-                    </div>
-                    <div className="p-5 space-y-3 flex-1 flex flex-col">
-                      <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
-                        {displayName}
-                      </h3>
-                      <UniqueDataFields
-                        data={uniqueData}
-                        max={8}
-                        guestOnly={!userRole}
-                        hidePrices={!userRole}
-                      />
+                    </button>
+                    <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCatalogDetails({ item: service, kind: "service" })
+                        }
+                        className="text-left"
+                      >
+                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
+                          {displayName}
+                        </h3>
+                      </button>
+                      <div className="hidden sm:block">
+                        <UniqueDataFields
+                          data={uniqueData}
+                          max={8}
+                          guestOnly={!userRole}
+                          hidePrices={!userRole}
+                        />
+                      </div>
                       <CatalogPrice
                         amount={service.price}
                         visible={Boolean(userRole)}
-                        className="text-xl font-bold text-amber-700"
+                        className="text-base sm:text-xl font-bold text-amber-700"
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setCatalogDetails({ item: service, kind: "service" })
                         }
-                        className="mt-auto w-full py-2.5 border-2 border-amber-600 text-amber-800 rounded-xl font-semibold hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
+                        className="mt-auto w-full min-h-10 py-2 sm:py-2.5 border-2 border-amber-600 text-amber-800 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold active:bg-amber-50 sm:hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
                       >
-                        <Eye className="w-4 h-4" />
-                        Voir détails
+                        <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        Détails
                       </button>
                     </div>
                   </div>
@@ -1572,9 +1631,9 @@ export default function HomePage() {
       </section>
 
       {/* Why Choose Section - Professional */}
-      <section className="py-12 sm:py-16 md:py-24 lg:py-32 bg-white">
+      <section className="py-8 sm:py-16 md:py-24 lg:py-32 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="text-center mb-8 sm:mb-12 md:mb-16 lg:mb-20">
+          <div className="text-center mb-6 sm:mb-12 md:mb-16 lg:mb-20">
             <div className="inline-block px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-semibold uppercase tracking-wider mb-3 sm:mb-4 md:mb-6">
               Avantages
             </div>
@@ -1585,21 +1644,21 @@ export default function HomePage() {
               Des solutions professionnelles pour tous vos besoins d&apos;analyse
             </p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 md:gap-6">
             {benefits.map((benefit, index) => {
               const IconComponent = benefit.icon;
               return (
                 <div
                   key={index}
-                  className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 lg:p-8 text-center hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 hover:border-blue-200 group"
+                  className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-6 lg:p-8 text-center border border-gray-100 sm:hover:shadow-2xl sm:hover:border-blue-200 transition-shadow duration-300 group"
                 >
-                  <div className="mb-4 md:mb-6 transform transition-all duration-300 inline-block group-hover:scale-110 group-hover:rotate-6">
-                    <div className="w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-cyan-100 transition-all duration-300">
-                      <IconComponent className="w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 text-blue-600" />
+                  <div className="mb-3 sm:mb-4 md:mb-6 inline-block">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl md:rounded-2xl flex items-center justify-center">
+                      <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 text-blue-600" />
                     </div>
                   </div>
-                  <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-sm md:text-base lg:text-lg transition-colors group-hover:text-blue-600">{benefit.title}</h3>
-                  <p className="text-xs md:text-sm text-gray-600 leading-relaxed">{benefit.description}</p>
+                  <h3 className="font-bold text-gray-900 mb-1.5 sm:mb-2 md:mb-3 text-xs sm:text-sm md:text-base lg:text-lg">{benefit.title}</h3>
+                  <p className="text-[11px] sm:text-xs md:text-sm text-gray-600 leading-relaxed line-clamp-3 sm:line-clamp-none">{benefit.description}</p>
                 </div>
               );
             })}
@@ -1607,51 +1666,50 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — compact on phone, clears bottom tab bar via body --lab-nav-offset */}
       <footer id="contact" className="bg-gray-900 text-white py-8 sm:py-12 md:py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8 mb-6 sm:mb-8 md:mb-12">
-            <div className="col-span-2 sm:col-span-1">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 md:gap-8 mb-6 sm:mb-8 md:mb-12">
+            <div className="col-span-2 md:col-span-1">
               <div className="inline-flex items-center rounded-xl bg-white px-3 py-2 shadow-sm mb-3 sm:mb-4">
                 <Image
                   src="/images/logo.png"
                   alt={`${BRAND_NAME} Logo`}
                   width={120}
                   height={88}
-                  className="h-10 sm:h-12 w-auto object-contain"
+                  className="h-9 sm:h-12 w-auto object-contain"
                 />
               </div>
-              <p className="text-gray-400 text-xs sm:text-sm">
-                La marketplace professionnelle des laboratoires d'analyses
+              <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">
+                La marketplace professionnelle des laboratoires d&apos;analyses
               </p>
             </div>
             <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Navigation</h3>
-              <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
-                <li><a href="#accueil" className="hover:text-white transition-colors">Accueil</a></li>
-                <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
-                <li><Link href="/allthings" className="hover:text-white transition-colors">Catalogue</Link></li>
-                <li><Link href="/products" className="hover:text-white transition-colors">Produits</Link></li>
-                <li><Link href="/machines" className="hover:text-white transition-colors">Machines</Link></li>
-                <li><Link href="/services" className="hover:text-white transition-colors">Services</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+              <h3 className="font-semibold mb-2.5 sm:mb-4 text-sm sm:text-base">Navigation</h3>
+              <ul className="space-y-2 text-gray-400 text-xs sm:text-sm">
+                <li><a href="#accueil" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Accueil</a></li>
+                <li><Link href="/about" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">À propos</Link></li>
+                <li><Link href="/allthings" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Catalogue</Link></li>
+                <li><Link href="/products" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Produits</Link></li>
+                <li><Link href="/machines" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Machines</Link></li>
+                <li><Link href="/services" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Services</Link></li>
+                <li><Link href="/contact" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Contact</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Légal</h3>
-              <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
-                <li><a href="#" className="hover:text-white transition-colors">Mentions légales</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Conditions générales de vente</a></li>
+              <h3 className="font-semibold mb-2.5 sm:mb-4 text-sm sm:text-base">Légal</h3>
+              <ul className="space-y-2 text-gray-400 text-xs sm:text-sm">
+                <li><a href="#" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Mentions légales</a></li>
+                <li><a href="#" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Confidentialité</a></li>
+                <li><a href="#" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">CGV</a></li>
               </ul>
             </div>
-            <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 md:mb-4 text-sm sm:text-base">Support</h3>
-              <ul className="space-y-1 sm:space-y-2 text-gray-400 text-xs sm:text-sm">
-                <li><Link href="/about" className="hover:text-white transition-colors">À propos</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Nous contacter</Link></li>
-                <li><a href="mailto:dzmarketLab@gmail.com" className="hover:text-white transition-colors">dzmarketLab@gmail.com</a></li>
-                <li><a href="tel:+213781079959" className="hover:text-white transition-colors">0781079959</a></li>
+            <div className="col-span-2 md:col-span-1">
+              <h3 className="font-semibold mb-2.5 sm:mb-4 text-sm sm:text-base">Support</h3>
+              <ul className="space-y-2 text-gray-400 text-xs sm:text-sm">
+                <li><Link href="/contact" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">Nous contacter</Link></li>
+                <li><a href="mailto:dzmarketLab@gmail.com" className="inline-flex min-h-8 items-center break-all active:text-white sm:hover:text-white">dzmarketLab@gmail.com</a></li>
+                <li><a href="tel:+213781079959" className="inline-flex min-h-8 items-center active:text-white sm:hover:text-white">0781079959</a></li>
                 <li className="text-gray-500">Blida, Algérie</li>
               </ul>
             </div>
