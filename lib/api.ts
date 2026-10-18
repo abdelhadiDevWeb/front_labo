@@ -1482,6 +1482,7 @@ export interface PublicPromotion {
   itemType?: CatalogItemType;
   id_product: string;
   id_product_free?: string | null;
+  id_supplier?: string | null;
   price_discount: number;
   normal_price: number;
   min_quantity: number;
@@ -1492,6 +1493,8 @@ export interface PublicPromotion {
     id: string;
     name: string;
     price: number;
+    /** Stock left; null when the item does not track stock. */
+    quantity?: number | null;
     images: string[];
     brand?: string;
     category?: string;

@@ -56,6 +56,16 @@ body {
   }
 }
 
+/* Phone action bar on detail pages — sits above the lab tab bar when it is shown */
+.app-action-bar {
+  bottom: var(--lab-nav-offset, 0px);
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+}
+
+html[data-lab-nav] .app-action-bar {
+  padding-bottom: 0.625rem;
+}
+
 /* Modern Animations */
 @keyframes fade-in-up {
   from {
@@ -343,6 +353,27 @@ body {
   animation: float 6s ease-in-out infinite;
 }
 
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-soft {
+  animation: float-soft 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-soft {
+    animation: none;
+  }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 3s ease-in-out infinite;
 }
@@ -530,6 +561,39 @@ body {
 
 .animate-shimmer {
   animation: shimmer 4s linear infinite;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer-in {
+  animation: drawer-in 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up,
+  .animate-drawer-in {
+    animation: none;
+  }
 }
 
 @keyframes marquee-rtl {

@@ -4,13 +4,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, ShoppingBag, ShoppingCart, X } from "lucide-react";
+import { Menu, ShoppingBag, ShoppingCart } from "lucide-react";
 import CartPanel from "@/components/CartPanel";
 import UserDropdown from "@/components/UserDropdown";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import {
   HomeDesktopNavMenus,
-  HomeMobileNavMenus,
+  MobileNavDrawer,
 } from "@/components/HomeNavMenus";
 import { getSessionRole } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
@@ -186,115 +186,29 @@ export function PublicSiteShell({ children }: PublicSiteShellProps) {
               )}
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-700 hover:text-blue-600 transition-colors"
-                aria-label="Menu"
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-700 active:bg-gray-100"
+                aria-label="Ouvrir le menu"
+                aria-expanded={mobileMenuOpen}
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                <Menu className="w-6 h-6" />
               </button>
             </div>
           </div>
-
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200">
-              <div className="flex flex-col gap-4">
-                <Link
-                  href="/home"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                >
-                  Accueil
-                </Link>
-                {!isAuthenticated && (
-                  <Link
-                    href="/about"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                  >
-                    À propos
-                  </Link>
-                )}
-                <HomeMobileNavMenus
-                  onNavigate={() => setMobileMenuOpen(false)}
-                  showSuppliers={isAuthenticated}
-                  promotionAlert={isAuthenticated}
-                />
-                {!isAuthenticated && (
-                  <Link
-                    href="/contact"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                  >
-                    Contact
-                  </Link>
-                )}
-                {isAuthenticated && isClientUser && (
-                  <>
-                    <Link
-                      href="/statistics"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2"
-                    >
-                      Statistiques
-                    </Link>
-                    <Link
-                      href="/orders"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2 flex items-center gap-2"
-                    >
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>Mes Réserves</span>
-                    </Link>
-                  </>
-                )}
-                {isAuthenticated && isClientUser ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCartOpen(true);
-                        setMobileMenuOpen(false);
-                      }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all duration-300 text-center flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCart className="w-5 h-5" />
-                      Panier
-                    </button>
-                    <Link
-                      href="/profile"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-300 text-center"
-                    >
-                      Mon profil
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAuthReady(false);
-                        setMobileMenuOpen(false);
-                        void performLogout(router, {
-                          clearCart: true,
-                          redirectTo: "/home",
-                        });
-                      }}
-                      className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-300 text-center"
-                    >
-                      Déconnexion
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 text-center"
-                  >
-                    Connexion
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
         </nav>
+        <MobileNavDrawer
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          isLab={isAuthenticated && isClientUser}
+          userEmail={userEmail}
+          cartCount={cartItemCount}
+          homeHref="/home"
+          onOpenCart={() => setCartOpen(true)}
+          onLogout={() => {
+            setIsAuthReady(false);
+            void performLogout(router, { clearCart: true, redirectTo: "/home" });
+          }}
+        />
       </header>
 
       <div className="flex-1">{children}</div>

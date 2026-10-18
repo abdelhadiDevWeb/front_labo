@@ -122,9 +122,14 @@ export default function CatalogPrice({
 }
 
 /** Hook for pages that already need auth and also gate price filters / unique_data. */
-export function useCanSeeCatalogPrice(): { canSeePrice: boolean; ready: boolean } {
+export function useCanSeeCatalogPrice(): {
+  canSeePrice: boolean;
+  ready: boolean;
+  role: string | null;
+} {
   const [canSeePrice, setCanSeePrice] = useState(false);
   const [ready, setReady] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +137,7 @@ export function useCanSeeCatalogPrice(): { canSeePrice: boolean; ready: boolean 
       const session = await getSessionRole();
       if (cancelled) return;
       setCanSeePrice(Boolean(session?.role));
+      setRole(session?.role ? String(session.role) : null);
       setReady(true);
     })();
     return () => {
@@ -139,5 +145,5 @@ export function useCanSeeCatalogPrice(): { canSeePrice: boolean; ready: boolean 
     };
   }, []);
 
-  return { canSeePrice, ready };
+  return { canSeePrice, ready, role };
 }

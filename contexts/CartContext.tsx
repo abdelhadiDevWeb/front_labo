@@ -12,6 +12,16 @@ export interface CartItem {
   itemType?: "product" | "machine" | "service";
   /** Stock known when the item was added; quantities are capped to it. */
   maxQuantity?: number;
+  /** Set when added from a promotion — the backend re-validates it and applies the offer. */
+  promotionId?: string;
+  /** Promotion minimum quantity; the line cannot go below it. */
+  minQuantity?: number;
+  /** Minimum set by the supplier; larger than `minQuantity` when stock is below it. */
+  offerMinQuantity?: number;
+  /** Catalog price before the promotion discount. */
+  normalPrice?: number;
+  /** Item given free with the promotion. */
+  freeGiftName?: string;
 }
 
 const capQuantity = (quantity: number, maxQuantity?: number) =>
@@ -82,14 +92,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
             return cartItem;
           }
           const maxQuantity = item.maxQuantity ?? cartItem.maxQuantity;
+          const promo = item.promotionId
+            ? {
+                name: item.name,
+                price: item.price,
+                promotionId: item.promotionId,
+                minQuantity: item.minQuantity,
+                offerMinQuantity: item.offerMinQuantity,
+                normalPrice: item.normalPrice,
+                freeGiftName: item.freeGiftName,
+              }
+            : {};
+          const minQuantity = item.promotionId ? item.minQuantity : cartItem.minQuantity;
+          // A promotion add never stacks: the line starts at the offer minimum (or keeps a larger quantity).
+          const nextQuantity = item.promotionId
+            ? Math.max(cartItem.quantity, minQuantity ?? 1)
+            : Math.max(cartItem.quantity + quantity, minQuantity ?? 1);
           return {
             ...cartItem,
+            ...promo,
             maxQuantity,
-            quantity: capQuantity(cartItem.quantity + quantity, maxQuantity),
+            quantity: capQuantity(nextQuantity, maxQuantity),
           };
         });
       } else {
-        return [...prev, { ...item, itemType, quantity: capQuantity(quantity, item.maxQuantity) }];
+        return [
+          ...prev,
+          {
+            ...item,
+            itemType,
+            quantity: capQuantity(Math.max(quantity, item.minQuantity ?? 1), item.maxQuantity),
+          },
+        ];
       }
     });
   };
@@ -116,7 +150,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartItems((prev) =>
       prev.map((item) =>
         item.id === id && (item.itemType || "product") === type
-          ? { ...item, quantity: capQuantity(quantity, item.maxQuantity) }
+          ? {
+              ...item,
+              quantity: capQuantity(Math.max(quantity, item.minQuantity ?? 1), item.maxQuantity),
+            }
           : item
       )
     );

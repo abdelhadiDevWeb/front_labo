@@ -94,6 +94,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
           id: string | number;
           quantity: number;
           itemType: "product" | "machine";
+          promotionId?: string;
         }>;
       } = {};
 
@@ -105,6 +106,7 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
           id: item.id,
           quantity: item.quantity || 1,
           itemType,
+          ...(item.promotionId ? { promotionId: item.promotionId } : {}),
         });
       }
 
@@ -271,21 +273,31 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                     
                     return (
                       <div
-                        key={item.id}
+                        key={`${item.itemType || "product"}-${item.id}`}
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
                       >
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h5 className="font-semibold text-gray-900">{item.name}</h5>
                             {(item.itemType || "product") === "machine" && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
                                 Machine
                               </span>
                             )}
+                            {item.promotionId && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                                Promotion
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600">
                             {displayPrice} × {item.quantity}
                           </p>
+                          {item.freeGiftName && (
+                            <p className="text-xs font-medium text-emerald-700">
+                              + {item.freeGiftName} offert
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-blue-600">{itemTotal.toFixed(2)} DA</p>
@@ -364,20 +376,58 @@ export default function CartPanel({ isOpen, onClose }: CartPanelProps) {
                             Machine
                           </span>
                         )}
+                        {item.promotionId && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                            Promotion
+                          </span>
+                        )}
                       </div>
-                      <p className="text-blue-600 font-bold text-lg mb-3">
+                      <p className={`${item.promotionId ? "text-orange-600" : "text-blue-600"} font-bold text-lg ${item.promotionId ? "mb-1" : "mb-3"}`}>
                         {typeof item.price === "number" 
                           ? `${item.price.toFixed(2)} DA` 
                           : item.price}
+                        {item.promotionId &&
+                          typeof item.normalPrice === "number" &&
+                          typeof item.price === "number" &&
+                          item.normalPrice > item.price && (
+                          <span className="ml-2 text-sm font-normal text-gray-400 line-through">
+                            {item.normalPrice.toFixed(2)} DA
+                          </span>
+                        )}
                       </p>
+                      {item.promotionId && (
+                        <div className="mb-3 space-y-0.5 text-xs">
+                          {typeof item.offerMinQuantity === "number" &&
+                          typeof item.minQuantity === "number" &&
+                          item.offerMinQuantity > item.minQuantity ? (
+                            <p className="rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-800 ring-1 ring-amber-200">
+                              Stock limité : il ne reste que {item.minQuantity} unité
+                              {item.minQuantity > 1 ? "s" : ""} (minimum de l&apos;offre :{" "}
+                              {item.offerMinQuantity}). L&apos;offre s&apos;applique à la quantité
+                              restante.
+                            </p>
+                          ) : (
+                            typeof item.minQuantity === "number" &&
+                            item.minQuantity > 1 && (
+                              <p className="text-orange-700">Min. {item.minQuantity} unités pour l&apos;offre</p>
+                            )
+                          )}
+                          {item.freeGiftName && (
+                            <p className="font-medium text-emerald-700">+ {item.freeGiftName} offert</p>
+                          )}
+                        </div>
+                      )}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="text-sm text-gray-600">Quantité:</span>
                         <QuantityInput
                           size="sm"
                           value={item.quantity}
+                          min={item.promotionId && item.minQuantity ? item.minQuantity : 1}
                           max={item.maxQuantity}
                           onChange={(next) => updateQuantity(item.id, next, type)}
-                          onDecrementBelowMin={() => removeFromCart(item.id, type)}
+                          onDecrementBelowMin={
+                            item.promotionId ? undefined : () => removeFromCart(item.id, type)
+                          }
                           ariaLabel={`Quantité de ${item.name}`}
                         />
                         {typeof item.maxQuantity === "number" &&

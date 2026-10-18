@@ -39,7 +39,7 @@ import LoginAlert from "@/components/LoginAlert";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import {
   HomeDesktopNavMenus,
-  HomeMobileNavMenus,
+  MobileNavDrawer,
 } from "@/components/HomeNavMenus";
 import { getSessionRole, getAllProducts, PublicProduct, PublicCatalogItem, getPublicMachines, getPublicServices, NotificationData, createProblem, getProfile, ClientData, getPublicCategories, Category, refreshAuthToken } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
@@ -755,92 +755,29 @@ export default function HomePage() {
               )}
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => setMobileMenuOpen(true)}
                 className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-700 active:bg-gray-100"
-                aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                aria-label="Ouvrir le menu"
+                aria-expanded={mobileMenuOpen}
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                <Menu className="w-6 h-6" />
               </button>
             </div>
           </div>
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-3 border-t border-gray-200 animate-fade-in max-h-[min(70svh,28rem)] overflow-y-auto">
-              <div className="flex flex-col gap-1">
-                <a href="#accueil" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
-                  Accueil
-                </a>
-                {!isAuthenticated && (
-                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
-                  À propos
-                </Link>
-                )}
-                <HomeMobileNavMenus
-                  onNavigate={() => setMobileMenuOpen(false)}
-                  showSuppliers={isAuthenticated}
-                  promotionAlert={isAuthenticated}
-                />
-                {!isAuthenticated && (
-                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
-                  Contact
-                </Link>
-                )}
-                {isAuthenticated && isClientUser && (
-                  <>
-                    <Link href="/statistics" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center text-gray-700 active:text-blue-600 font-medium px-1">
-                      Statistiques
-                    </Link>
-                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="min-h-11 flex items-center gap-2 text-gray-700 active:text-blue-600 font-medium px-1">
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Mes Réserves</span>
-                  </Link>
-                  </>
-                )}
-                {isAuthenticated && isClientUser ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCartOpen(true);
-                        setMobileMenuOpen(false);
-                      }}
-                      className="mt-2 min-h-12 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold active:bg-blue-700 text-center flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCart className="w-5 h-5" />
-                      Panier
-                    </button>
-                    <Link
-                      href="/profile"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="min-h-12 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold active:bg-gray-200 text-center flex items-center justify-center"
-                    >
-                      Mon profil
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAuthReady(false);
-                        setMobileMenuOpen(false);
-                        void performLogout(router, { clearCart: true, redirectTo: "/home" });
-                      }}
-                      className="min-h-12 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold active:bg-red-700 text-center"
-                    >
-                      Déconnexion
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="mt-2 min-h-12 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold text-center flex items-center justify-center"
-                  >
-                    Connexion
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
         </nav>
+        <MobileNavDrawer
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          isLab={isAuthenticated && isClientUser}
+          userEmail={userEmail}
+          cartCount={cartItemCount}
+          homeHref="/home"
+          onOpenCart={() => setCartOpen(true)}
+          onLogout={() => {
+            setIsAuthReady(false);
+            void performLogout(router, { clearCart: true, redirectTo: "/home" });
+          }}
+        />
         <div
           ref={scrollProgressRef}
           aria-hidden
@@ -854,7 +791,7 @@ export default function HomePage() {
       {/* Hero Section — phone-first, full-bleed lab cover */}
       <section
         id="accueil"
-        className="relative isolate flex min-h-[min(72svh,560px)] sm:min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-slate-950"
+        className="relative isolate flex min-h-[min(56svh,440px)] sm:min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex-col overflow-hidden bg-sky-600"
       >
         <div aria-hidden className="absolute inset-0 -z-10">
           <Image
@@ -865,62 +802,54 @@ export default function HomePage() {
             sizes="100vw"
             className="object-cover object-[center_35%] sm:object-[center_40%] animate-hero-cover-kenburns will-change-transform"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-sky-950/60 to-slate-950/85" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(56,189,248,0.2)_0%,transparent_55%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-slate-950/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-sky-800/45 via-sky-600/25 to-sky-800/45" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,rgba(8,47,73,0.35)_0%,transparent_65%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-sky-900/40 to-transparent" />
         </div>
 
         <div className="container relative mx-auto max-w-5xl flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-7 pb-5 sm:pt-14 md:pt-16 text-center">
-          <div className="mb-3.5 sm:mb-6 rounded-2xl border border-white/25 bg-white/95 px-4 py-2.5 sm:px-6 sm:py-4 shadow-2xl shadow-slate-950/40 backdrop-blur-md">
+          <div className="animate-float-soft rounded-2xl border border-white/60 bg-white px-4 py-2.5 sm:px-6 sm:py-4 shadow-2xl shadow-slate-950/40">
             <Image
-              src="/logo.png"
+              src="/images/logo.png"
               alt={`${BRAND_NAME} Logo`}
-              width={220}
-              height={120}
-              className="h-11 sm:h-16 w-auto max-w-[170px] sm:max-w-[220px] object-contain"
+              width={274}
+              height={200}
+              className="h-14 sm:h-20 w-auto object-contain"
               priority
             />
           </div>
 
-          <span className="inline-flex max-w-[92%] items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] sm:text-sm font-semibold text-white backdrop-blur-md animate-fade-in-up animation-delay-200">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
-            <span className="truncate">Plateforme B2B — biologie médicale</span>
-          </span>
-
-          <h1 className="mt-3.5 sm:mt-6 max-w-4xl text-[1.4rem] sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.15] text-white animate-fade-in-up animation-delay-200 px-1">
+          <h1 className="mt-4 sm:mt-6 max-w-4xl text-[1.4rem] sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.15] text-white animate-fade-in-up animation-delay-200 px-1 [text-shadow:0_2px_14px_rgba(8,47,73,0.6)]">
             L&apos;approvisionnement de votre laboratoire,{" "}
-            <span className="text-cyan-100">simple et rapide.</span>
-          </h1>
+            <span className="text-sky-100">simple et rapide.</span>
+            </h1>
 
-          <p className="mt-3 sm:mt-6 max-w-2xl mx-auto text-sm sm:text-lg leading-relaxed text-white/85 animate-fade-in-up animation-delay-400 line-clamp-3 sm:line-clamp-none">
+          <p className="mt-3 sm:mt-6 max-w-2xl mx-auto text-sm sm:text-lg leading-relaxed text-white/95 animate-fade-in-up animation-delay-400 line-clamp-3 sm:line-clamp-none [text-shadow:0_1px_10px_rgba(8,47,73,0.65)]">
             {BRAND_NAME} centralise réactifs, consommables et équipements&nbsp;: comparez,
             réservez et suivez vos livraisons partout en Algérie.
           </p>
 
-          <div className="mt-5 sm:mt-9 flex w-full max-w-md sm:max-w-none flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 animate-fade-in-up animation-delay-600">
-            <Link
+          <div className="mt-9 hidden sm:flex flex-row items-center justify-center gap-4 animate-fade-in-up animation-delay-600">
+                    <Link
               href="/allthings"
               className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm sm:text-base font-semibold text-blue-700 shadow-lg shadow-blue-950/20 transition-colors active:bg-blue-50 sm:hover:bg-blue-50"
-            >
+                    >
               Découvrir la marketplace
               <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
+                    </Link>
+                  <Link
               href="/about"
               className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/50 bg-white/15 px-5 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur-md transition-colors active:bg-white/25 sm:hover:bg-white/25"
-            >
-              En savoir plus
-            </Link>
-          </div>
+                  >
+                En savoir plus
+                  </Link>
+              </div>
 
           <div className="mt-6 sm:mt-10 hidden sm:flex items-center justify-center gap-4 animate-fade-in-up animation-delay-800">
             <div className="flex -space-x-3">
               {[FlaskConical, Microscope, Truck].map((Icon, i) => (
                 <span
-                  key={i}
+              key={i}
                   className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-600 bg-white text-blue-700 shadow-md"
                 >
                   <Icon className="h-[18px] w-[18px]" />
@@ -946,10 +875,10 @@ export default function HomePage() {
               <div className="leading-tight text-left">
                 <p className="text-sm font-semibold text-slate-900">Stock en temps réel</p>
                 <p className="text-[11px] text-slate-500">Disponibilité actualisée</p>
-              </div>
+                </div>
             </div>
             <svg viewBox="0 0 200 40" fill="none" className="mt-2 h-8 w-full text-sky-500" aria-hidden>
-              <path
+            <path 
                 d="M0 22 H56 L62 22 L68 10 L76 34 L84 4 L92 28 L98 22 H200"
                 stroke="currentColor"
                 strokeWidth={2.5}
@@ -957,27 +886,13 @@ export default function HomePage() {
                 strokeLinejoin="round"
                 pathLength={1}
                 className="animate-hero-ecg"
-              />
-            </svg>
-          </div>
-        </div>
-
-        <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-4 animate-fade-in-up animation-delay-800">
-          <div className="flex gap-2 overflow-x-auto pb-1 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {HERO_HIGHLIGHTS.map(({ icon: Icon, title }) => (
-              <div
-                key={title}
-                className="flex shrink-0 items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-md ring-1 ring-black/5"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{title}</span>
+            />
+          </svg>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="hidden sm:grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white p-4 sm:p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5">
+        <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-4 hidden sm:block animate-fade-in-up animation-delay-800">
+          <div className="grid grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-4 sm:gap-6 rounded-2xl bg-white p-4 sm:p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5">
             {HERO_HIGHLIGHTS.map(({ icon: Icon, title, text }, i) => (
               <div
                 key={title}
@@ -985,7 +900,7 @@ export default function HomePage() {
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <Icon className="h-5 w-5" />
-                </span>
+              </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{title}</p>
                   <p className="truncate text-xs text-gray-500">{text}</p>
@@ -1006,6 +921,62 @@ export default function HomePage() {
           <svg viewBox="0 0 1440 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
             <path d="M0 48 C240 8 480 72 720 40 C960 8 1200 56 1440 24 L1440 80 L0 80 Z" fill="currentColor" />
           </svg>
+        </div>
+      </section>
+
+      {/* Phone: hero actions + trust + highlights marquee, under the cover */}
+      <section aria-label="Accès rapide" className="sm:hidden bg-white pt-1 pb-5">
+        <div className="px-4 flex flex-col gap-2.5 animate-fade-in-up">
+              <Link
+            href="/allthings"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 active:opacity-90"
+          >
+            Découvrir la marketplace
+            <ArrowRight className="h-4 w-4" />
+              </Link>
+          <Link
+            href="/about"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-blue-600 bg-white px-5 py-3 text-sm font-semibold text-blue-700 active:bg-blue-50"
+          >
+                En savoir plus
+          </Link>
+            </div>
+
+        <div className="mt-4 mx-4 flex items-center gap-3 rounded-2xl bg-sky-50 px-3.5 py-3 ring-1 ring-sky-100">
+          <div className="flex -space-x-2.5 shrink-0">
+            {[FlaskConical, Microscope, Truck].map((Icon, i) => (
+              <span
+                key={i}
+                className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-sm"
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+            ))}
+          </div>
+          <div className="min-w-0 text-left leading-snug">
+            <p className="text-sm font-semibold text-gray-900">Fournisseurs vérifiés</p>
+            <p className="text-xs text-gray-600 truncate">Réactifs, consommables et équipements</p>
+          </div>
+        </div>
+
+        <div className="mt-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
+          <div className="sponsored-marquee-track flex" style={{ animationDuration: "22s" }}>
+            {[...HERO_HIGHLIGHTS, ...HERO_HIGHLIGHTS].map(({ icon: Icon, title, text }, i) => (
+              <div
+                key={`${title}-${i}`}
+                aria-hidden={i >= HERO_HIGHLIGHTS.length}
+                className="mr-3 flex shrink-0 items-center gap-2.5 rounded-2xl border border-gray-100 bg-white px-3.5 py-2.5 shadow-sm"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="leading-tight">
+                  <p className="text-xs font-semibold text-gray-900 whitespace-nowrap">{title}</p>
+                  <p className="text-[11px] text-gray-500 whitespace-nowrap">{text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1100,7 +1071,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* About Section */}
+      {/* About Section — guests only */}
+      {!isAuthenticated && (
       <section id="about-section" className="py-8 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className={`text-center mb-8 sm:mb-10 md:mb-14 scroll-animate ${visibleElements.has("about-left") ? "animate" : ""}`} id="about-left">
@@ -1129,12 +1101,14 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       <PromotionsShowcase />
 
       <GroupSelleShowcase />
 
-      {/* FAQ Section */}
+      {/* FAQ Section — guests only */}
+      {!isAuthenticated && (
       <section className="py-8 sm:py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
@@ -1175,6 +1149,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Popular Products Section — phone 2-col app cards */}
       <section id="marketplace" className="py-8 sm:py-16 md:py-24 bg-gray-50">
@@ -1227,7 +1202,7 @@ export default function HomePage() {
                 locationStatus === "loading" &&
                 !visitorWilayaCode
                   ? "En attente de votre localisation..."
-                  : "Aucun produit disponible pour le moment"}
+                    : "Aucun produit disponible pour le moment"}
               </p>
             </div>
           ) : (
@@ -1237,15 +1212,15 @@ export default function HomePage() {
                 const displayName = getUniqueDataTitle(uniqueData, product.name);
                 const mainImage =
                   product.images && product.images.length > 0
-                    ? getMediaUrl(product.images[0])
-                    : null;
+                  ? getMediaUrl(product.images[0])
+                  : null;
 
                 return (
                   <div
                     key={product.id}
                     id={`product-${index}`}
                     className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-200 overflow-hidden sm:hover:shadow-2xl transition-shadow duration-300 group flex flex-col"
-                    style={{
+                    style={{ 
                       transitionDelay: `${index * 50}ms`,
                       ...(visibleElements.has(`product-${index}`)
                         ? { opacity: 1, transform: "scale(1)" }
@@ -1256,30 +1231,30 @@ export default function HomePage() {
                       href={`/products/${product.id}`}
                       className="relative aspect-square sm:h-48 sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
                     >
-                      {mainImage ? (
-                        <img
-                          src={mainImage}
-                          alt={displayName}
+                        {mainImage ? (
+                          <img
+                            src={mainImage}
+                            alt={displayName}
                           className="w-full h-full object-cover sm:group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
                             target.onerror = null;
                             target.src = "/icon.png";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
                           <FlaskConical className="w-10 h-10 sm:w-16 sm:h-16 text-gray-400" />
-                        </div>
-                      )}
+                          </div>
+                        )}
                       <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700">
-                        Produit
-                      </span>
-                      {product.quantity === 0 && (
+                            Produit
+                          </span>
+                        {product.quantity === 0 && (
                         <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-2 py-0.5 sm:px-3 sm:py-1 bg-red-500 text-white rounded-full text-[10px] sm:text-xs font-semibold">
                           Rupture
-                        </span>
-                      )}
+                            </span>
+                        )}
                     </Link>
 
                     <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
@@ -1292,20 +1267,20 @@ export default function HomePage() {
                       {product.supplier && (
                         <div className="hidden sm:block">
                           <SupplierNameGate visible={Boolean(userRole)}>
-                            <Link
-                              href={`/supplier/${product.supplier.id}`}
-                              className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                            >
+                        <Link
+                          href={`/supplier/${product.supplier.id}`}
+                          className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                        >
                               <Building2 className="w-4 h-4 shrink-0" />
                               <span className="truncate hover:underline">
                                 {product.supplier.name}
                               </span>
-                              {product.supplier.certife && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
-                                  Certifie
-                                </span>
-                              )}
-                            </Link>
+                          {product.supplier.certife && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                              Certifie
+                            </span>
+                          )}
+                        </Link>
                           </SupplierNameGate>
                         </div>
                       )}
@@ -1449,8 +1424,8 @@ export default function HomePage() {
                         className="text-left"
                       >
                         <h3 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">
-                          {displayName}
-                        </h3>
+                        {displayName}
+                      </h3>
                       </button>
                       <div className="hidden sm:block">
                         <UniqueDataFields
@@ -1595,8 +1570,8 @@ export default function HomePage() {
                         className="text-left"
                       >
                         <h3 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-amber-700">
-                          {displayName}
-                        </h3>
+                        {displayName}
+                      </h3>
                       </button>
                       <div className="hidden sm:block">
                         <UniqueDataFields
@@ -1630,7 +1605,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Why Choose Section - Professional */}
+      {/* Why Choose Section — guests only */}
+      {!isAuthenticated && (
       <section className="py-8 sm:py-16 md:py-24 lg:py-32 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center mb-6 sm:mb-12 md:mb-16 lg:mb-20">
@@ -1665,9 +1641,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Footer — compact on phone, clears bottom tab bar via body --lab-nav-offset */}
-      <footer id="contact" className="bg-gray-900 text-white py-8 sm:py-12 md:py-16">
+      {/* Footer — desktop/tablet only; phones and the app use the header menu and bottom tab bar */}
+      <footer id="contact" className="hidden md:block bg-gray-900 text-white py-8 sm:py-12 md:py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 md:gap-8 mb-6 sm:mb-8 md:mb-12">
             <div className="col-span-2 md:col-span-1">

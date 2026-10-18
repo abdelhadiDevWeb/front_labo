@@ -33,6 +33,9 @@ interface OrderProduct {
   price: number;
   quantity: number;
   itemType?: "product" | "machine";
+  promotionId?: string | null;
+  normalPrice?: number | null;
+  isFreeGift?: boolean;
 }
 
 interface Order {
@@ -48,7 +51,7 @@ interface Order {
   } | null;
   idSupplier: string;
   status: "en attente" | "refusée" | "en cours" | "on route" | "arrived";
-  source?: "cart" | "group_sell";
+  source?: "cart" | "promotion" | "group_sell";
   groupSelleId?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -540,6 +543,11 @@ export default function SupplierOrdersPage() {
                             Depuis annonce (vente groupée)
                           </span>
                         )}
+                        {order.source === "promotion" && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-200">
+                            Depuis la section Promotions
+                          </span>
+                        )}
                       </div>
                       {order.idBuyer ? (
                         <>
@@ -588,9 +596,23 @@ export default function SupplierOrdersPage() {
                                   Machine
                                 </span>
                               )}
+                              {product.isFreeGift ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                                  Offert (promotion)
+                                </span>
+                              ) : product.promotionId ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                                  Prix promo
+                                </span>
+                              ) : null}
                             </div>
                             <p className="text-sm text-gray-600">
                               {product.price.toFixed(2)} DA × {product.quantity}
+                              {typeof product.normalPrice === "number" && product.normalPrice > product.price && (
+                                <span className="ml-2 text-xs text-gray-400 line-through">
+                                  {product.normalPrice.toFixed(2)} DA
+                                </span>
+                              )}
                             </p>
                           </div>
                           <p className="font-semibold text-gray-900">

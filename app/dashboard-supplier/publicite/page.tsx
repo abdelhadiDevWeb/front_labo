@@ -1176,52 +1176,52 @@ function PublicitePageContent() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Megaphone className="w-8 h-8 text-purple-600" />
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+            <Megaphone className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 shrink-0" />
             Publicité
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Gérez le sponsoring de vos produits, machines et services (abonnement et VIP)
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-xl flex items-start gap-3">
+        <div className="p-3 sm:p-4 bg-red-50 border-l-4 border-red-500 rounded-xl flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
+          <p className="text-sm text-red-700 min-w-0 break-words">{error}</p>
         </div>
       )}
 
       {/* Sponsor Sections */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {sponsorSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 text-green-800">
+          <div className="p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3 text-green-800">
             <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorSuccess}</p>
+            <p className="text-sm min-w-0 break-words">{sponsorSuccess}</p>
           </div>
         )}
 
         {sponsorError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
+          <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-800">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{sponsorError}</p>
+            <p className="text-sm min-w-0 break-words">{sponsorError}</p>
           </div>
         )}
 
         {/* Subscription sponsor (included in abonnement) */}
         <div className="bg-white rounded-2xl shadow-lg border border-blue-200 p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-blue-600" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 shrink-0" />
                 Sponsoring abonnement
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 Utilisez les sponsors inclus dans votre abonnement actif (sans paiement) pour vos
                 produits, machines ou services
               </p>
@@ -1229,7 +1229,7 @@ function PublicitePageContent() {
             <button
               onClick={openSubscriptionSponsorModal}
               disabled={!subscriptionQuota?.canCreateSubscriptionSponsor}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
               Sponsoriser (abonnement)
@@ -1241,37 +1241,37 @@ function PublicitePageContent() {
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.abonnement ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
+              <div className="col-span-2 sm:col-span-1 min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Abonnement</p>
-                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.abonnement.type}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-900 break-words">{subscriptionQuota.abonnement.type}</p>
                 <p className="text-xs text-gray-500 mt-1">
                   Jusqu&apos;au {formatDate(subscriptionQuota.abonnement.end)}
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Durée / sponsor</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-base sm:text-lg font-bold text-gray-900">
                   {subscriptionSponsorDurationHours > 0
                     ? `${subscriptionSponsorDurationHours} h`
                     : "—"}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Selon votre abonnement</p>
               </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Sponsors inclus</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-base sm:text-lg font-bold text-gray-900">
                   {subscriptionQuota.sponsorsAllocated}
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Utilisés</p>
-                <p className="text-lg font-bold text-gray-900">{subscriptionQuota.sponsorsUsed}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-900">{subscriptionQuota.sponsorsUsed}</p>
               </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
                 <p className="text-xs text-blue-700 font-medium">Restants</p>
                 <p
-                  className={`text-lg font-bold ${
+                  className={`text-base sm:text-lg font-bold ${
                     subscriptionQuota.sponsorsRemaining > 0 ? "text-green-700" : "text-red-600"
                   }`}
                 >
@@ -1280,13 +1280,13 @@ function PublicitePageContent() {
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
+            <div className="p-3 sm:p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
               Aucun abonnement actif. Contactez l&apos;administrateur pour activer votre compte.
             </div>
           )}
 
           {subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.sponsorsAllocated <= 0 && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
+            <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
               Votre abonnement n&apos;inclut pas de sponsors gratuits. Utilisez le sponsoring VIP payant
               ci-dessous.
             </div>
@@ -1295,7 +1295,7 @@ function PublicitePageContent() {
           {subscriptionQuota?.hasActiveAbonnement &&
             subscriptionQuota.sponsorsAllocated > 0 &&
             subscriptionQuota.sponsorsRemaining <= 0 && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
+              <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
                 Vous n&apos;avez plus de sponsors disponibles ({subscriptionQuota.sponsorsUsed}/
                 {subscriptionQuota.sponsorsAllocated} utilisés). Vous pouvez utiliser le sponsoring VIP.
               </div>
@@ -1303,14 +1303,14 @@ function PublicitePageContent() {
         </div>
 
         {/* VIP sponsor (paid via Chargily) */}
-        <div className="bg-white rounded-2xl shadow-lg border border-purple-200 p-4 sm:p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Crown className="w-6 h-6 text-purple-600" />
+        <div className="bg-white rounded-2xl shadow-lg border border-purple-200 p-4 sm:p-6 space-y-5 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 shrink-0" />
                 Sponsoring VIP
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 Mettez en avant vos produits, machines ou services avec un pack VIP et payez en ligne
                 via Chargily
               </p>
@@ -1318,7 +1318,7 @@ function PublicitePageContent() {
             <button
               onClick={openVipSponsorModal}
               disabled={sponsorPlans.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 active:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
               Sponsoriser VIP
@@ -1326,9 +1326,9 @@ function PublicitePageContent() {
           </div>
 
         {pendingSponsorProducts.length > 0 && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+          <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
             <div className="flex items-center gap-2 text-amber-900 font-semibold">
-              <CreditCard className="w-5 h-5" />
+              <CreditCard className="w-5 h-5 shrink-0" />
               Paiements en attente ({pendingSponsorProducts.length})
             </div>
             <div className="space-y-2">
@@ -1337,11 +1337,13 @@ function PublicitePageContent() {
                   key={record.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-lg border border-amber-100"
                 >
-                  <div className="text-sm">
-                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                      {record.product?.name || kindLabel(record.itemType || "product")}
+                  <div className="text-sm min-w-0">
+                    <p className="font-medium text-gray-900 flex flex-wrap items-center gap-2 break-words">
+                      <span className="min-w-0 break-words">
+                        {record.product?.name || kindLabel(record.itemType || "product")}
+                      </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${kindBadgeClass(record.itemType || "product")}`}
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${kindBadgeClass(record.itemType || "product")}`}
                       >
                         {kindLabel(record.itemType || "product")}
                       </span>
@@ -1361,7 +1363,7 @@ function PublicitePageContent() {
                     type="button"
                     onClick={() => void handleCompletePayment(record.id)}
                     disabled={resumingPaymentId === record.id}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
+                    className="w-full sm:w-auto min-h-10 sm:min-h-0 shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50 whitespace-nowrap"
                   >
                     {resumingPaymentId === record.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -1384,25 +1386,25 @@ function PublicitePageContent() {
         )}
 
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Plans VIP disponibles</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">Plans VIP disponibles</h3>
           {isLoadingSponsor ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
             </div>
           ) : sponsorPlans.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
               {sponsorPlans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="border border-purple-200 rounded-xl p-4 bg-gradient-to-br from-purple-50 to-white"
+                  className="min-w-0 border border-purple-200 rounded-xl p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-white"
                 >
-                  <div className="flex items-center gap-2 text-purple-700 font-semibold mb-2">
-                    <Clock className="w-4 h-4" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base text-purple-700 font-semibold mb-1 sm:mb-2">
+                    <Clock className="w-4 h-4 shrink-0" />
                     {plan.time} {plan.time === 1 ? "jour" : "jours"}
                   </div>
-                  <div className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    {plan.price.toLocaleString("fr-FR")} DA
+                  <div className="flex items-center gap-1 sm:gap-2 text-base sm:text-2xl font-bold text-gray-900 min-w-0">
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 shrink-0" />
+                    <span className="min-w-0 break-words">{plan.price.toLocaleString("fr-FR")} DA</span>
                   </div>
                 </div>
               ))}
@@ -1413,8 +1415,8 @@ function PublicitePageContent() {
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <History className="w-5 h-5 text-purple-600" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <History className="w-5 h-5 text-purple-600 shrink-0" />
             Historique par élément
           </h3>
           {isLoadingSponsor ? (
@@ -1437,9 +1439,9 @@ function PublicitePageContent() {
                     <button
                       type="button"
                       onClick={() => toggleHistoryExpand(group.groupKey)}
-                      className="w-full flex items-center justify-between gap-3 p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                      className="w-full flex items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors text-left"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         {group.productImage ? (
                           <img
                             src={getMediaUrl(group.productImage)}
@@ -1452,7 +1454,7 @@ function PublicitePageContent() {
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
+                          <p className="text-sm sm:text-base font-semibold text-gray-900 truncate flex items-center gap-2">
                             <span className="truncate">{group.productName}</span>
                             <span
                               className={`px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${kindBadgeClass(group.itemType)}`}
@@ -1477,18 +1479,19 @@ function PublicitePageContent() {
                               void handleCompletePayment(pendingRecord.id);
                             }}
                             disabled={resumingPaymentId === pendingRecord.id}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 disabled:opacity-50"
+                            aria-label="Compléter le paiement"
+                            className="inline-flex items-center justify-center gap-1 min-h-10 min-w-10 sm:min-h-0 sm:min-w-0 px-2 py-1 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 active:bg-amber-800 disabled:opacity-50"
                           >
                             {resumingPaymentId === pendingRecord.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <Loader2 className="w-4 h-4 sm:w-3 sm:h-3 animate-spin" />
                             ) : (
-                              <CreditCard className="w-3 h-3" />
+                              <CreditCard className="w-4 h-4 sm:w-3 sm:h-3" />
                             )}
-                            Compléter
+                            <span className="hidden sm:inline">Compléter</span>
                           </button>
                         )}
                         {activeRecord && (
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                          <span className="px-2 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-green-100 text-green-800">
                             Actif
                           </span>
                         )}
@@ -1501,7 +1504,8 @@ function PublicitePageContent() {
                     </button>
 
                     {isExpanded && (
-                      <div className="overflow-x-auto border-t border-gray-200">
+                      <>
+                      <div className="hidden md:block overflow-x-auto border-t border-gray-200">
                         <table className="w-full min-w-[760px]">
                           <thead>
                             <tr className="border-b border-gray-100 text-left text-xs text-gray-500">

@@ -18,6 +18,8 @@ import {
   FlaskConical,
   Cpu,
   Wrench,
+  Gift,
+  Image as ImageIcon,
 } from "lucide-react";
 import SupplierCatalogSearchSelect, {
   type SupplierCatalogOption,
@@ -30,6 +32,29 @@ import {
   CatalogItemType,
   Promotion,
 } from "@/lib/api";
+import { getMediaUrl } from "@/lib/media-url";
+
+type OfferType = "price" | "gift";
+
+const OFFER_OPTIONS: {
+  type: OfferType;
+  title: string;
+  text: string;
+  Icon: typeof Percent;
+}[] = [
+  {
+    type: "price",
+    title: "Réduction de prix",
+    text: "Baissez le prix à partir d'une quantité minimum",
+    Icon: Percent,
+  },
+  {
+    type: "gift",
+    title: "Produit offert",
+    text: "Le labo reçoit un article gratuit en achetant celui-ci",
+    Icon: Gift,
+  },
+];
 
 const KIND_OPTIONS: {
   kind: CatalogItemType;
@@ -53,11 +78,15 @@ const kindBadgeClass = (kind: CatalogItemType) =>
       : "bg-amber-100 text-amber-800";
 
 type PromotionFormState = {
+  offerType: OfferType;
   itemType: CatalogItemType;
   id_product: string;
   id_product_free: string;
   productLabel: string;
+  productImage: string;
   freeLabel: string;
+  freeImage: string;
+  freePrice: string;
   normal_price: string;
   price_discount: string;
   min_quantity: string;
@@ -66,11 +95,15 @@ type PromotionFormState = {
 };
 
 const emptyForm: PromotionFormState = {
+  offerType: "price",
   itemType: "product",
   id_product: "",
   id_product_free: "",
   productLabel: "",
+  productImage: "",
   freeLabel: "",
+  freeImage: "",
+  freePrice: "",
   price_discount: "",
   normal_price: "",
   min_quantity: "1",
@@ -116,11 +149,55 @@ function discountPercent(normal: number, discount: number) {
   return Math.round(((normal - discount) / normal) * 100);
 }
 
+function SelectedItemCard({
+  label,
+  name,
+  image,
+  price,
+  tone,
+}: {
+  label: string;
+  name: string;
+  image: string;
+  price: string;
+  tone: "green" | "amber";
+}) {
+  const priceNum = parseFloat(normalizeDecimalInput(price));
+  const toneClass =
+    tone === "green"
+      ? "border-green-200 bg-green-50/70 text-green-800"
+      : "border-amber-200 bg-amber-50/70 text-amber-800";
+  return (
+    <div className={`mt-2 flex items-center gap-3 rounded-xl border p-2.5 ${toneClass}`}>
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-white bg-white">
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={getMediaUrl(image) || ""} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="h-5 w-5 text-gray-300" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide">{label}</p>
+        <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
+        <p className="text-xs text-gray-600">
+          {Number.isFinite(priceNum) && priceNum > 0
+            ? `Prix actuel : ${priceNum.toLocaleString("fr-FR")} DA`
+            : "Aucun prix défini"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function PromotionFormFields({
   form,
   setForm,
   onKindChange,
   onProductSelect,
+  onOfferTypeChange,
   isUpdate,
 }: {
   form: PromotionFormState;
@@ -131,6 +208,7 @@ function PromotionFormFields({
     option: SupplierCatalogOption | null,
     isUpdate?: boolean
   ) => void;
+  onOfferTypeChange: (type: OfferType, isUpdate?: boolean) => void;
   isUpdate?: boolean;
 }) {
   const normalNum = parseFloat(normalizeDecimalInput(form.normal_price));
@@ -138,12 +216,50 @@ function PromotionFormFields({
   const option = kindOption(form.itemType);
   const hasSelected = Boolean(form.id_product);
   const normalPriceLocked = hasSelected && parseFloat(form.normal_price) > 0;
+  const isGift = form.offerType === "gift";
 
   return (
     <>
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Type de promotion <span className="text-red-500">*</span>
+          Type d&apos;offre <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {OFFER_OPTIONS.map(({ type, title, text, Icon }) => {
+            const selected = form.offerType === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onOfferTypeChange(type, isUpdate)}
+                className={`flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                  selected
+                    ? type === "gift"
+                      ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                      : "border-green-600 bg-green-50 ring-2 ring-green-200"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    type === "gift" ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-gray-900">{title}</span>
+                  <span className="block text-xs text-gray-500">{text}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Catalogue <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-3 gap-2">
           {KIND_OPTIONS.map(({ kind, label, Icon }) => {
@@ -180,11 +296,48 @@ function PromotionFormFields({
           emptyLabel={`Aucun ${option.label.toLowerCase()} trouvé`}
           focusRingClassName="focus:ring-green-500 focus:border-green-500"
         />
-        <p className="text-xs text-gray-500 mt-2">
-          Tapez pour rechercher dans votre catalogue (recherche serveur).
-        </p>
+        {hasSelected ? (
+          <SelectedItemCard
+            label={isGift ? "Article à acheter" : "Article en promotion"}
+            name={form.productLabel}
+            image={form.productImage}
+            price={form.normal_price}
+            tone="green"
+          />
+        ) : (
+          <p className="text-xs text-gray-500 mt-2">
+            Tapez pour rechercher dans votre catalogue (recherche serveur).
+          </p>
+        )}
       </div>
 
+      {isGift && hasSelected && !normalPriceLocked && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Prix / unité (DA) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            required
+            autoComplete="off"
+            placeholder="Ex: 2000"
+            value={form.normal_price}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^\d.,]/g, "");
+              if (DECIMAL_INPUT.test(value) || value === "") {
+                setForm((prev) => ({ ...prev, normal_price: value }));
+              }
+            }}
+            className="w-full px-4 py-3 border-2 border-green-200 rounded-xl outline-none bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Aucun prix défini pour ce {option.label.toLowerCase()} — saisissez son prix
+          </p>
+        </div>
+      )}
+
+      {!isGift && (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -231,7 +384,9 @@ function PromotionFormFields({
             inputMode="decimal"
             required
             autoComplete="off"
-            placeholder="Ex: 1500"
+            placeholder={
+              normalNum > 0 ? `Inférieur à ${normalNum.toLocaleString("fr-FR")}` : "Ex: 1500"
+            }
             value={form.price_discount}
             onChange={(e) => {
               const value = e.target.value.replace(/[^\d.,]/g, "");
@@ -248,16 +403,22 @@ function PromotionFormFields({
             !Number.isNaN(discountNum) &&
             normalNum > 0 &&
             form.price_discount !== "" && (
-              <p className="text-xs text-green-700 mt-1">
-                Réduction: {discountPercent(normalNum, discountNum)}%
+              <p
+                className={`text-xs mt-1 ${discountNum < normalNum ? "text-green-700" : "text-red-600"}`}
+              >
+                {discountNum < normalNum
+                  ? `Réduction: ${discountPercent(normalNum, discountNum)}%`
+                  : "Le prix promo doit être inférieur au prix actuel"}
               </p>
             )}
         </div>
       </div>
+      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Quantité minimum à acheter <span className="text-red-500">*</span>
+          {isGift ? "Quantité à acheter pour recevoir le cadeau" : "Quantité minimum à acheter"}{" "}
+          <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -274,36 +435,56 @@ function PromotionFormFields({
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Le client doit acheter au moins cette quantité pour bénéficier du prix promotionnel.
+          {isGift
+            ? "Le labo reçoit le cadeau dès qu'il achète cette quantité."
+            : "Le client doit acheter au moins cette quantité pour bénéficier du prix promotionnel."}
         </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          {option.label} offert{form.itemType === "machine" ? "e" : ""} gratuitement{" "}
-          <span className="text-gray-400 font-normal">(optionnel)</span>
-        </label>
-        <SupplierCatalogSearchSelect
-          kind={form.itemType}
-          value={form.id_product_free}
-          selectedLabel={form.freeLabel || undefined}
-          excludeIds={form.id_product ? [form.id_product] : []}
-          onChange={(id, selected) =>
-            setForm((prev) => ({
-              ...prev,
-              id_product_free: id,
-              freeLabel: selected?.name || "",
-            }))
-          }
-          placeholder={`Rechercher ${option.article} offert…`}
-          emptyLabel={`Aucun ${option.label.toLowerCase()} trouvé`}
-          focusRingClassName="focus:ring-amber-500 focus:border-amber-500"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Si renseigné, le client reçoit cet élément gratuitement lorsqu&apos;il achète celui en
-          promotion (quantité minimum respectée).
-        </p>
-      </div>
+      {isGift && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            {option.label} offert{form.itemType === "machine" ? "e" : ""} gratuitement{" "}
+            <span className="text-red-500">*</span>
+          </label>
+          <SupplierCatalogSearchSelect
+            kind={form.itemType}
+            value={form.id_product_free}
+            selectedLabel={form.freeLabel || undefined}
+            excludeIds={form.id_product ? [form.id_product] : []}
+            disabled={!hasSelected}
+            onChange={(id, selected) =>
+              setForm((prev) => ({
+                ...prev,
+                id_product_free: id,
+                freeLabel: selected?.name || "",
+                freeImage: selected?.images?.[0] || "",
+                freePrice: selected && selected.price > 0 ? String(selected.price) : "",
+              }))
+            }
+            placeholder={
+              hasSelected
+                ? `Rechercher ${option.article} à offrir…`
+                : `Choisissez d'abord ${option.article} à acheter`
+            }
+            emptyLabel={`Aucun ${option.label.toLowerCase()} trouvé`}
+            focusRingClassName="focus:ring-amber-500 focus:border-amber-500"
+          />
+          {form.id_product_free ? (
+            <SelectedItemCard
+              label="Offert gratuitement"
+              name={form.freeLabel}
+              image={form.freeImage}
+              price={form.freePrice}
+              tone="amber"
+            />
+          ) : (
+            <p className="text-xs text-gray-500 mt-1">
+              Cet article est donné gratuitement au labo quand il achète le premier.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -383,11 +564,76 @@ export default function PromotionsPage() {
             id_product: "",
             id_product_free: "",
             productLabel: "",
+            productImage: "",
             freeLabel: "",
+            freeImage: "",
+            freePrice: "",
             normal_price: "",
             price_discount: "",
           }
     );
+  };
+
+  const handleOfferTypeChange = (type: OfferType, isUpdate = false) => {
+    const setForm = isUpdate ? setUpdateForm : setCreateForm;
+    setForm((prev) =>
+      prev.offerType === type
+        ? prev
+        : type === "price"
+          ? {
+              ...prev,
+              offerType: type,
+              id_product_free: "",
+              freeLabel: "",
+              freeImage: "",
+              freePrice: "",
+              price_discount: "",
+            }
+          : { ...prev, offerType: type, price_discount: "" }
+    );
+  };
+
+  /** Gift offers keep the item at its current price; price offers need a real discount. */
+  const buildPromotionPayload = (form: PromotionFormState): {
+    error?: string;
+    normal_price?: number;
+    price_discount?: number;
+    min_quantity?: number;
+    id_product_free?: string | null;
+  } => {
+    const parsed = parseFormNumbers(form);
+    if (
+      !form.id_product ||
+      !form.start_day ||
+      !form.end_day ||
+      Number.isNaN(parsed.normal_price) ||
+      Number.isNaN(parsed.min_quantity)
+    ) {
+      return { error: "Veuillez remplir tous les champs correctement" };
+    }
+    if (form.offerType === "gift") {
+      if (!form.id_product_free) {
+        return { error: "Choisissez l'article offert gratuitement" };
+      }
+      return {
+        normal_price: parsed.normal_price,
+        price_discount: parsed.normal_price,
+        min_quantity: parsed.min_quantity,
+        id_product_free: form.id_product_free,
+      };
+    }
+    if (Number.isNaN(parsed.price_discount)) {
+      return { error: "Saisissez le prix promotionnel" };
+    }
+    if (parsed.price_discount >= parsed.normal_price) {
+      return { error: "Le prix promotionnel doit être inférieur au prix actuel" };
+    }
+    return {
+      normal_price: parsed.normal_price,
+      price_discount: parsed.price_discount,
+      min_quantity: parsed.min_quantity,
+      id_product_free: null,
+    };
   };
 
   const handleProductSelect = (
@@ -402,18 +648,23 @@ export default function PromotionsPage() {
           ...prev,
           id_product: "",
           productLabel: "",
+          productImage: "",
           normal_price: "",
         };
       }
+      const freeIsSame = prev.id_product_free === productId;
       return {
         ...prev,
         id_product: productId,
         productLabel: option.name,
+        productImage: option.images?.[0] || "",
         normal_price: option.price > 0 ? String(option.price) : "",
         price_discount:
           isUpdate || prev.id_product === productId ? prev.price_discount : "",
-        id_product_free: prev.id_product_free === productId ? "" : prev.id_product_free,
-        freeLabel: prev.id_product_free === productId ? "" : prev.freeLabel,
+        id_product_free: freeIsSame ? "" : prev.id_product_free,
+        freeLabel: freeIsSame ? "" : prev.freeLabel,
+        freeImage: freeIsSame ? "" : prev.freeImage,
+        freePrice: freeIsSame ? "" : prev.freePrice,
       };
     });
   };
@@ -439,16 +690,9 @@ export default function PromotionsPage() {
     setSuccess(null);
 
     try {
-      const parsed = parseFormNumbers(createForm);
-      if (
-        !createForm.id_product ||
-        !createForm.start_day ||
-        !createForm.end_day ||
-        Number.isNaN(parsed.normal_price) ||
-        Number.isNaN(parsed.price_discount) ||
-        Number.isNaN(parsed.min_quantity)
-      ) {
-        setError("Veuillez remplir tous les champs correctement");
+      const payload = buildPromotionPayload(createForm);
+      if (payload.error) {
+        setError(payload.error);
         setIsSubmitting(false);
         return;
       }
@@ -456,12 +700,12 @@ export default function PromotionsPage() {
       const result = await createPromotion({
         itemType: createForm.itemType,
         id_product: createForm.id_product,
-        id_product_free: createForm.id_product_free || null,
+        id_product_free: payload.id_product_free ?? null,
         start_day: createForm.start_day,
         end_day: createForm.end_day,
-        normal_price: parsed.normal_price,
-        price_discount: parsed.price_discount,
-        min_quantity: parsed.min_quantity,
+        normal_price: payload.normal_price!,
+        price_discount: payload.price_discount!,
+        min_quantity: payload.min_quantity!,
       });
 
       if (result.success) {
@@ -482,11 +726,18 @@ export default function PromotionsPage() {
   const handleOpenUpdate = (promotion: Promotion) => {
     setSelectedPromotion(promotion);
     setUpdateForm({
+      offerType: promotion.id_product_free ? "gift" : "price",
       itemType: promotion.itemType || "product",
       id_product: promotion.id_product,
       id_product_free: promotion.id_product_free || "",
       productLabel: promotion.product?.name || "",
+      productImage: promotion.product?.images?.[0] || "",
       freeLabel: promotion.freeProduct?.name || "",
+      freeImage: promotion.freeProduct?.images?.[0] || "",
+      freePrice:
+        promotion.freeProduct?.sellingPrice && promotion.freeProduct.sellingPrice > 0
+          ? String(promotion.freeProduct.sellingPrice)
+          : "",
       price_discount: String(promotion.price_discount),
       normal_price: String(promotion.normal_price),
       min_quantity: String(promotion.min_quantity),
@@ -505,16 +756,9 @@ export default function PromotionsPage() {
     setSuccess(null);
 
     try {
-      const parsed = parseFormNumbers(updateForm);
-      if (
-        !updateForm.id_product ||
-        !updateForm.start_day ||
-        !updateForm.end_day ||
-        Number.isNaN(parsed.normal_price) ||
-        Number.isNaN(parsed.price_discount) ||
-        Number.isNaN(parsed.min_quantity)
-      ) {
-        setError("Veuillez remplir tous les champs correctement");
+      const payload = buildPromotionPayload(updateForm);
+      if (payload.error) {
+        setError(payload.error);
         setIsSubmitting(false);
         return;
       }
@@ -522,12 +766,12 @@ export default function PromotionsPage() {
       const result = await updatePromotion(selectedPromotion.id, {
         itemType: updateForm.itemType,
         id_product: updateForm.id_product,
-        id_product_free: updateForm.id_product_free || null,
+        id_product_free: payload.id_product_free ?? null,
         start_day: updateForm.start_day,
         end_day: updateForm.end_day,
-        normal_price: parsed.normal_price,
-        price_discount: parsed.price_discount,
-        min_quantity: parsed.min_quantity,
+        normal_price: payload.normal_price!,
+        price_discount: payload.price_discount!,
+        min_quantity: payload.min_quantity!,
       });
 
       if (result.success) {
@@ -661,10 +905,19 @@ export default function PromotionsPage() {
                       </td>
                       <td className="py-3 px-3">{promotion.normal_price.toLocaleString("fr-FR")} DA</td>
                       <td className="py-3 px-3 text-green-700 font-semibold">
-                        {promotion.price_discount.toLocaleString("fr-FR")} DA
-                        <span className="text-xs text-gray-500 ml-1">
-                          (-{discountPercent(promotion.normal_price, promotion.price_discount)}%)
-                        </span>
+                        {promotion.price_discount < promotion.normal_price ? (
+                          <>
+                            {promotion.price_discount.toLocaleString("fr-FR")} DA
+                            <span className="text-xs text-gray-500 ml-1">
+                              (-{discountPercent(promotion.normal_price, promotion.price_discount)}%)
+                            </span>
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            <Gift className="h-3.5 w-3.5" />
+                            Produit offert
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3">
                         <span className="inline-flex items-center gap-1">
@@ -747,6 +1000,7 @@ export default function PromotionsPage() {
                   setForm={setCreateForm}
                   onKindChange={handleKindChange}
                   onProductSelect={handleProductSelect}
+                  onOfferTypeChange={handleOfferTypeChange}
                 />
                 <div className="flex gap-3 pt-2">
                   <button
@@ -795,6 +1049,7 @@ export default function PromotionsPage() {
                   setForm={setUpdateForm}
                   onKindChange={handleKindChange}
                   onProductSelect={handleProductSelect}
+                  onOfferTypeChange={handleOfferTypeChange}
                   isUpdate
                 />
                 <div className="flex gap-3 pt-2">
