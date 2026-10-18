@@ -1607,6 +1607,96 @@ function PublicitePageContent() {
                           </tbody>
                         </table>
                       </div>
+
+                      <div className="md:hidden divide-y divide-gray-100 border-t border-gray-200">
+                        {group.history.map((record) => {
+                          const status = getSponsorStatus(record);
+                          const duration = `${record.time} ${
+                            record.timeUnit === "hours"
+                              ? record.time === 1
+                                ? "heure"
+                                : "heures"
+                              : record.time === 1
+                                ? "jour"
+                                : "jours"
+                          }`;
+                          return (
+                            <div key={record.id} className="p-3 space-y-2.5">
+                              <div className="flex items-start gap-3">
+                                {record.image ? (
+                                  <a
+                                    href={getMediaUrl(record.image)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0"
+                                    title="Voir l'image sponsor"
+                                  >
+                                    <img
+                                      src={getMediaUrl(record.image)}
+                                      alt=""
+                                      className="h-12 w-12 rounded-lg object-cover border border-gray-200"
+                                    />
+                                  </a>
+                                ) : (
+                                  <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-gray-400" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {record.price.toLocaleString("fr-FR")} DA
+                                    </p>
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.className}`}
+                                    >
+                                      {status.label}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    {duration} · {formatDate(record.start_time)} →{" "}
+                                    {formatDate(record.end_time)}
+                                  </p>
+                                  <p className="text-[11px] text-gray-400">
+                                    Créé le {record.createdAt ? formatDate(record.createdAt) : "—"}
+                                  </p>
+                                </div>
+                              </div>
+                              {(record.video || !record.payment_status) && (
+                                <div className="flex gap-2">
+                                  {record.video ? (
+                                    <a
+                                      href={getMediaUrl(record.video)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 text-xs font-semibold text-purple-700 active:bg-purple-100"
+                                    >
+                                      <Video className="w-4 h-4" />
+                                      Voir la vidéo
+                                    </a>
+                                  ) : null}
+                                  {!record.payment_status && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleCompletePayment(record.id)}
+                                      disabled={resumingPaymentId === record.id}
+                                      className="flex-1 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-amber-600 text-xs font-semibold text-white active:bg-amber-700 disabled:opacity-50"
+                                    >
+                                      {resumingPaymentId === record.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <CreditCard className="w-4 h-4" />
+                                      )}
+                                      Compléter le paiement
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      </>
                     )}
                   </div>
                 );
