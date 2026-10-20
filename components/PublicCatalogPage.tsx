@@ -34,6 +34,9 @@ import LoginAlert from "@/components/LoginAlert";
 import CatalogPrice from "@/components/CatalogPrice";
 import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
+import { inStockFirst } from "@/lib/stock-order";
+import FamilleFilterInput from "@/components/FamilleFilterInput";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BackButton from "@/components/BackButton";
 
 type CatalogKind = "machine" | "service";
@@ -81,6 +84,10 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [familleInput, setFamilleInput] = useState("");
+  const debouncedFamille = useDebouncedValue(familleInput.trim(), 400);
+  /** Famille filter is a machine (and product) column — services ignore it. */
+  const famille = kind === "machine" ? debouncedFamille : "";
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState("all");
   const [filterSousCategoryId, setFilterSousCategoryId] = useState("all");
@@ -171,6 +178,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 : {}
             : {}),
           limit: PAGE_SIZE,
+          ...(famille ? { famille } : {}),
         };
         const result =
           kind === "machine"
@@ -208,8 +216,8 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
-  }, [catalogReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry) or the famille filter changes
+  }, [catalogReady, famille]);
 
   const loadMoreItems = useCallback(async () => {
     if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
@@ -235,6 +243,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
         : {}),
       limit: PAGE_SIZE,
       cursor: nextCursor,
+      ...(famille ? { famille } : {}),
     };
 
     try {
@@ -270,6 +279,7 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
     requiresWilayaForCatalog,
     userLocation?.wilaya,
     locationStatus,
+    famille,
   ]);
 
   useEffect(() => {
@@ -348,14 +358,17 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
       );
     });
 
-    if (priceSort === "default") return matched;
-
-    return [...matched].sort((a, b) => {
-      const pa = Number(a.price) || 0;
-      const pb = Number(b.price) || 0;
-      return priceSort === "asc" ? pa - pb : pb - pa;
-    });
+    const ordered =
+      priceSort === "default"
+        ? matched
+        : [...matched].sort((a, b) => {
+            const pa = Number(a.price) || 0;
+            const pb = Number(b.price) || 0;
+            return priceSort === "asc" ? pa - pb : pb - pa;
+          });
+    return kind === "service" ? ordered : inStockFirst(ordered);
   }, [
+    kind,
     items,
     searchTerm,
     filterCategoryId,
@@ -426,6 +439,14 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                   />
                 </div>
               </div>
+
+              {kind === "machine" && (
+                <FamilleFilterInput
+                  value={familleInput}
+                  onChange={setFamilleInput}
+                  busy={isLoading && Boolean(famille)}
+                />
+              )}
 
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">Catégorie</label>

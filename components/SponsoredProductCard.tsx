@@ -94,7 +94,7 @@ export default function SponsoredProductCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-purple-600 px-2.5 py-1 text-xs font-bold text-white shadow-lg">
           <Sparkles className="h-3.5 w-3.5" />
-          Sponsorisé
+          Publicité
         </div>
         <div className="absolute bottom-3 left-3 right-3">
           <p className="line-clamp-2 text-lg font-bold text-white drop-shadow-md">{product.name}</p>

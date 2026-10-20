@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,6 +42,7 @@ import {
   getSupplierDetailedStatistics,
 } from "@/lib/api";
 import { downloadSupplierStatisticsPdf } from "@/lib/supplier-statistics-pdf";
+import { collectPdfCharts } from "@/lib/pdf-report-charts";
 
 const PERIODS: Array<{ id: StatsPeriod; label: string; hint: string }> = [
   { id: "1m", label: "Ce mois", hint: "Mois en cours" },
@@ -73,6 +74,7 @@ export default function SupplierStatisticsPage() {
   const [pdfDone, setPdfDone] = useState(false);
   const [pdfPressed, setPdfPressed] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -104,7 +106,11 @@ export default function SupplierStatisticsPage() {
     setPdfDone(false);
     setPdfError(null);
     try {
-      await downloadSupplierStatisticsPdf({ statistics, profile });
+      await downloadSupplierStatisticsPdf({
+        statistics,
+        profile,
+        charts: collectPdfCharts(reportRef.current),
+      });
       setPdfDone(true);
       window.setTimeout(() => setPdfDone(false), 2200);
     } catch (err) {
@@ -409,7 +415,7 @@ export default function SupplierStatisticsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={reportRef} className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -590,7 +596,7 @@ export default function SupplierStatisticsPage() {
               <BarChart3 className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Revenus mensuels">
               <Bar data={monthlyRevenueBarConfig} options={barChartOptions} />
                 </div>
           </div>
@@ -608,7 +614,10 @@ export default function SupplierStatisticsPage() {
                 </p>
               </div>
             </div>
-            <div className="h-80">
+            <div
+              className="h-80"
+              data-pdf-chart={`Revenus quotidiens${statistics.dailyRevenueMonth ? ` — ${statistics.dailyRevenueMonth}` : ""}`}
+            >
               <Scatter data={dailyRevenueScatterConfig} options={scatterChartOptions} />
             </div>
           </div>
@@ -624,7 +633,7 @@ export default function SupplierStatisticsPage() {
               <ShoppingCart className="w-5 h-5 text-red-600" />
               <h3 className="text-lg font-bold text-gray-900">Réserves par Statut</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Réserves par statut">
               <Pie data={ordersByStatusPieConfig} options={chartOptions} />
             </div>
           </div>
@@ -637,7 +646,7 @@ export default function SupplierStatisticsPage() {
               <DollarSign className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus par Statut</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Revenus par statut">
               <Doughnut data={revenueByStatusDoughnutConfig} options={chartOptions} />
             </div>
           </div>
@@ -833,7 +842,7 @@ export default function SupplierStatisticsPage() {
               <Package className="w-5 h-5 text-pink-600" />
               <h3 className="text-lg font-bold text-gray-900">Top Produits par Quantité Vendue</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Top produits par quantité vendue">
               <Bar data={topProductsBarConfig} options={barChartOptions} />
             </div>
           </div>
@@ -846,7 +855,7 @@ export default function SupplierStatisticsPage() {
               <Package className="w-5 h-5 text-orange-600" />
               <h3 className="text-lg font-bold text-gray-900">Top Produits par Revenus</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Top produits par revenus">
               <Bar data={topProductsByRevenueBarConfig} options={barChartOptions} />
             </div>
           </div>
@@ -859,7 +868,7 @@ export default function SupplierStatisticsPage() {
               <Users className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Top Clients par Montant Dépensé</h3>
             </div>
-            <div className="h-80">
+            <div className="h-80" data-pdf-chart="Top clients par montant dépensé">
               <Bar data={topCustomersBarConfig} options={barChartOptions} />
               </div>
         </div>
@@ -991,8 +1000,8 @@ export default function SupplierStatisticsPage() {
             Exporter le rapport comptable
           </p>
           <p className="text-sm text-slate-600 mt-0.5">
-            PDF structuré : synthèse, comparaison, mensuel, produits et clients — période «{" "}
-            {periodMeta?.label} ».
+            PDF complet : synthèse, comparaison, graphiques, mensuel, quotidien, statuts, produits
+            et clients — période « {periodMeta?.label} ».
           </p>
         </div>
         <button

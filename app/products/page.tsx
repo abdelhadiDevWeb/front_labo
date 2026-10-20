@@ -33,6 +33,9 @@ import { useUserLocation } from "@/hooks/useUserLocation";
 import { normalizeWilaya, sortProductsByProximity } from "@/lib/product-proximity";
 import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-wilayas";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
+import { inStockFirst } from "@/lib/stock-order";
+import FamilleFilterInput from "@/components/FamilleFilterInput";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BackButton from "@/components/BackButton";
 
 const PAGE_SIZE = 48;
@@ -51,6 +54,8 @@ export default function ProductsPage() {
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [familleInput, setFamilleInput] = useState("");
+  const famille = useDebouncedValue(familleInput.trim(), 400);
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
   const [filterSousCategoryId, setFilterSousCategoryId] = useState<string>("all");
@@ -144,6 +149,7 @@ export default function ProductsPage() {
                 : {}
             : {}),
           limit: PAGE_SIZE,
+          ...(famille ? { famille } : {}),
         });
         if (cancelled) return;
         if (result.success && result.data) {
@@ -174,8 +180,8 @@ export default function ProductsPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
-  }, [catalogReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry) or the famille filter changes
+  }, [catalogReady, famille]);
 
   const loadMoreProducts = useCallback(async () => {
     if (!hasMore || !nextCursor || isLoading || isLoadingMore || loadMoreLockRef.current) {
@@ -203,6 +209,7 @@ export default function ProductsPage() {
           : {}),
         limit: PAGE_SIZE,
         cursor: nextCursor,
+        ...(famille ? { famille } : {}),
       });
 
       if (result.success && result.data) {
@@ -228,6 +235,7 @@ export default function ProductsPage() {
     requiresWilayaForCatalog,
     userLocation?.wilaya,
     locationStatus,
+    famille,
   ]);
 
   useEffect(() => {
@@ -381,12 +389,13 @@ export default function ProductsPage() {
     };
   }, [filteredProductIdsKey, userLat, userLng, userWilaya, priceSort]);
 
-  const productsToShow =
+  const productsToShow = inStockFirst(
     priceSort !== "default"
       ? filteredProducts
       : userLocation && locationStatus === "granted" && displayProducts.length > 0
         ? displayProducts
-        : filteredProducts;
+        : filteredProducts
+  );
 
   // Handle product comparison selection
   const toggleComparison = (productId: string) => {
@@ -467,9 +476,10 @@ export default function ProductsPage() {
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Filtres</span>
-                {showFilters && (
+                  {showFilters && (
                   <span className="ml-0.5 px-1.5 sm:px-2 py-0.5 bg-white/20 rounded-full text-xs">
                     {[
+                      Boolean(famille),
                       filterCategoryId !== "all",
                       filterSousCategoryId !== "all",
                       filterBrand !== "all",
@@ -502,6 +512,7 @@ export default function ProductsPage() {
                     setFilterSupplier("all");
                     setFilterDeliveryTime("all");
                     setPriceSort("default");
+                    setFamilleInput("");
                   }}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                 >
@@ -510,6 +521,12 @@ export default function ProductsPage() {
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+                <FamilleFilterInput
+                  value={familleInput}
+                  onChange={setFamilleInput}
+                  busy={isLoading && Boolean(famille)}
+                />
+
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">

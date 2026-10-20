@@ -37,6 +37,11 @@ body {
   box-sizing: border-box;
 }
 
+/* Private page restored by Back/Forward: hidden until SessionGuard confirms the session */
+html[data-session-check] body {
+  visibility: hidden;
+}
+
 /* Space taken by the lab bottom tab bar (phones only, set by LabBottomNav) */
 :root {
   --lab-nav-offset: 0px;

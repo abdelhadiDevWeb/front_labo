@@ -66,7 +66,7 @@ export const MARKETPLACE_MENU: HeaderMenuLink[] = [
   },
   {
     href: "/products/sponsored",
-    label: "Tous les sponsors",
+    label: "Toutes les publicités",
     icon: Megaphone,
     hoverClass: "hover:bg-purple-50 hover:text-purple-600",
   },
@@ -279,7 +279,7 @@ const SHORT_LABELS: Record<string, string> = {
   "/products": "Produits",
   "/machines": "Machines",
   "/services": "Services",
-  "/products/sponsored": "Sponsors",
+  "/products/sponsored": "Publicités",
   "/products/promotions": "Promotions",
   "/products/group-sales": "Ventes groupées",
 };

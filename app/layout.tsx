@@ -4,6 +4,7 @@ import "./globals.css";
 import { CartProvider } from "@/contexts/CartContext";
 import ChunkLoadRecovery from "@/components/ChunkLoadRecovery";
 import LabBottomNav from "@/components/LabBottomNav";
+import SessionGuard from "@/components/SessionGuard";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -168,6 +169,7 @@ export default function RootLayout({
         />
         <CartProvider>
           <ChunkLoadRecovery />
+          <SessionGuard />
           {children}
           <LabBottomNav />
         </CartProvider>

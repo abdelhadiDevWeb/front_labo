@@ -298,7 +298,7 @@ function ProductsPageContent() {
         }
       }
     } catch {
-      setSponsorError("Erreur lors du chargement des données sponsor");
+      setSponsorError("Erreur lors du chargement des données de publicité");
     } finally {
       setIsLoadingSponsor(false);
     }
@@ -441,8 +441,8 @@ function ProductsPageContent() {
               : null;
         setSponsorSuccess(
           durationLabel && created
-            ? `Sponsoring activé (${durationLabel}) : ${formatDateTime(created.start_time)} → ${formatDateTime(created.end_time)}`
-            : "Sponsoring activé via votre abonnement (sans paiement) !"
+            ? `Publicité activée (${durationLabel}) : ${formatDateTime(created.start_time)} → ${formatDateTime(created.end_time)}`
+            : "Publicité activée via votre abonnement (sans paiement) !"
         );
         setShowSubscriptionSponsorModal(false);
         resetSponsorMedia();
@@ -453,7 +453,7 @@ function ProductsPageContent() {
         return;
       }
 
-      setSponsorError(result.message || "Impossible de créer le sponsoring");
+      setSponsorError(result.message || "Impossible de créer la publicité");
     } catch {
       setSponsorError("Une erreur est survenue");
     } finally {
@@ -487,7 +487,7 @@ function ProductsPageContent() {
         return;
       }
 
-      setSponsorError(result.message || "Impossible de créer le sponsoring");
+      setSponsorError(result.message || "Impossible de créer la publicité");
     } catch {
       setSponsorError("Une erreur est survenue");
     } finally {
@@ -700,7 +700,7 @@ function ProductsPageContent() {
 
     return (
       <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <p className="text-sm font-semibold text-gray-800">Média du sponsoring (optionnel)</p>
+        <p className="text-sm font-semibold text-gray-800">Média de la publicité (optionnel)</p>
         <p className="text-xs text-gray-500">
           Choisissez une image <strong>ou</strong> une vidéo : uploadez-en une nouvelle, ou
           choisissez parmi celles {ofKind}.
@@ -1077,7 +1077,7 @@ function ProductsPageContent() {
       <>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Que voulez-vous sponsoriser ? <span className="text-red-500">*</span>
+            Que voulez-vous mettre en publicité ? <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(["product", "machine", "service"] as MarketplaceKind[]).map((kind) => {
@@ -1108,7 +1108,7 @@ function ProductsPageContent() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            {kindName} à sponsoriser <span className="text-red-500">*</span>
+            {kindName} à mettre en publicité <span className="text-red-500">*</span>
           </label>
           <select
             required
@@ -1133,14 +1133,14 @@ function ProductsPageContent() {
             </p>
           ) : sponsorItemsForKind.length === 0 ? (
             <p className="text-xs text-amber-700 mt-2">
-              Tous vos {kindPlural} ont un sponsoring actif ou en attente. Attendez la fin de la période
+              Tous vos {kindPlural} ont une publicité active ou en attente. Attendez la fin de la période
               en cours.
             </p>
           ) : excludedCount > 0 ? (
             <p className="text-xs text-gray-500 mt-2">
               {excludedCount} {kindName.toLowerCase()}
               {excludedCount > 1 ? "s" : ""} exclu{sponsorItemKind === "machine" ? "e" : ""}
-              {excludedCount > 1 ? "s" : ""} (sponsoring actif ou en attente)
+              {excludedCount > 1 ? "s" : ""} (publicité active ou en attente)
             </p>
           ) : null}
         </div>
@@ -1187,7 +1187,7 @@ function ProductsPageContent() {
           {activeSponsor && (
             <span className="absolute top-3 left-3 px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
               <Megaphone className="w-3 h-3" />
-              Sponsorisé
+              Publicité
             </span>
           )}
         </div>
@@ -1246,7 +1246,7 @@ function ProductsPageContent() {
 
           {activeSponsor && (
             <p className="text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
-              Sponsoring actif jusqu&apos;au {formatDate(activeSponsor.end_time)}
+              Publicité active jusqu&apos;au {formatDate(activeSponsor.end_time)}
             </p>
           )}
           {pendingSponsor && !activeSponsor && (

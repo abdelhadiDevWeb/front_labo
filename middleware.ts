@@ -10,6 +10,8 @@ const PROTECTED_PREFIXES = [
   "/suppliers",
   "/favorable",
   "/statistics",
+  "/orders",
+  "/profile",
 ];
 
 /** Never index these (private app + auth utilities). */
@@ -50,6 +52,12 @@ export function middleware(request: NextRequest) {
 
   if (matchesPrefix(pathname, NOINDEX_PREFIXES)) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+
+  // Private spaces must never be served from the browser cache / back-forward cache:
+  // after logout, "Back" then hits this middleware again and redirects to /login.
+  if (matchesPrefix(pathname, PROTECTED_PREFIXES)) {
+    response.headers.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
   }
 
   return response;

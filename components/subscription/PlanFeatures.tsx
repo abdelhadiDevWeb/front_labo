@@ -53,7 +53,7 @@ export function PlanSponsorInfo({ plan }: { plan: PlanLike }) {
     return (
       <div className="flex items-start gap-2 text-gray-500 text-sm">
         <Megaphone className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-        <span>Aucun sponsoring inclus</span>
+        <span>Aucune publicité incluse</span>
       </div>
     );
   }
@@ -63,12 +63,12 @@ export function PlanSponsorInfo({ plan }: { plan: PlanLike }) {
       <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
         <Megaphone className="w-4 h-4 text-amber-600 shrink-0" />
         <span>
-          {sponsorsCount} sponsor{sponsorsCount > 1 ? "s" : ""} inclus
+          {sponsorsCount} publicité{sponsorsCount > 1 ? "s" : ""} incluse{sponsorsCount > 1 ? "s" : ""}
         </span>
       </div>
       <div className="flex items-center gap-2 text-amber-900 text-sm font-medium">
         <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
-        <span>Temps de chaque sponsor&nbsp;: {formatSponsorHours(durationHours)}</span>
+        <span>Durée de chaque publicité&nbsp;: {formatSponsorHours(durationHours)}</span>
       </div>
     </div>
   );

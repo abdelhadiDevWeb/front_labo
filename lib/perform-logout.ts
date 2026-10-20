@@ -28,7 +28,8 @@ export const performLogout = async (
 
     // Hard navigation remounts the page so auth/cart UI cannot stay "logged in"
     // after logout when redirecting to the same route (especially /home).
-    window.location.assign(redirectTo);
+    // `replace` drops the private page from history so "Back" cannot return to it.
+    window.location.replace(redirectTo);
     return;
   }
 

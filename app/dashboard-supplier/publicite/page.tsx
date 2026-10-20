@@ -272,7 +272,7 @@ function PublicitePageContent() {
         }
       }
     } catch {
-      setSponsorError("Erreur lors du chargement des données sponsor");
+      setSponsorError("Erreur lors du chargement des données de publicité");
     } finally {
       setIsLoadingSponsor(false);
     }
@@ -337,12 +337,12 @@ function PublicitePageContent() {
       if (sponsorParam === "success" && ref) {
         const verifyResult = await verifySponsorProductPayment(ref);
         if (verifyResult.success && verifyResult.data?.paid) {
-          setSponsorSuccess("Paiement confirmé ! Votre sponsoring est maintenant actif.");
+          setSponsorSuccess("Paiement confirmé ! Votre publicité est maintenant active.");
         } else {
           setSponsorSuccess("Paiement réussi ! Confirmation en cours...");
         }
       } else if (sponsorParam === "success") {
-        setSponsorSuccess("Paiement réussi ! Votre sponsoring sera activé sous peu.");
+        setSponsorSuccess("Paiement réussi ! Votre publicité sera activée sous peu.");
       } else if (sponsorParam === "failed") {
         setSponsorError("Le paiement a échoué ou a été annulé.");
       }
@@ -424,8 +424,8 @@ function PublicitePageContent() {
               : null;
         setSponsorSuccess(
           durationLabel && created
-            ? `Sponsoring activé (${durationLabel}) : ${formatDateTime(created.start_time)} → ${formatDateTime(created.end_time)}`
-            : "Sponsoring activé via votre abonnement (sans paiement) !"
+            ? `Publicité activée (${durationLabel}) : ${formatDateTime(created.start_time)} → ${formatDateTime(created.end_time)}`
+            : "Publicité activée via votre abonnement (sans paiement) !"
         );
         setShowSubscriptionSponsorModal(false);
         resetSponsorMedia();
@@ -436,7 +436,7 @@ function PublicitePageContent() {
         return;
       }
 
-      setSponsorError(result.message || "Impossible de créer le sponsoring");
+      setSponsorError(result.message || "Impossible de créer la publicité");
     } catch {
       setSponsorError("Une erreur est survenue");
     } finally {
@@ -470,7 +470,7 @@ function PublicitePageContent() {
         return;
       }
 
-      setSponsorError(result.message || "Impossible de créer le sponsoring");
+      setSponsorError(result.message || "Impossible de créer la publicité");
     } catch {
       setSponsorError("Une erreur est survenue");
     } finally {
@@ -696,7 +696,7 @@ function PublicitePageContent() {
 
     return (
       <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-        <p className="text-sm font-semibold text-gray-800">Média du sponsoring (optionnel)</p>
+        <p className="text-sm font-semibold text-gray-800">Média de la publicité (optionnel)</p>
         <p className="text-xs text-gray-500">
           Choisissez une image <strong>ou</strong> une vidéo : uploadez-en une nouvelle, ou
           choisissez parmi celles {ofKind}.
@@ -976,7 +976,7 @@ function PublicitePageContent() {
       <>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Que voulez-vous sponsoriser ? <span className="text-red-500">*</span>
+            Que voulez-vous mettre en publicité ? <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(["product", "machine", "service"] as MarketplaceKind[]).map((kind) => {
@@ -1003,7 +1003,7 @@ function PublicitePageContent() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            {kindName} à sponsoriser <span className="text-red-500">*</span>
+            {kindName} à mettre en publicité <span className="text-red-500">*</span>
           </label>
           <SupplierCatalogSearchSelect
             kind={sponsorItemKind}
@@ -1021,7 +1021,7 @@ function PublicitePageContent() {
           />
           <p className="text-xs text-gray-500 mt-2">
             Tapez un nom ou une marque — la recherche se fait sur le serveur. Les éléments déjà
-            sponsorisés (actif ou en attente) sont exclus automatiquement.
+            en publicité (active ou en attente) sont exclus automatiquement.
           </p>
         </div>
 
@@ -1067,7 +1067,7 @@ function PublicitePageContent() {
           {activeSponsor && (
             <span className="absolute top-3 left-3 px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
               <Megaphone className="w-3 h-3" />
-              Sponsorisé
+              Publicité
             </span>
           )}
         </div>
@@ -1126,7 +1126,7 @@ function PublicitePageContent() {
 
           {activeSponsor && (
             <p className="text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
-              Sponsoring actif jusqu&apos;au {formatDate(activeSponsor.end_time)}
+              Publicité active jusqu&apos;au {formatDate(activeSponsor.end_time)}
             </p>
           )}
           {pendingSponsor && !activeSponsor && (
@@ -1185,7 +1185,7 @@ function PublicitePageContent() {
             Publicité
           </h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
-            Gérez le sponsoring de vos produits, machines et services (abonnement et VIP)
+            Gérez la publicité de vos produits, machines et services (abonnement et VIP)
           </p>
         </div>
       </div>
@@ -1219,10 +1219,10 @@ function PublicitePageContent() {
             <div className="min-w-0">
               <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 shrink-0" />
-                Sponsoring abonnement
+                Publicité abonnement
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Utilisez les sponsors inclus dans votre abonnement actif (sans paiement) pour vos
+                Utilisez les publicités incluses dans votre abonnement actif (sans paiement) pour vos
                 produits, machines ou services
               </p>
             </div>
@@ -1232,7 +1232,7 @@ function PublicitePageContent() {
               className="w-full sm:w-auto min-h-11 sm:min-h-0 shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
-              Sponsoriser (abonnement)
+              Publier (abonnement)
             </button>
           </div>
 
@@ -1250,7 +1250,7 @@ function PublicitePageContent() {
                 </p>
               </div>
               <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Durée / sponsor</p>
+                <p className="text-xs text-blue-700 font-medium">Durée / publicité</p>
                 <p className="text-base sm:text-lg font-bold text-gray-900">
                   {subscriptionSponsorDurationHours > 0
                     ? `${subscriptionSponsorDurationHours} h`
@@ -1259,7 +1259,7 @@ function PublicitePageContent() {
                 <p className="text-xs text-gray-500 mt-1">Selon votre abonnement</p>
               </div>
               <div className="min-w-0 p-3 sm:p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <p className="text-xs text-blue-700 font-medium">Sponsors inclus</p>
+                <p className="text-xs text-blue-700 font-medium">Publicités incluses</p>
                 <p className="text-base sm:text-lg font-bold text-gray-900">
                   {subscriptionQuota.sponsorsAllocated}
                 </p>
@@ -1287,7 +1287,7 @@ function PublicitePageContent() {
 
           {subscriptionQuota?.hasActiveAbonnement && subscriptionQuota.sponsorsAllocated <= 0 && (
             <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
-              Votre abonnement n&apos;inclut pas de sponsors gratuits. Utilisez le sponsoring VIP payant
+              Votre abonnement n&apos;inclut pas de publicités gratuites. Utilisez la publicité VIP payant
               ci-dessous.
             </div>
           )}
@@ -1296,8 +1296,8 @@ function PublicitePageContent() {
             subscriptionQuota.sponsorsAllocated > 0 &&
             subscriptionQuota.sponsorsRemaining <= 0 && (
               <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-                Vous n&apos;avez plus de sponsors disponibles ({subscriptionQuota.sponsorsUsed}/
-                {subscriptionQuota.sponsorsAllocated} utilisés). Vous pouvez utiliser le sponsoring VIP.
+                Vous n&apos;avez plus de publicités disponibles ({subscriptionQuota.sponsorsUsed}/
+                {subscriptionQuota.sponsorsAllocated} utilisés). Vous pouvez utiliser la publicité VIP.
               </div>
             )}
         </div>
@@ -1308,7 +1308,7 @@ function PublicitePageContent() {
             <div className="min-w-0">
               <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 shrink-0" />
-                Sponsoring VIP
+                Publicité VIP
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 Mettez en avant vos produits, machines ou services avec un pack VIP et payez en ligne
@@ -1321,7 +1321,7 @@ function PublicitePageContent() {
               className="w-full sm:w-auto min-h-11 sm:min-h-0 shrink-0 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 active:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
-              Sponsoriser VIP
+              Publier en VIP
             </button>
           </div>
 
@@ -1380,7 +1380,7 @@ function PublicitePageContent() {
 
         {activeProductIds.length > 0 && (
           <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-900">
-            {activeProductIds.length} élément{activeProductIds.length > 1 ? "s" : ""} avec sponsoring actif —
+            {activeProductIds.length} élément{activeProductIds.length > 1 ? "s" : ""} avec publicité active —
             impossible d&apos;en créer un nouveau tant que la période n&apos;est pas terminée.
           </div>
         )}
@@ -1410,7 +1410,7 @@ function PublicitePageContent() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">Aucun plan sponsor configuré par l&apos;administrateur.</p>
+            <p className="text-gray-500 text-sm">Aucun plan de publicité configuré par l&apos;administrateur.</p>
           )}
         </div>
 
@@ -1463,7 +1463,7 @@ function PublicitePageContent() {
                             </span>
                           </p>
                           <p className="text-xs text-gray-500">
-                            {historyCount} sponsoring{historyCount > 1 ? "s" : ""}
+                            {historyCount} publicité{historyCount > 1 ? "s" : ""}
                             {activeRecord
                               ? ` · actif jusqu'au ${formatDate(activeRecord.end_time)}`
                               : ""}
@@ -1536,7 +1536,7 @@ function PublicitePageContent() {
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="shrink-0"
-                                          title="Voir l'image sponsor"
+                                          title="Voir l'image de la publicité"
                                         >
                                           <img
                                             src={getMediaUrl(record.image)}
@@ -1553,7 +1553,7 @@ function PublicitePageContent() {
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:underline"
-                                          title="Voir la vidéo sponsor"
+                                          title="Voir la vidéo de la publicité"
                                         >
                                           <Video className="w-3.5 h-3.5" />
                                           Vidéo
@@ -1629,7 +1629,7 @@ function PublicitePageContent() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="shrink-0"
-                                    title="Voir l'image sponsor"
+                                    title="Voir l'image de la publicité"
                                   >
                                     <img
                                       src={getMediaUrl(record.image)}
@@ -1704,7 +1704,7 @@ function PublicitePageContent() {
             </div>
           ) : (
             <p className="text-gray-500 text-sm">
-              Aucun historique de sponsoring pour vos produits, machines ou services.
+              Aucun historique de publicité pour vos produits, machines ou services.
             </p>
           )}
         </div>
@@ -1719,7 +1719,7 @@ function PublicitePageContent() {
               <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 flex items-center justify-between rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <Crown className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">Sponsoring VIP</h3>
+                  <h3 className="text-xl font-bold text-white">Publicité VIP</h3>
                 </div>
                 <button
                   onClick={() => {
@@ -1796,7 +1796,7 @@ function PublicitePageContent() {
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6 flex items-center justify-between rounded-t-2xl">
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">Sponsoring abonnement</h3>
+                  <h3 className="text-xl font-bold text-white">Publicité abonnement</h3>
                 </div>
                 <button
                   onClick={() => {
@@ -1819,7 +1819,7 @@ function PublicitePageContent() {
                       {subscriptionQuota.sponsorsAllocated}
                     </p>
                     <p>
-                      <strong>Durée du sponsoring:</strong>{" "}
+                      <strong>Durée de la publicité :</strong>{" "}
                       {subscriptionSponsorDurationHours > 0
                         ? `${subscriptionSponsorDurationHours} heure${subscriptionSponsorDurationHours === 1 ? "" : "s"}`
                         : "non définie"}{" "}

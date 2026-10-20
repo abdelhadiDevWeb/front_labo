@@ -224,6 +224,31 @@ export const checkAuthSession = async (): Promise<boolean> => {
   }
 };
 
+/**
+ * Server-side session check that tells "logged out" apart from "network problem":
+ * `invalid` only when the backend rejects the session (after the refresh attempt in apiFetch).
+ */
+export const verifySessionStatus = async (): Promise<"valid" | "invalid" | "unknown"> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/role`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    if (response.ok) {
+      markSessionActive();
+      return "valid";
+    }
+    if (response.status === 401 || response.status === 403) {
+      markSessionInactive();
+      return "invalid";
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+};
+
 export interface SessionRole {
   role: string;
   email: string;

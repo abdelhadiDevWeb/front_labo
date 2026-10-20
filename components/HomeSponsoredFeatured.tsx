@@ -56,7 +56,7 @@ export default function HomeSponsoredFeatured() {
               En vedette
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
-              Annonces sponsorisées
+              Publicités
             </h2>
             <p className="mt-2 max-w-xl text-sm text-slate-600 sm:text-base">
               Sélection mise en avant par nos fournisseurs partenaires

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -41,6 +41,7 @@ import {
   getSessionRole,
 } from "@/lib/api";
 import { downloadLabStatisticsPdf } from "@/lib/lab-statistics-pdf";
+import { collectPdfCharts } from "@/lib/pdf-report-charts";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 
 ChartJS.register(
@@ -103,6 +104,7 @@ export default function LabStatisticsPage() {
   const [pdfDone, setPdfDone] = useState(false);
   const [pdfPressed, setPdfPressed] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const reportRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const gate = async () => {
@@ -268,7 +270,11 @@ export default function LabStatisticsPage() {
     setPdfDone(false);
     setPdfError(null);
     try {
-      await downloadLabStatisticsPdf({ statistics, profile });
+      await downloadLabStatisticsPdf({
+        statistics,
+        profile,
+        charts: collectPdfCharts(reportRef.current),
+      });
       setPdfDone(true);
       window.setTimeout(() => setPdfDone(false), 2200);
     } catch (err) {
@@ -364,7 +370,10 @@ export default function LabStatisticsPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 max-w-7xl space-y-5 sm:space-y-8">
+      <main
+        ref={reportRef}
+        className="container mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 max-w-7xl space-y-5 sm:space-y-8"
+      >
         {/* Period selector */}
         <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-3 sm:p-4 shadow-sm backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
@@ -566,7 +575,10 @@ export default function LabStatisticsPage() {
                     Dépenses {statistics.periodLabel ? `— ${statistics.periodLabel}` : ""}
                   </h2>
                 </div>
-                <div className="h-56 sm:h-72">
+                <div
+                  className="h-56 sm:h-72"
+                  data-pdf-chart={`Dépenses${statistics.periodLabel ? ` — ${statistics.periodLabel}` : ""}`}
+                >
                   {monthlyLine ? (
                     <Line data={monthlyLine} options={chartOpts} />
                   ) : (
@@ -580,7 +592,10 @@ export default function LabStatisticsPage() {
                   <BarChart3 className="w-5 h-5 text-cyan-600" />
                   Statut des réserves
                 </h2>
-                <div className="h-56 sm:h-72 flex items-center justify-center">
+                <div
+                  className="h-56 sm:h-72 flex items-center justify-center"
+                  data-pdf-chart="Statut des réserves"
+                >
                   {statusDoughnut ? (
                     <Doughnut
                       data={statusDoughnut}
@@ -615,7 +630,10 @@ export default function LabStatisticsPage() {
                     ) : null}
                   </h2>
                 </div>
-                <div className="h-52 sm:h-64">
+                <div
+                  className="h-52 sm:h-64"
+                  data-pdf-chart={`Dépenses journalières${statistics.dailySpendMonth ? ` — ${statistics.dailySpendMonth}` : ""}`}
+                >
                   {dailyBar ? <Bar data={dailyBar} options={chartOpts} /> : null}
                 </div>
               </div>
@@ -628,7 +646,7 @@ export default function LabStatisticsPage() {
                   <Package className="w-5 h-5 text-emerald-600" />
                   Produits les plus achetés
                 </h2>
-                <div className="h-56 sm:h-64 mb-4">
+                <div className="h-56 sm:h-64 mb-4" data-pdf-chart="Produits les plus achetés">
                   {productsBar ? (
                     <Bar
                       data={productsBar}
@@ -720,8 +738,8 @@ export default function LabStatisticsPage() {
                   Exporter le rapport comptable
                 </p>
                 <p className="text-sm text-slate-600 mt-0.5">
-                  PDF structuré : synthèse, comparaison, mensuel, produits et
-                  fournisseurs — période « {periodMeta?.label} ».
+                  PDF complet : synthèse, comparaison, graphiques, mensuel, journalier,
+                  statuts, produits et fournisseurs — période « {periodMeta?.label} ».
                 </p>
               </div>
               <button

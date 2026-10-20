@@ -61,6 +61,7 @@ import {
 } from "@/lib/unique-data-display";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
+import { inStockFirst } from "@/lib/stock-order";
 import { toUserFacingError } from "@/lib/sanitize-error";
 import {
   hasAuthSessionHint,
@@ -343,9 +344,7 @@ export default function HomePage() {
         if (cancelled) return;
 
         if (productsRes.success && productsRes.data?.products) {
-          const inStock = productsRes.data.products.filter((p) => p.quantity > 0);
-          const outOfStock = productsRes.data.products.filter((p) => p.quantity === 0);
-          setProducts([...inStock, ...outOfStock]);
+          setProducts(inStockFirst(productsRes.data.products));
           setProductsError(null);
         } else {
           setProductsError(
@@ -358,7 +357,7 @@ export default function HomePage() {
         }
 
         if (machinesRes.success && machinesRes.data?.machines) {
-          setMachines(machinesRes.data.machines);
+          setMachines(inStockFirst(machinesRes.data.machines));
         } else {
           setMachines([]);
         }

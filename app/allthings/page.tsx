@@ -41,6 +41,9 @@ import BackButton from "@/components/BackButton";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
 import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
+import { inStockFirst, isOutOfStock } from "@/lib/stock-order";
+import FamilleFilterInput from "@/components/FamilleFilterInput";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 type ItemKind = "reactif" | "machine" | "service";
 type KindFilter = "all" | ItemKind;
@@ -137,6 +140,8 @@ export default function AllThingsPage() {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [familleInput, setFamilleInput] = useState("");
+  const famille = useDebouncedValue(familleInput.trim(), 400);
   const [filterKind, setFilterKind] = useState<KindFilter>("all");
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [filterCategoryId, setFilterCategoryId] = useState("all");
@@ -231,12 +236,16 @@ export default function AllThingsPage() {
       setHasMoreMap({ reactif: false, machine: false, service: false });
 
       const base = { ...wilayaFilters(), limit: PAGE_SIZE };
+      const withFamille = famille ? { ...base, famille } : base;
 
       try {
+        // Services have no "Famille" column: skip them while that filter is active.
         const [productsRes, machinesRes, servicesRes] = await Promise.all([
-          getAllProducts(base),
-          getPublicMachines(base),
-          getPublicServices(base),
+          getAllProducts(withFamille),
+          getPublicMachines(withFamille),
+          famille
+            ? Promise.resolve({ success: true as const, data: { services: [], total: 0, totalCount: 0, nextCursor: null, hasMore: false } })
+            : getPublicServices(base),
         ]);
 
         if (cancelled) return;
@@ -291,8 +300,8 @@ export default function AllThingsPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry)
-  }, [catalogReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when catalogReady toggles (incl. user location retry) or the famille filter changes
+  }, [catalogReady, famille]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || isLoading || isLoadingMore || loadMoreLockRef.current) return;
@@ -300,8 +309,10 @@ export default function AllThingsPage() {
     setIsLoadingMore(true);
 
     const base = { ...wilayaFilters(), limit: PAGE_SIZE };
-    const kindsToLoad: ItemKind[] =
-      filterKind === "all" ? ["reactif", "machine", "service"] : [filterKind];
+    const withFamille = famille ? { ...base, famille } : base;
+    const kindsToLoad: ItemKind[] = (
+      filterKind === "all" ? (["reactif", "machine", "service"] as ItemKind[]) : [filterKind]
+    ).filter((kind) => !(famille && kind === "service"));
 
     try {
       const results = await Promise.all(
@@ -311,7 +322,7 @@ export default function AllThingsPage() {
             return { kind, items: [] as UnifiedItem[], nextCursor: null as string | null, more: false };
           }
           if (kind === "reactif") {
-            const res = await getAllProducts({ ...base, cursor });
+            const res = await getAllProducts({ ...withFamille, cursor });
             const list = res.success && res.data ? (res.data.products || []).map(productToUnified) : [];
             return {
               kind,
@@ -321,7 +332,7 @@ export default function AllThingsPage() {
             };
           }
           if (kind === "machine") {
-            const res = await getPublicMachines({ ...base, cursor });
+            const res = await getPublicMachines({ ...withFamille, cursor });
             const list =
               res.success && res.data
                 ? (res.data.machines || []).map((m) => catalogToUnified(m, "machine"))
@@ -381,6 +392,7 @@ export default function AllThingsPage() {
     cursors,
     hasMoreMap,
     wilayaFilters,
+    famille,
   ]);
 
   useEffect(() => {
@@ -471,12 +483,18 @@ export default function AllThingsPage() {
       );
     });
 
-    if (priceSort === "default") return matched;
-    return [...matched].sort((a, b) => {
-      const pa = Number(a.price) || 0;
-      const pb = Number(b.price) || 0;
-      return priceSort === "asc" ? pa - pb : pb - pa;
-    });
+    const ordered =
+      priceSort === "default"
+        ? matched
+        : [...matched].sort((a, b) => {
+            const pa = Number(a.price) || 0;
+            const pb = Number(b.price) || 0;
+            return priceSort === "asc" ? pa - pb : pb - pa;
+          });
+    return inStockFirst(
+      ordered,
+      (item) => item.kind !== "service" && isOutOfStock(item.quantity)
+    );
   }, [
     items,
     searchTerm,
@@ -591,6 +609,19 @@ export default function AllThingsPage() {
             </div>
 
             <div>
+              <FamilleFilterInput
+                value={familleInput}
+                onChange={setFamilleInput}
+                busy={isLoading && Boolean(famille)}
+              />
+              {famille && (
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Filtre Famille actif : produits et machines uniquement.
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Catégorie</label>
               <select
                 value={filterCategoryId}
@@ -685,6 +716,7 @@ export default function AllThingsPage() {
                 setFilterSupplier("all");
                 setPriceSort("default");
                 setSearchTerm("");
+                setFamilleInput("");
               }}
               className="w-full text-sm text-blue-600 font-medium hover:text-blue-700"
             >

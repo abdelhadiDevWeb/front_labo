@@ -1,6 +1,12 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ClientData, DetailedClientStatistics } from "@/lib/api";
+import {
+  drawPdfCharts,
+  formatPdfMoney,
+  pdfSafeText,
+  type PdfChartImage,
+} from "@/lib/pdf-report-charts";
 
 const STATUS_LABELS: Record<string, string> = {
   "en attente": "En attente",
@@ -10,8 +16,12 @@ const STATUS_LABELS: Record<string, string> = {
   arrived: "Livrée",
 };
 
-const formatDA = (n: number) =>
-  `${Math.round(n || 0).toLocaleString("fr-DZ")} DA`;
+const formatDA = formatPdfMoney;
+
+const formatDayKey = (dateKey: string) => {
+  const [year, month, day] = dateKey.split("-");
+  return `${day}/${month}/${year}`;
+};
 
 const formatMonthKey = (monthKey: string) => {
   const [year, month] = monthKey.split("-");
@@ -34,8 +44,10 @@ type JsPdfWithPages = jsPDF & {
 export async function downloadLabStatisticsPdf(options: {
   statistics: DetailedClientStatistics;
   profile: ClientData | null;
+  /** Chart snapshots taken from the statistics page. */
+  charts?: PdfChartImage[];
 }): Promise<void> {
-  const { statistics: s, profile } = options;
+  const { statistics: s, profile, charts = [] } = options;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -137,31 +149,32 @@ export async function downloadLabStatisticsPdf(options: {
     })}`,
   ];
   metaLeft.forEach((t, i) => {
-    doc.text(t, marginX + 4, y + 8 + i * 6);
+    doc.text(pdfSafeText(t), marginX + 4, y + 8 + i * 6, { maxWidth: contentW / 2 - 6 });
   });
   metaRight.forEach((t, i) => {
-    doc.text(t, marginX + contentW / 2 + 2, y + 8 + i * 6);
+    doc.text(pdfSafeText(t), marginX + contentW / 2 + 2, y + 8 + i * 6, { maxWidth: contentW / 2 - 6 });
   });
   y += 36;
 
-  // Section title helper
+  let sectionNumber = 0;
   const sectionTitle = (title: string) => {
     if (y > pageH - 40) {
       doc.addPage();
       drawHeader();
       y = 36;
     }
+    sectionNumber += 1;
     doc.setTextColor(accent[0], accent[1], accent[2]);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(title.toUpperCase(), marginX, y);
+    doc.text(`${sectionNumber}. ${title}`.toUpperCase(), marginX, y);
     doc.setDrawColor(accent[0], accent[1], accent[2]);
     doc.setLineWidth(0.5);
     doc.line(marginX, y + 2, marginX + 42, y + 2);
     y += 8;
   };
 
-  sectionTitle("1. Synthèse financière");
+  sectionTitle("Synthèse financière");
 
   autoTable(doc, {
     startY: y,
@@ -202,7 +215,7 @@ export async function downloadLabStatisticsPdf(options: {
   y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
 
   if (s.comparison) {
-    sectionTitle("2. Comparaison vs période précédente");
+    sectionTitle("Comparaison vs période précédente");
     const cmp = s.comparison;
     const spendSign = cmp.spendChange >= 0 ? "+" : "";
     const ordersSign = cmp.ordersChange >= 0 ? "+" : "";
@@ -249,7 +262,24 @@ export async function downloadLabStatisticsPdf(options: {
     y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
   }
 
-  sectionTitle("3. Répartition mensuelle");
+  if (charts.length > 0) {
+    sectionTitle("Graphiques");
+    y = drawPdfCharts(doc, charts, {
+      y,
+      marginX,
+      contentW,
+      pageH,
+      ink,
+      line,
+      onNewPage: () => {
+        drawHeader();
+        return 36;
+      },
+    });
+    y += 4;
+  }
+
+  sectionTitle("Répartition mensuelle");
 
   const monthlyEntries = Object.entries(s.monthlySpend || {}).sort(([a], [b]) =>
     a.localeCompare(b)
@@ -301,7 +331,35 @@ export async function downloadLabStatisticsPdf(options: {
   });
   y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
 
-  sectionTitle("4. Statut des réserves");
+  const dailyEntries = Object.entries(s.dailySpend || {})
+    .filter(([, spent]) => spent > 0)
+    .sort(([a], [b]) => a.localeCompare(b));
+  if ((s.period || "1m") === "1m" && dailyEntries.length > 0) {
+    sectionTitle(`Dépenses journalières${s.dailySpendMonth ? ` — ${s.dailySpendMonth}` : ""}`);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      head: [["Jour", "Dépenses"]],
+      body: dailyEntries.map(([key, spent]) => [formatDayKey(key), formatDA(spent)]),
+      theme: "grid",
+      styles: {
+        font: "helvetica",
+        fontSize: 8.5,
+        cellPadding: 2.6,
+        textColor: ink,
+        lineColor: line,
+        lineWidth: 0.2,
+      },
+      headStyles: { fillColor: slateHead, textColor: 255, fontStyle: "bold" },
+      columnStyles: { 1: { halign: "right" } },
+      alternateRowStyles: { fillColor: altRow },
+      foot: [["Total", formatDA(dailyEntries.reduce((sum, [, v]) => sum + v, 0))]],
+      footStyles: { fillColor: footBg, textColor: ink, fontStyle: "bold" },
+    });
+    y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
+  }
+
+  sectionTitle("Statut des réserves");
 
   const statusKeys = Object.keys(STATUS_LABELS);
   autoTable(doc, {
@@ -335,7 +393,7 @@ export async function downloadLabStatisticsPdf(options: {
   });
   y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
 
-  sectionTitle("5. Top produits (par quantité)");
+  sectionTitle("Produits les plus achetés");
 
   autoTable(doc, {
     startY: y,
@@ -377,7 +435,7 @@ export async function downloadLabStatisticsPdf(options: {
   });
   y = ((doc as JsPdfWithPages).lastAutoTable?.finalY || y) + 10;
 
-  sectionTitle("6. Top fournisseurs");
+  sectionTitle("Fournisseurs préférés");
 
   autoTable(doc, {
     startY: y,

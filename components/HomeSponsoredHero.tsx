@@ -85,7 +85,7 @@ function SponsorVideoLightbox({
           <div className="min-w-0">
             <span className="mb-1 inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white">
               <Sparkles className="h-3 w-3 text-amber-300" />
-              Sponsorisé
+              Publicité
             </span>
             <h3 className="truncate text-base font-bold text-white sm:text-lg">{product.name}</h3>
             {subtitle ? <p className="truncate text-xs text-white/60 sm:text-sm">{subtitle}</p> : null}
@@ -321,7 +321,7 @@ export default function HomeSponsoredHero() {
           >
             <div className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm border border-white/20 mb-1">
               <Sparkles className="h-3 w-3 text-amber-300" />
-              Sponsorisé
+              Publicité
             </div>
             <h2 className="text-sm sm:text-base md:text-lg font-bold text-white leading-tight line-clamp-1 drop-shadow">
               {product.name}

@@ -77,7 +77,7 @@ export default function SponsoredProductsCarousel() {
               <Megaphone className="w-3.5 h-3.5" />
               Produits mis en avant
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white">Sélection sponsorisée</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white">Publicités à la une</h2>
             <p className="text-sm sm:text-base text-blue-100/80 mt-1">
               Découvrez les produits recommandés par nos fournisseurs partenaires
             </p>
@@ -87,7 +87,7 @@ export default function SponsoredProductsCarousel() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm font-semibold text-white transition-colors border border-white/20"
           >
             <Package className="w-4 h-4" />
-            Voir tous les produits sponsorisés
+            Voir toutes les publicités
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
