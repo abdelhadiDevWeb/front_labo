@@ -35,6 +35,7 @@ import { useNotificationFeed } from "@/hooks/useNotificationFeed";
 import NotificationPanel, { RealtimeToast, type NotificationVisual } from "@/components/NotificationPanel";
 import { showBrowserNotification } from "@/lib/browser-notification";
 import { getMediaUrl } from "@/lib/media-url";
+import BackButton from "@/components/BackButton";
 import ListingQuotaHeaderAlert, {
   SUBSCRIPTION_REQUEST_UPDATED_EVENT,
 } from "@/components/supplier/ListingQuotaHeaderAlert";
@@ -50,6 +51,31 @@ const menuItems = [
   { icon: BarChart3, label: "Statistiques", href: "/dashboard-supplier/statistics" },
   { icon: User, label: "Profil", href: "/dashboard-supplier/profile" },
 ];
+
+const DETAIL_SECTIONS: Record<string, string> = {
+  products: "Détail du produit",
+  machines: "Détail de la machine",
+  services: "Détail du service",
+};
+
+/** Header title: menu label, or the detail label for /dashboard-supplier/{products|machines|services}/[id]. */
+const supplierPageTitle = (pathname: string) => {
+  const exact = menuItems.find((item) => item.href === pathname);
+  if (exact) return exact.label;
+  const [, , section, id] = pathname.split("/");
+  if (section && id && DETAIL_SECTIONS[section]) return DETAIL_SECTIONS[section];
+  const parent = menuItems
+    .filter((item) => item.href !== "/dashboard-supplier" && pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return parent?.label || "Tableau de bord";
+};
+
+/** Where "Retour" goes when there is no previous in-app page (direct open / refresh). */
+const supplierBackFallback = (pathname: string) => {
+  const [, , section, id] = pathname.split("/");
+  if (section && id && DETAIL_SECTIONS[section]) return "/dashboard-supplier/products";
+  return "/dashboard-supplier";
+};
 
 export default function SupplierDashboardLayout({
   children,
@@ -439,8 +465,8 @@ export default function SupplierDashboardLayout({
       <div className="lg:pl-64">
         {/* Top Bar */}
         <header className="sticky top-0 z-[99] bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-2 px-4 sm:px-6 lg:px-8 h-16">
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -451,13 +477,21 @@ export default function SupplierDashboardLayout({
                   <Menu className="w-6 h-6 text-gray-700" />
                 )}
               </button>
-              <h1 className="text-xl font-bold text-gray-900">
-                {menuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
+              {pathname !== "/dashboard-supplier" && (
+                <BackButton
+                  fallbackHref={supplierBackFallback(pathname)}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2 sm:px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                  iconClassName="w-5 h-5"
+                  label={<span className="hidden sm:inline">Retour</span>}
+                />
+              )}
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
+                {supplierPageTitle(pathname)}
               </h1>
             </div>
 
             {/* User Info Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
               {/* Notifications */}
               <div className="relative">
                 <button
@@ -561,7 +595,6 @@ export default function SupplierDashboardLayout({
                       {userData && (
                         <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
                           <div className="flex items-center gap-3">
-                            S
                             <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-500 rounded-full flex items-center justify-center shadow-md overflow-hidden">
                               {profileImage ? (
                                 <img 

@@ -127,36 +127,172 @@ function CompareProductsContent() {
     { key: "supplier", label: "Fournisseur", icon: Building2 },
   ];
 
+  const prices = products.map((p) => Number(p.price) || 0).filter((n) => n > 0);
+  const bestPrice = canSeePrice && prices.length > 1 ? Math.min(...prices) : null;
+  const stocks = products.map((p) => (typeof p.quantity === "number" ? p.quantity : 0));
+  const bestStock = stocks.length > 1 && Math.max(...stocks) > 0 ? Math.max(...stocks) : null;
+
+  const renderValue = (product: PublicProduct, key: string) => {
+    if (key === "price") {
+      const isBest = bestPrice !== null && Number(product.price) === bestPrice;
+      return (
+        <span className="inline-flex flex-wrap items-center justify-end gap-1.5 md:justify-center">
+          <CatalogPrice
+            amount={product.price}
+            visible={canSeePrice}
+            className="font-bold text-blue-600"
+            lockedClassName="text-xs font-medium text-gray-500"
+          />
+          {isBest && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+              Meilleur prix
+            </span>
+          )}
+        </span>
+      );
+    }
+    if (key === "quantity") {
+      const inStock = product.quantity > 0;
+      const isBest = bestStock !== null && product.quantity === bestStock;
+      return (
+        <span className="inline-flex flex-wrap items-center justify-end gap-1.5 md:justify-center">
+          <span className={`font-semibold ${inStock ? "text-green-600" : "text-red-600"}`}>
+            {inStock ? `${product.quantity} en stock` : "Rupture"}
+          </span>
+          {isBest && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+              Plus grand stock
+            </span>
+          )}
+        </span>
+      );
+    }
+    if (key === "supplier") {
+      return <span className="text-gray-700">{product.supplier ? product.supplier.name : "N/A"}</span>;
+    }
+    return (
+      <span className="text-gray-700">
+        {(product as unknown as Record<string, string | undefined>)[key] || "N/A"}
+      </span>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <BackButton
-                fallbackHref="/products"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                iconClassName="w-5 h-5 text-gray-600"
-              />
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Scale className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Comparaison de produits</h1>
-                  <p className="text-sm text-gray-600">
-                    {products.length} produit{products.length > 1 ? "s" : ""} sélectionné{products.length > 1 ? "s" : ""}
-                  </p>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gray-50 pb-[calc(1.5rem+var(--lab-nav-offset,0px))] md:pb-0">
+      {/* App bar */}
+      <header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 backdrop-blur-md">
+        <div className="container mx-auto flex h-14 sm:h-16 items-center gap-2 px-2 sm:px-6 lg:px-8">
+          <BackButton
+            fallbackHref="/products"
+            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full text-gray-700 active:bg-gray-100 sm:hover:bg-gray-100"
+            iconClassName="w-5 h-5"
+          />
+          <span className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 shadow-md">
+            <Scale className="h-5 w-5 text-white" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-base sm:text-2xl font-bold text-gray-900">
+              Comparaison de produits
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-600">
+              {products.length} produit{products.length > 1 ? "s" : ""} sélectionné
+              {products.length > 1 ? "s" : ""}
+            </p>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Phone layout */}
+      <main className="md:hidden py-3 space-y-3">
+        <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {products.map((product) => {
+            const mainImage = product.images?.length ? getMediaUrl(product.images[0]) : null;
+            return (
+              <div
+                key={product.id}
+                className="relative w-[44%] min-w-[9.5rem] shrink-0 snap-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => removeProduct(product.id)}
+                  aria-label={`Retirer ${product.name} de la comparaison`}
+                  className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-500 shadow active:bg-red-50 active:text-red-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <Link href={`/products/${product.id}`} className="block">
+                  <div className="relative aspect-square bg-gradient-to-br from-gray-100 to-gray-200">
+                    {mainImage ? (
+                      <img
+                        src={mainImage}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <ImageIcon className="h-10 w-10 text-gray-400" />
+                      </div>
+                    )}
+                    {product.quantity === 0 && (
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                        Rupture
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 p-2.5">
+                    <h3 className="line-clamp-2 text-sm font-bold leading-snug text-gray-900">
+                      {product.name}
+                    </h3>
+                    <CatalogPrice
+                      amount={product.price}
+                      visible={canSeePrice}
+                      className="text-sm font-bold text-blue-600"
+                      lockedClassName="text-[11px] font-medium text-gray-500"
+                    />
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="space-y-2.5 px-3">
+          {comparisonFields
+            .filter((field) => field.key !== "name")
+            .map((field) => {
+              const Icon = field.icon;
+              return (
+                <section
+                  key={field.key}
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+                >
+                  <h2 className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3.5 py-2.5 text-sm font-semibold text-gray-900">
+                    <Icon className="h-4 w-4 text-blue-600" />
+                    {field.label}
+                  </h2>
+                  <ul className="divide-y divide-gray-100">
+                    {products.map((product) => (
+                      <li key={product.id} className="flex items-start justify-between gap-3 px-3.5 py-2.5">
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-500">
+                          {product.name}
+                        </span>
+                        <span className="max-w-[58%] text-right text-sm">
+                          {renderValue(product, field.key)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+        </div>
+      </main>
+
+      {/* Tablet / desktop layout */}
+      <main className="hidden md:block container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Products Grid */}
         <div className="mb-8 overflow-x-auto">
           <div
@@ -284,30 +420,7 @@ function CompareProductsContent() {
                           key={product.id}
                           className="px-6 py-4 text-center border-b border-gray-200"
                         >
-                          {field.key === "price" ? (
-                            <CatalogPrice
-                              amount={product.price}
-                              visible={canSeePrice}
-                              className="font-bold text-blue-600"
-                              lockedClassName="text-xs font-medium text-gray-500"
-                            />
-                          ) : field.key === "quantity" ? (
-                            <span
-                              className={`font-semibold ${
-                                product.quantity > 0 ? "text-green-600" : "text-red-600"
-                              }`}
-                            >
-                              {product.quantity > 0 ? `${product.quantity} en stock` : "Rupture"}
-                            </span>
-                          ) : field.key === "supplier" ? (
-                            <span className="text-gray-700">
-                              {product.supplier ? product.supplier.name : "N/A"}
-                            </span>
-                          ) : (
-                            <span className="text-gray-700">
-                              {(product as any)[field.key] || "N/A"}
-                            </span>
-                          )}
+                          {renderValue(product, field.key)}
                         </td>
                       ))}
                     </tr>
@@ -319,7 +432,7 @@ function CompareProductsContent() {
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-8 flex justify-center gap-4">
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
           <BackButton
             fallbackHref="/products"
             className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all inline-flex items-center gap-2"

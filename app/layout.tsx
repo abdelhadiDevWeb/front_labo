@@ -5,6 +5,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import ChunkLoadRecovery from "@/components/ChunkLoadRecovery";
 import LabBottomNav from "@/components/LabBottomNav";
 import SessionGuard from "@/components/SessionGuard";
+import NavigationTracker from "@/components/NavigationTracker";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
