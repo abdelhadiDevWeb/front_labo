@@ -521,12 +521,6 @@ export default function ProductsPage() {
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-                <FamilleFilterInput
-                  value={familleInput}
-                  onChange={setFamilleInput}
-                  busy={isLoading && Boolean(famille)}
-                />
-
                 {/* Category Filter */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -576,6 +570,12 @@ export default function ProductsPage() {
                     ))}
                   </select>
                 </div>
+
+                <FamilleFilterInput
+                  value={familleInput}
+                  onChange={setFamilleInput}
+                  busy={isLoading && Boolean(famille)}
+                />
 
                 {/* Brand Filter */}
                 <div className="space-y-2">

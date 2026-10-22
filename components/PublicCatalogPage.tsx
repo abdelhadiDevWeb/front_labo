@@ -440,14 +440,6 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 </div>
               </div>
 
-              {kind === "machine" && (
-                <FamilleFilterInput
-                  value={familleInput}
-                  onChange={setFamilleInput}
-                  busy={isLoading && Boolean(famille)}
-                />
-              )}
-
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase">Catégorie</label>
                 <select
@@ -467,24 +459,37 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                 </select>
               </div>
 
-              {availableSousCategories.length > 0 && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase">
-                    Sous-catégorie
-                  </label>
-                  <select
-                    value={filterSousCategoryId}
-                    onChange={(e) => setFilterSousCategoryId(e.target.value)}
-                    className="mt-1 w-full py-2.5 px-3 border border-gray-300 rounded-xl bg-white"
-                  >
-                    <option value="all">Toutes</option>
-                    {availableSousCategories.map((sc) => (
-                      <option key={sc.id} value={sc.id}>
-                        {sc.name_sou_catgory}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase">
+                  Sous-catégorie
+                </label>
+                <select
+                  value={filterSousCategoryId}
+                  onChange={(e) => setFilterSousCategoryId(e.target.value)}
+                  disabled={filterCategoryId === "all" || availableSousCategories.length === 0}
+                  className="mt-1 w-full py-2.5 px-3 border border-gray-300 rounded-xl bg-white disabled:opacity-50"
+                >
+                  <option value="all">
+                    {filterCategoryId === "all"
+                      ? "Choisir une catégorie"
+                      : availableSousCategories.length === 0
+                        ? "Aucune sous-catégorie"
+                        : "Toutes"}
+                  </option>
+                  {availableSousCategories.map((sc) => (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.name_sou_catgory}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {kind === "machine" && (
+                <FamilleFilterInput
+                  value={familleInput}
+                  onChange={setFamilleInput}
+                  busy={isLoading && Boolean(famille)}
+                />
               )}
 
               <div>

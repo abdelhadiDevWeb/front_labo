@@ -1819,6 +1819,8 @@ export const getPublicMachines = async (filters?: {
   wilayaCode?: string;
   limit?: number;
   cursor?: string;
+  /** Matches the "Famille" column of the catalog item (contains, case-insensitive). */
+  famille?: string;
 }): Promise<
   ApiResponse<{
     machines: PublicCatalogItem[];
@@ -1838,6 +1840,7 @@ export const getPublicMachines = async (filters?: {
       if (filters?.wilayaCode) params.append("wilayaCode", filters.wilayaCode);
       if (filters?.limit != null) params.append("limit", String(filters.limit));
       if (filters?.cursor) params.append("cursor", filters.cursor);
+      if (filters?.famille?.trim()) params.append("famille", filters.famille.trim());
       const query = params.toString() ? `?${params.toString()}` : "";
       const response = await apiFetch(`${getApiBaseUrl()}/machines/public${query}`, {
         method: "GET",
@@ -1985,6 +1988,10 @@ export const getAllProducts = async (filters?: {
   limit?: number;
   cursor?: string;
   hasQuantity?: boolean;
+  /** Only items with stock above 0 (server-side). */
+  inStock?: boolean;
+  /** Matches the "Famille" column of the catalog item (contains, case-insensitive). */
+  famille?: string;
 }): Promise<
   ApiResponse<{
     products: PublicProduct[];
@@ -2005,6 +2012,8 @@ export const getAllProducts = async (filters?: {
       if (filters?.limit != null) params.append("limit", String(filters.limit));
       if (filters?.cursor) params.append("cursor", filters.cursor);
       if (filters?.hasQuantity) params.append("hasQuantity", "1");
+      if (filters?.inStock) params.append("inStock", "1");
+      if (filters?.famille?.trim()) params.append("famille", filters.famille.trim());
       const query = params.toString() ? `?${params.toString()}` : "";
 
       const response = await apiFetch(`${getApiBaseUrl()}/products/public${query}`, {

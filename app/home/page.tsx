@@ -61,7 +61,7 @@ import {
 } from "@/lib/unique-data-display";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
-import { inStockFirst } from "@/lib/stock-order";
+import { inStockFirst, isOutOfStock } from "@/lib/stock-order";
 import { toUserFacingError } from "@/lib/sanitize-error";
 import {
   hasAuthSessionHint,
@@ -336,7 +336,7 @@ export default function HomePage() {
 
       try {
         const [productsRes, machinesRes, servicesRes] = await Promise.all([
-          getAllProducts({ ...filters, hasQuantity: true }),
+          getAllProducts({ ...filters, hasQuantity: true, inStock: true }),
           getPublicMachines(filters),
           getPublicServices(filters),
         ]);
@@ -344,7 +344,7 @@ export default function HomePage() {
         if (cancelled) return;
 
         if (productsRes.success && productsRes.data?.products) {
-          setProducts(inStockFirst(productsRes.data.products));
+          setProducts(productsRes.data.products.filter((p) => !isOutOfStock(p.quantity)));
           setProductsError(null);
         } else {
           setProductsError(

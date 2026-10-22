@@ -609,19 +609,6 @@ export default function AllThingsPage() {
             </div>
 
             <div>
-              <FamilleFilterInput
-                value={familleInput}
-                onChange={setFamilleInput}
-                busy={isLoading && Boolean(famille)}
-              />
-              {famille && (
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Filtre Famille actif : produits et machines uniquement.
-                </p>
-              )}
-            </div>
-
-            <div>
               <label className="text-xs font-semibold text-gray-500 uppercase">Catégorie</label>
               <select
                 value={filterCategoryId}
@@ -657,6 +644,19 @@ export default function AllThingsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <FamilleFilterInput
+                value={familleInput}
+                onChange={setFamilleInput}
+                busy={isLoading && Boolean(famille)}
+              />
+              {famille && (
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Filtre Famille actif : produits et machines uniquement.
+                </p>
+              )}
             </div>
 
             <div>
