@@ -1247,7 +1247,11 @@ export const deleteService = async (serviceId: string): Promise<ApiResponse<null
 // Update a product
 export const updateProduct = async (
   productId: string,
-  data: Partial<CreateProductData> & { images?: File[]; video?: File }
+  data: Partial<CreateProductData> & {
+    images?: File[];
+    video?: File;
+    ficheTechnique?: File | null;
+  }
 ): Promise<ApiResponse<Product>> => {
   try {
 const formData = new FormData();
@@ -1272,6 +1276,9 @@ const formData = new FormData();
     }
     if (data.video) {
       formData.append("video", data.video);
+    }
+    if (data.ficheTechnique) {
+      formData.append("ficheTechnique", data.ficheTechnique);
     }
 
     const response = await apiFetch(`${getApiBaseUrl()}/products/${productId}`, {

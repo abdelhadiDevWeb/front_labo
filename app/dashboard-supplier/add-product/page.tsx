@@ -2082,9 +2082,10 @@ export default function AddProductPage() {
                           </label>
                           <p className="text-xs text-gray-500 mb-3">
                             Images correspondant à la colonne &quot;Image&quot; du fichier Excel
-                            (ex: <code className="bg-gray-100 px-1 rounded">photo1.jpg</code>). Pas de
-                            limite de nombre : les images sont compressées puis envoyées par petits lots
-                            avant l&apos;import.
+                            (ex: <code className="bg-gray-100 px-1 rounded">photo1.jpg</code>).
+                            Optionnel : une ligne sans image (ou dont le fichier est introuvable) est
+                            quand même importée, avec l&apos;emplacement image vide. Les images sont
+                            compressées puis envoyées par petits lots avant l&apos;import.
                           </p>
                           {imageFiles.length > 0 ? (
                             <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl">
@@ -2151,6 +2152,8 @@ export default function AddProductPage() {
                               Si la colonne &quot;Fiche Technique&quot; de l&apos;Excel contient un nom de fichier
                               (ex: <code className="bg-gray-100 px-1 rounded">fiche_produit1.pdf</code>),
                               uploadez ici les PDF correspondants — un PDF par ligne / produit.
+                              Optionnel : sans PDF (ou fichier introuvable), la ligne est importée avec
+                              la fiche technique vide.
                             </p>
                             {pdfFiles.length > 0 ? (
                               <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 rounded-2xl">

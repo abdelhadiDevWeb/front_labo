@@ -10,7 +10,6 @@ import {
   Image as ImageIcon,
   Tag,
   Building2,
-  FileText,
 } from "lucide-react";
 import {
   UniqueDataItem,
@@ -29,6 +28,7 @@ import {
   isFicheTechniqueField,
   typeHasFicheTechnique,
 } from "@/lib/catalog-form-fields";
+import FicheTechniquePanel from "@/components/supplier/FicheTechniquePanel";
 type CatalogKind = "machine" | "service";
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
@@ -89,7 +89,6 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [newImages, setNewImages] = useState<File[]>([]);
-  const [newFiche, setNewFiche] = useState<File | null>(null);
 
   const labels = useMemo(
     () => ({
@@ -211,7 +210,6 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
       const payload = {
         unique_data,
         images: newImages.length > 0 ? newImages : undefined,
-        ficheTechnique: newFiche || undefined,
       };
       const result =
         kind === "machine"
@@ -222,7 +220,6 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
         setUpdateSuccess(labels.updated);
         setIsEditing(false);
         setNewImages([]);
-        setNewFiche(null);
         await loadItem();
         scrollPageToTop();
         setTimeout(() => setUpdateSuccess(null), 3000);
@@ -355,16 +352,31 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
             </div>
           )}
 
-          {fichePdfUrl && (
-            <a
-              href={fichePdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:border-green-400 transition-colors"
-            >
-              <FileText className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-gray-900">Voir la fiche technique</span>
-            </a>
+          {typeHasFicheTechnique(kind) && (
+            <FicheTechniquePanel
+              pdfUrl={fichePdfUrl}
+              title={`${title} — Fiche technique`}
+              onUpload={async (file) => {
+                if (!item) {
+                  return { success: false, message: labels.notFound };
+                }
+                const payload = {
+                  unique_data: {},
+                  ficheTechnique: file,
+                };
+                const result =
+                  kind === "machine"
+                    ? await updateMachine(String(item.id), payload)
+                    : await updateService(String(item.id), payload);
+                if (result.success) {
+                  await loadItem();
+                }
+                return {
+                  success: result.success,
+                  message: result.message,
+                };
+              }}
+            />
           )}
         </div>
 
@@ -526,23 +538,6 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
                 )}
               </div>
 
-              {typeHasFicheTechnique(kind) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nouvelle fiche technique PDF (optionnel)
-                  </label>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) => setNewFiche(e.target.files?.[0] || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black"
-                  />
-                  {newFiche && (
-                    <p className="mt-2 text-sm text-gray-600">{newFiche.name}</p>
-                  )}
-                </div>
-              )}
-
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -569,7 +564,6 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
                     setUpdateError(null);
                     setUpdateSuccess(null);
                     setNewImages([]);
-                    setNewFiche(null);
                     setFieldValues(buildFieldValues(uniqueData));
                   }}
                   className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all"

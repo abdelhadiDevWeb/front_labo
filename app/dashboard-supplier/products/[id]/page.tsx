@@ -25,8 +25,10 @@ import {
 import { getSupplierProducts, Product, updateProduct, deleteProduct } from "@/lib/api";
 import { LABO_TYPE_OPTIONS, type LaboTypeValue } from "@/lib/labo-types";
 import { getMediaUrl } from "@/lib/media-url";
+import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import { scrollPageToTop } from "@/lib/scroll-to-top";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import FicheTechniquePanel from "@/components/supplier/FicheTechniquePanel";
 export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -363,6 +365,28 @@ export default function ProductDetailPage() {
               </div>
             </div>
           )}
+
+          <FicheTechniquePanel
+            pdfUrl={getFicheTechniquePdfUrl(product.unique_data)}
+            title={`${product.name} — Fiche technique`}
+            onUpload={async (file) => {
+              const result = await updateProduct(product.id, { ficheTechnique: file });
+              if (result.success) {
+                const reloadResult = await getSupplierProducts();
+                if (reloadResult.success && reloadResult.data) {
+                  const updated = reloadResult.data.products.find((p) => p.id === productId);
+                  if (updated) {
+                    setProduct(updated);
+                    setEditFormData(buildEditForm(updated));
+                  }
+                }
+              }
+              return {
+                success: result.success,
+                message: result.message,
+              };
+            }}
+          />
         </div>
 
         {/* Right Column - Product Details */}
