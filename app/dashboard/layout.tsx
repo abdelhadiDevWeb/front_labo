@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import {
   FolderTree,
   Megaphone,
   ScrollText,
+  FlaskConical,
 } from "lucide-react";
 import { getSessionRole, getAdminProfile, AdminProfile, getAllProblems, Problem, markProblemAsRead, getUsersForSubscription, getNotifications, markNotificationAsRead, NotificationData } from "@/lib/api";
 import { performLogout } from "@/lib/perform-logout";
@@ -352,71 +353,87 @@ export default function DashboardLayout({
     return null;
   }
 
+  const pageLabel =
+    visibleMenuItems.find((item) => item.href === pathname)?.label || "Tableau de bord";
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile Sidebar Overlay */}
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Mobile / small-laptop drawer overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-950/45 backdrop-blur-[2px] z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — narrower on laptop so content stays readable at ~1366px */}
       <aside
-        className={`fixed top-0 left-0 h-[100dvh] w-72 max-w-[85vw] lg:w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-[100dvh] w-[min(17.5rem,88vw)] lg:w-56 xl:w-60 bg-white border-r border-slate-200/90 shadow-[4px_0_24px_rgba(15,23,42,0.04)] z-50 transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
         aria-label="Menu d'administration"
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="relative px-6 py-4 lg:py-6 border-b border-gray-200">
-            <Link href="/dashboard" className="flex items-center justify-center">
+          <div className="relative px-4 py-3.5 xl:px-5 xl:py-4 border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
+            <Link href="/dashboard" className="flex flex-col items-center gap-1.5">
               <Image
                 src="/images/logo.png"
                 alt="Dz Labmarket Logo"
-                width={150}
-                height={60}
-                className="w-28 h-14 lg:w-32 lg:h-16 object-contain"
+                width={140}
+                height={56}
+                className="w-24 h-12 xl:w-28 xl:h-14 object-contain"
+                priority
               />
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-800">
+                <FlaskConical className="h-3 w-3" />
+                Admin labo
+              </span>
             </Link>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+              className="lg:hidden absolute right-2.5 top-2.5 p-2 rounded-lg text-slate-500 hover:bg-slate-100"
               aria-label="Fermer le menu"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-2">
+          <nav className="dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 xl:px-3">
+            <p className="px-2.5 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Navigation
+            </p>
+            <ul className="space-y-0.5">
               {visibleMenuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive =
+                  item.href === "/dashboard"
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const showBadge = item.href === "/dashboard/subscriptions" && pendingUsersCount > 0;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+                      className={`flex items-center gap-2.5 px-2.5 py-2 xl:px-3 xl:py-2.5 rounded-xl transition-all duration-200 group relative text-sm ${
                         isActive
-                          ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/50"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+                          ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-600/30"
+                          : "text-slate-700 hover:bg-blue-50 hover:text-blue-800"
                       }`}
                       onClick={() => setSidebarOpen(false)}
                     >
-                      <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
-                      <span className="font-medium">{item.label}</span>
+                      <Icon
+                        className={`w-[1.15rem] h-[1.15rem] shrink-0 transition-transform ${
+                          isActive ? "" : "group-hover:scale-105"
+                        }`}
+                      />
+                      <span className="font-medium truncate leading-tight">{item.label}</span>
                       {showBadge && (
-                        <span className={`ml-auto px-2 py-0.5 text-xs font-bold rounded-full ${
-                          isActive
-                            ? "bg-white/20 text-white"
-                            : "bg-red-500 text-white"
-                        }`}>
+                        <span
+                          className={`ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full tabular-nums ${
+                            isActive ? "bg-white/20 text-white" : "bg-rose-500 text-white"
+                          }`}
+                        >
                           {pendingUsersCount > 99 ? "99+" : pendingUsersCount}
                         </span>
                       )}
@@ -427,13 +444,40 @@ export default function DashboardLayout({
             </ul>
           </nav>
 
-          {/* Bottom Actions */}
-          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-200 space-y-2">
+          <div className="p-2.5 xl:p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 space-y-2">
+            {profile && (
+              <div className="hidden lg:flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-2">
+                {profile.profileImage ? (
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-blue-600/40 shrink-0">
+                    <Image
+                      key={imageKey}
+                      src={getImageUrl(profile.profileImage) || ""}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-slate-900">
+                    {profile.firstName} {profile.lastName}
+                  </p>
+                  <p className="truncate text-[10px] text-slate-500">
+                    {isSouAdminRole(userRole) ? "Sou-admin" : "Administrateur"}
+                  </p>
+                </div>
+              </div>
+            )}
             <button
               onClick={() => performLogout(router)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 xl:px-3 xl:py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-all duration-200"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
               <span className="font-medium">Déconnexion</span>
             </button>
           </div>
@@ -441,26 +485,31 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-56 xl:pl-60 min-w-0">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center gap-2 px-3 sm:px-6 lg:px-8 h-14 sm:h-16">
+        <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
+          <div className="flex items-center gap-2 px-3 sm:px-4 xl:px-6 h-14 max-w-[1600px]">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden -ml-1 p-2 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+              className="lg:hidden -ml-0.5 p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0"
               aria-label={sidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
             >
               {sidebarOpen ? (
-                <X className="w-6 h-6 text-gray-700" />
+                <X className="w-5 h-5 text-slate-700" />
               ) : (
-                <Menu className="w-6 h-6 text-gray-700" />
+                <Menu className="w-5 h-5 text-slate-700" />
               )}
             </button>
             <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
-              <h1 className="min-w-0 truncate text-base sm:text-xl font-bold text-gray-900">
-                {visibleMenuItems.find((item) => item.href === pathname)?.label || "Tableau de bord"}
-              </h1>
-              <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+              <div className="min-w-0">
+                <p className="hidden sm:block text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+                  Console laboratoire
+                </p>
+                <h1 className="min-w-0 truncate text-[15px] sm:text-lg font-bold text-slate-900 leading-tight">
+                  {pageLabel}
+                </h1>
+              </div>
+              <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
                 {/* App notifications (new users, etc.) — same as supplier bell */}
                 <div className="relative">
                   <button
@@ -470,12 +519,12 @@ export default function DashboardLayout({
                       setShowProblemsDropdown(false);
                       setShowProfileMenu(false);
                     }}
-                    className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                    className="relative p-2 rounded-xl hover:bg-blue-50 transition-colors group"
                     aria-label="Notifications"
                   >
-                    <Users className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                    <Users className="w-5 h-5 text-slate-600 group-hover:text-blue-700 transition-colors" />
                     {unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
                       </span>
                     )}
@@ -486,43 +535,43 @@ export default function DashboardLayout({
                         className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent"
                         onClick={() => setShowNotificationsDropdown(false)}
                       />
-                      <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
-                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                              <Bell className="w-5 h-5 text-indigo-600" />
+                      <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
+                        <div className="p-3.5 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                              <Bell className="w-4 h-4 text-blue-700" />
                               Notifications
                             </h3>
                             {!isSouAdminRole(userRole) && (
                               <Link
                                 href="/dashboard/subscriptions"
                                 onClick={() => setShowNotificationsDropdown(false)}
-                                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                className="text-xs sm:text-sm text-blue-700 hover:text-blue-800 font-semibold"
                               >
                                 Abonnements
                               </Link>
                             )}
                           </div>
                           {unreadNotificationsCount > 0 && (
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-xs text-slate-500 mt-1">
                               {unreadNotificationsCount} non lu
                               {unreadNotificationsCount > 1 ? "s" : ""}
                             </p>
                           )}
                         </div>
-                        <div className="overflow-y-auto flex-1">
+                        <div className="dashboard-scroll overflow-y-auto flex-1">
                           {adminNotifications.length === 0 ? (
                             <div className="p-6 text-center">
-                              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                              <p className="text-gray-500 text-sm">Aucune nouvelle notification</p>
+                              <Bell className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                              <p className="text-slate-500 text-sm">Aucune nouvelle notification</p>
                             </div>
                           ) : (
-                            <div className="divide-y divide-gray-200">
+                            <div className="divide-y divide-slate-100">
                               {adminNotifications.slice(0, 8).map((notification) => (
                                 <button
                                   key={notification._id}
                                   type="button"
-                                  className="w-full text-left block p-4 hover:bg-gray-50 transition-colors"
+                                  className="w-full text-left block p-3.5 hover:bg-blue-50/50 transition-colors"
                                   onClick={async () => {
                                     try {
                                       await markNotificationAsRead(notification._id);
@@ -537,17 +586,17 @@ export default function DashboardLayout({
                                   }}
                                 >
                                   <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-indigo-100 rounded-lg flex-shrink-0">
-                                      <Users className="w-4 h-4 text-indigo-600" />
+                                    <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                                      <Users className="w-4 h-4 text-blue-700" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold text-gray-900">
+                                      <p className="text-sm font-semibold text-slate-900">
                                         Nouvel utilisateur
                                       </p>
-                                      <p className="text-xs text-gray-600 line-clamp-3">
+                                      <p className="text-xs text-slate-600 line-clamp-3">
                                         {notification.message}
                                       </p>
-                                      <p className="text-xs text-gray-400 mt-1">
+                                      <p className="text-xs text-slate-400 mt-1">
                                         {new Date(notification.createdAt).toLocaleDateString("fr-FR", {
                                           day: "2-digit",
                                           month: "short",
@@ -576,54 +625,51 @@ export default function DashboardLayout({
                       setShowNotificationsDropdown(false);
                       setShowProfileMenu(false);
                     }}
-                    className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                    className="relative p-2 rounded-xl hover:bg-blue-50 transition-colors group"
                     aria-label="Problèmes signalés"
                   >
-                    <Bell className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                    <Bell className="w-5 h-5 text-slate-600 group-hover:text-blue-700 transition-colors" />
                     {unreadProblemsCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {unreadProblemsCount > 9 ? "9+" : unreadProblemsCount}
                       </span>
                     )}
                   </button>
-                  {/* Problems Dropdown */}
                   {showProblemsDropdown && (
                     <>
                       <div
                         className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent"
                         onClick={() => setShowProblemsDropdown(false)}
                       />
-                      <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
-                        {/* Header */}
-                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                              <MessageCircle className="w-5 h-5 text-blue-600" />
+                      <div className="fixed inset-x-2 top-14 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 max-h-[75dvh] sm:max-h-96 overflow-hidden flex flex-col animate-fade-in">
+                        <div className="p-3.5 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                              <MessageCircle className="w-4 h-4 text-blue-700" />
                               Problèmes
                             </h3>
                             <Link
                               href="/dashboard/problems"
                               onClick={() => setShowProblemsDropdown(false)}
-                              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                              className="text-xs sm:text-sm text-blue-700 hover:text-blue-800 font-semibold"
                             >
                               Voir tout
                             </Link>
                           </div>
                           {unreadProblemsCount > 0 && (
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-xs text-slate-500 mt-1">
                               {unreadProblemsCount} non lu{unreadProblemsCount > 1 ? "s" : ""}
                             </p>
                           )}
                         </div>
-                        {/* Problems List */}
-                        <div className="overflow-y-auto flex-1">
+                        <div className="dashboard-scroll overflow-y-auto flex-1">
                           {problems.filter((p) => !p.is_read).length === 0 ? (
                             <div className="p-6 text-center">
-                              <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                              <p className="text-gray-500 text-sm">Aucun nouveau problème</p>
+                              <MessageCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                              <p className="text-slate-500 text-sm">Aucun nouveau problème</p>
                             </div>
                           ) : (
-                            <div className="divide-y divide-gray-200">
+                            <div className="divide-y divide-slate-100">
                               {problems
                                 .filter((p) => !p.is_read)
                                 .slice(0, 5)
@@ -633,10 +679,8 @@ export default function DashboardLayout({
                                     href="/dashboard/problems"
                                     onClick={async () => {
                                       setShowProblemsDropdown(false);
-                                      // Mark as read when clicked
                                       try {
                                         await markProblemAsRead(problem._id);
-                                        // Reload problems
                                         const result = await getAllProblems();
                                         if (result.success && result.data) {
                                           setProblems(result.data);
@@ -647,20 +691,20 @@ export default function DashboardLayout({
                                         console.error("Error marking problem as read:", error);
                                       }
                                     }}
-                                    className="block p-4 hover:bg-gray-50 transition-colors"
+                                    className="block p-3.5 hover:bg-blue-50/50 transition-colors"
                                   >
                                     <div className="flex items-start gap-3">
                                       <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                                        <MessageCircle className="w-4 h-4 text-blue-600" />
+                                        <MessageCircle className="w-4 h-4 text-blue-700" />
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                        <p className="text-sm font-semibold text-slate-900 truncate">
                                           {problem.email}
                                         </p>
-                                        <p className="text-xs text-gray-600 truncate">
+                                        <p className="text-xs text-slate-600 truncate">
                                           {problem.message}
                                         </p>
-                                        <p className="text-xs text-gray-400 mt-1">
+                                        <p className="text-xs text-slate-400 mt-1">
                                           {new Date(problem.createdAt).toLocaleDateString("fr-FR", {
                                             day: "2-digit",
                                             month: "short",
@@ -689,31 +733,31 @@ export default function DashboardLayout({
                       setShowNotificationsDropdown(false);
                       setShowProblemsDropdown(false);
                     }}
-                    className="flex items-center gap-2 p-1 rounded-full sm:rounded-lg hover:opacity-80 transition-opacity"
+                    className="flex items-center gap-1.5 sm:gap-2 p-1 rounded-full sm:rounded-xl hover:bg-slate-100 transition-colors"
                     aria-label="Menu du profil"
                     aria-expanded={showProfileMenu}
                   >
                     {profile.profileImage ? (
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-blue-600">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border-2 border-blue-600/70">
                         <Image
                           key={imageKey}
                           src={getImageUrl(profile.profileImage) || ""}
                           alt={`${profile.firstName} ${profile.lastName}`}
-                          width={40}
-                          height={40}
+                          width={36}
+                          height={36}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     ) : (
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center border-2 border-gray-300">
-                        <User className="w-5 h-5 text-gray-500" />
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-50 rounded-full flex items-center justify-center border-2 border-blue-200">
+                        <User className="w-4 h-4 text-blue-700" />
                       </div>
                     )}
-                    <span className="hidden md:block max-w-[10rem] truncate text-sm font-medium text-gray-700">
+                    <span className="hidden xl:block max-w-[9rem] truncate text-sm font-medium text-slate-700">
                       {profile.firstName} {profile.lastName}
                     </span>
                     <ChevronDown
-                      className={`w-4 h-4 text-gray-500 hidden sm:block transition-transform ${
+                      className={`w-4 h-4 text-slate-500 hidden sm:block transition-transform ${
                         showProfileMenu ? "rotate-180" : ""
                       }`}
                     />
@@ -724,29 +768,32 @@ export default function DashboardLayout({
                       onClick={() => setShowProfileMenu(false)}
                     />
                   )}
-                  {/* Dropdown Menu */}
                   <div
-                    className={`absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-xl border border-gray-200 transition-all duration-200 z-50 ${
+                    className={`absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 transition-all duration-200 z-50 ${
                       showProfileMenu ? "opacity-100 visible" : "opacity-0 invisible"
                     }`}
                   >
-                    <div className="py-2">
-                      <div className="px-4 pb-2 mb-1 border-b border-gray-100 md:hidden">
-                        <p className="truncate text-sm font-semibold text-gray-900">
+                    <div className="py-1.5">
+                      <div className="px-3.5 pb-2 mb-1 border-b border-slate-100 xl:hidden">
+                        <p className="truncate text-sm font-semibold text-slate-900">
                           {profile.firstName} {profile.lastName}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {isSouAdminRole(userRole) ? "Sou-admin" : "Administrateur labo"}
                         </p>
                       </div>
                       <Link
                         href="/dashboard/profile"
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="flex items-center gap-3 px-3.5 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition-colors"
                       >
                         <User className="w-4 h-4" />
                         <span>Mon Profil</span>
                       </Link>
-                      <div className="border-t border-gray-200 my-1"></div>
+                      <div className="border-t border-slate-100 my-1" />
                       <button
                         onClick={() => performLogout(router)}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-3 px-3.5 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Déconnexion</span>
@@ -760,9 +807,9 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-3 sm:p-6 lg:p-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="animate-fade-in">{children}</div>
+        {/* Denser padding on small laptops; cap width for readability */}
+        <main className="p-3 sm:p-4 xl:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto max-w-[1600px] animate-fade-in">{children}</div>
         </main>
       </div>
     </div>

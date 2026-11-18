@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Search, Filter, Eye, Package, CheckCircle, Clock, XCircle, Loader2, ChevronLeft, ChevronRight, X, User, Store, Calendar, DollarSign } from "lucide-react";
 import { getAdminOrders, AdminOrder, getSessionRole } from "@/lib/api";
 import { isSouAdminRole } from "@/lib/admin-access";
+import ExpandableValue from "@/components/ExpandableValue";
 
 const statusLabels: { [key: string]: string } = {
   "en cours": "En cours",
@@ -108,7 +109,7 @@ export default function OrdersPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "arrived":
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
+        return <CheckCircle className="w-5 h-5 text-blue-600" />;
       case "en cours":
         return <Package className="w-5 h-5 text-blue-600" />;
       case "on route":
@@ -161,32 +162,37 @@ export default function OrdersPage() {
   }, [showModal]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Commandes</h2>
-          <p className="text-gray-500 mt-1">Suivez et gérez toutes les commandes</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            Marketplace laboratoire
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Commandes</h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Réserves entre laboratoires et fournisseurs
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl">
-            <ShoppingCart className="w-5 h-5" />
-            <span className="font-semibold">{totalCount} Commandes</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-800 rounded-xl border border-blue-100">
+            <ShoppingCart className="w-4 h-4" />
+            <span className="text-sm font-semibold">{totalCount} commandes</span>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
               type="text"
               placeholder="Rechercher une commande..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm"
             />
           </div>
           <div className="relative">
@@ -239,7 +245,13 @@ export default function OrdersPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">{order.orderNumber}</p>
+                      <ExpandableValue
+                        value={order.orderNumber}
+                        title="N° commande"
+                        maxLength={22}
+                        className="w-full"
+                        valueClassName="text-sm font-semibold text-gray-900"
+                      />
                       <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
                     </div>
                     <span className={`shrink-0 px-2.5 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
@@ -249,19 +261,40 @@ export default function OrdersPage() {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="min-w-0">
                       <p className="text-gray-500">Client</p>
-                      <p className="truncate font-medium text-gray-900">{order.customer}</p>
+                      <ExpandableValue
+                        value={order.customer}
+                        title="Client"
+                        maxLength={18}
+                        className="w-full"
+                        valueClassName="font-medium text-gray-900"
+                      />
                     </div>
                     <div className="min-w-0">
                       <p className="text-gray-500">Fournisseur</p>
-                      <p className="truncate font-medium text-gray-900">{order.supplier}</p>
+                      <ExpandableValue
+                        value={order.supplier}
+                        title="Fournisseur"
+                        maxLength={18}
+                        className="w-full"
+                        valueClassName="font-medium text-gray-900"
+                      />
                     </div>
                   </div>
                   <div className="flex items-end justify-between gap-3">
-                    <p className="min-w-0 truncate text-xs text-gray-500">
-                      {order.productCount} {order.productCount > 1 ? "produits" : "produit"} ·{" "}
-                      {order.products.map((p) => p.name).join(", ")}
-                    </p>
-                    <p className="shrink-0 text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</p>
+                    <ExpandableValue
+                      value={`${order.productCount} ${order.productCount > 1 ? "produits" : "produit"} · ${order.products.map((p) => p.name).join(", ")}`}
+                      title="Produits"
+                      maxLength={36}
+                      className="min-w-0"
+                      valueClassName="text-xs text-gray-500"
+                    />
+                    <ExpandableValue
+                      value={formatCurrency(order.totalAmount)}
+                      title="Montant"
+                      maxLength={14}
+                      className="shrink-0"
+                      valueClassName="text-sm font-bold text-gray-900"
+                    />
                   </div>
                 </button>
               ))}
@@ -462,9 +495,9 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Supplier Card */}
-                  <div className="bg-green-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border border-green-100">
+                  <div className="bg-blue-50 rounded-lg sm:rounded-xl p-4 sm:p-5 border border-blue-100">
                     <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                      <div className="p-1.5 sm:p-2 bg-green-600 rounded-lg">
+                      <div className="p-1.5 sm:p-2 bg-blue-600 rounded-lg">
                         <Store className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
                       <h4 className="font-semibold text-sm sm:text-base text-gray-900">Fournisseur</h4>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -30,6 +30,7 @@ import {
   FlaskConical,
   Truck,
 } from "lucide-react";
+import ExpandableValue from "@/components/ExpandableValue";
 import {
   getUsersForSubscription,
   createSubscription,
@@ -817,7 +818,7 @@ export default function SubscriptionsPage() {
           <button
             onClick={() => handleActivateFromChoice(user)}
             disabled={isActivating === user._id}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isActivating === user._id ? (
               <>
@@ -900,13 +901,25 @@ export default function SubscriptionsPage() {
               <User className="w-5 h-5 text-blue-600" />
             )}
           </div>
-          <div>
-            <h4 className="font-semibold text-gray-900">{subscription.type}</h4>
-            <p className="text-sm text-gray-500">
-              {subscription.id_user
-                ? `${subscription.id_user.firstName} ${subscription.id_user.lastName}`
-                : "Utilisateur supprimé"}
-            </p>
+          <div className="min-w-0">
+            <ExpandableValue
+              value={subscription.type}
+              title="Type d'abonnement"
+              maxLength={22}
+              className="w-full"
+              valueClassName="font-semibold text-gray-900"
+            />
+            <ExpandableValue
+              value={
+                subscription.id_user
+                  ? `${subscription.id_user.firstName} ${subscription.id_user.lastName}`
+                  : "Utilisateur supprimé"
+              }
+              title="Utilisateur"
+              maxLength={26}
+              className="w-full"
+              valueClassName="text-sm text-gray-500"
+            />
           </div>
         </div>
         <span
@@ -920,9 +933,15 @@ export default function SubscriptionsPage() {
         </span>
       </div>
       <div className="flex-1 space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <DollarSign className="w-4 h-4" />
-          {subscription.price.toLocaleString("fr-FR")} DA
+        <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+          <DollarSign className="w-4 h-4 shrink-0" />
+          <ExpandableValue
+            value={`${subscription.price.toLocaleString("fr-FR")} DA`}
+            title="Prix"
+            maxLength={16}
+            className="min-w-0"
+            valueClassName="text-sm text-gray-600"
+          />
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Calendar className="w-4 h-4" />
@@ -931,7 +950,13 @@ export default function SubscriptionsPage() {
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
           <Mail className="w-4 h-4 shrink-0" />
-          <span className="break-all">{subscription.id_user?.email || "N/A"}</span>
+          <ExpandableValue
+            value={subscription.id_user?.email || "N/A"}
+            title="Email"
+            maxLength={28}
+            className="min-w-0"
+            valueClassName="text-sm text-gray-600"
+          />
         </div>
         {(subscription.sponsorsAllocated ?? subscription.sponsorsPerMonth ?? 0) > 0 ? (
           <div className="rounded-lg border border-purple-100 bg-purple-50/80 px-2.5 py-2 space-y-1.5">
@@ -1046,11 +1071,16 @@ export default function SubscriptionsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Abonnements</h2>
-        <p className="text-gray-500 mt-1">Gérez les abonnements des utilisateurs</p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+          Marketplace laboratoire
+        </p>
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Abonnements</h2>
+        <p className="text-slate-500 text-sm mt-0.5">
+          Activation des comptes labs & fournisseurs
+        </p>
       </div>
 
       {/* Success/Error Messages */}
@@ -1073,12 +1103,14 @@ export default function SubscriptionsPage() {
       />
 
       {/* Section 1: Users with status false - Divided into Clients and Suppliers */}
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Utilisateurs en attente d'abonnement</h3>
-              <p className="text-sm text-gray-500 mt-1">Utilisateurs avec le statut inactif</p>
+      <div className="space-y-4 sm:space-y-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                En attente d&apos;abonnement
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">Comptes labs / fournisseurs inactifs</p>
             </div>
           </div>
 
@@ -1114,22 +1146,38 @@ export default function SubscriptionsPage() {
                     className="flex h-full flex-col border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
                           {user.firstName.charAt(0)}
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900">
-                            {user.firstName} {user.lastName}
-                          </h4>
-                          <p className="text-sm text-gray-500 break-all">{user.email}</p>
+                        <div className="min-w-0 space-y-0.5">
+                          <ExpandableValue
+                            value={`${user.firstName} ${user.lastName}`}
+                            title="Nom"
+                            maxLength={24}
+                            className="w-full"
+                            valueClassName="font-semibold text-gray-900"
+                          />
+                          <ExpandableValue
+                            value={user.email}
+                            title="Email"
+                            maxLength={26}
+                            className="w-full"
+                            valueClassName="text-sm text-gray-500"
+                          />
                         </div>
                       </div>
                     </div>
                     <div className="flex-1 space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        {user.phone}
+                      <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+                        <Phone className="w-4 h-4 shrink-0" />
+                        <ExpandableValue
+                          value={user.phone}
+                          title="Téléphone"
+                          maxLength={18}
+                          className="min-w-0"
+                          valueClassName="text-sm text-gray-600"
+                        />
                       </div>
                     </div>
                     <button
@@ -1142,7 +1190,7 @@ export default function SubscriptionsPage() {
                     <button
                       onClick={() => handleActivateLabAccount(user)}
                       disabled={isActivating === user._id}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isActivating === user._id ? (
                         <>
@@ -1170,7 +1218,7 @@ export default function SubscriptionsPage() {
           {/* Suppliers Section */}
           <div>
             <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Tag className="w-5 h-5 text-green-600" />
+              <Tag className="w-5 h-5 text-blue-600" />
               Fournisseurs ({suppliers.length})
             </h4>
             {isLoadingUsers ? (
@@ -1185,22 +1233,38 @@ export default function SubscriptionsPage() {
                     className="flex h-full flex-col border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
                           {user.firstName.charAt(0)}
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900">
-                            {user.firstName} {user.lastName}
-                          </h4>
-                          <p className="text-sm text-gray-500 break-all">{user.email}</p>
+                        <div className="min-w-0 space-y-0.5">
+                          <ExpandableValue
+                            value={`${user.firstName} ${user.lastName}`}
+                            title="Nom"
+                            maxLength={24}
+                            className="w-full"
+                            valueClassName="font-semibold text-gray-900"
+                          />
+                          <ExpandableValue
+                            value={user.email}
+                            title="Email"
+                            maxLength={26}
+                            className="w-full"
+                            valueClassName="text-sm text-gray-500"
+                          />
                         </div>
                       </div>
                     </div>
                     <div className="flex-1 space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        {user.phone}
+                      <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+                        <Phone className="w-4 h-4 shrink-0" />
+                        <ExpandableValue
+                          value={user.phone}
+                          title="Téléphone"
+                          maxLength={18}
+                          className="min-w-0"
+                          valueClassName="text-sm text-gray-600"
+                        />
                       </div>
                     </div>
                     {/* Check for expired subscriptions */}
@@ -1985,7 +2049,7 @@ export default function SubscriptionsPage() {
                   <div className="space-y-5">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-5 space-y-4">
                       <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <DollarSign className="w-4 h-4 text-blue-600" />
                         Tarification & durée
                       </h4>
                       <div>
@@ -2089,9 +2153,9 @@ export default function SubscriptionsPage() {
 
                     {createTypeFormData.type !== "labo" && (
                     <>
-                    <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 space-y-3">
+                    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 space-y-3">
                       <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                        <Package className="w-4 h-4 text-emerald-600" />
+                        <Package className="w-4 h-4 text-blue-600" />
                         Produits max
                       </h4>
                       <div>
@@ -2105,11 +2169,11 @@ export default function SubscriptionsPage() {
                           required
                           value={createMaxProducts}
                           onChange={(e) => setCreateMaxProducts(e.target.value)}
-                          className="w-full px-4 py-3.5 text-base border border-emerald-200 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none shadow-sm"
+                          className="w-full px-4 py-3.5 text-base border border-blue-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none shadow-sm"
                           placeholder="Ex: 50"
                         />
                       </div>
-                      <p className="text-xs text-emerald-800/80 leading-relaxed">
+                      <p className="text-xs text-blue-800/80 leading-relaxed">
                         Nombre total de produits, machines et services qu&apos;un fournisseur peut publier avec cet
                         abonnement. 0 = aucune annonce autorisée.
                       </p>

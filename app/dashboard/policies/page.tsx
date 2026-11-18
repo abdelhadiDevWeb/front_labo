@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -15,6 +15,7 @@ import {
   FlaskConical,
   Truck,
 } from "lucide-react";
+import ExpandableValue from "@/components/ExpandableValue";
 import {
   getAllPolicies,
   createPolicy,
@@ -172,14 +173,17 @@ export default function PoliciesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ScrollText className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 flex-shrink-0" />
-          Politiques &amp; conditions générales
+    <div className="space-y-4 sm:space-y-5">
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+          Conformité plateforme
+        </p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ScrollText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-700 flex-shrink-0" />
+          Politiques &amp; CGU
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Les politiques sont affichées à l&apos;utilisateur lors de son inscription, selon son type de compte.
+        <p className="text-sm text-slate-500 mt-0.5">
+          Affichées à l&apos;inscription selon le type de compte (labo / fournisseur).
         </p>
       </div>
 
@@ -237,7 +241,14 @@ export default function PoliciesPage() {
                   {sectionPolicies.map((policy) => (
                     <li key={policy.id} className="rounded-xl border border-gray-200 p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="font-semibold text-gray-900 break-words min-w-0">{policy.title}</h3>
+                        <ExpandableValue
+                          value={policy.title}
+                          title="Titre"
+                          maxLength={40}
+                          lines={2}
+                          className="min-w-0"
+                          valueClassName="font-semibold text-gray-900"
+                        />
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={() => openEdit(policy)}
@@ -262,9 +273,16 @@ export default function PoliciesPage() {
                           </button>
                         </div>
                       </div>
-                      <p className="mt-2 text-sm text-gray-600 whitespace-pre-line break-words line-clamp-4">
-                        {policy.text}
-                      </p>
+                      <div className="mt-2">
+                        <ExpandableValue
+                          value={policy.text}
+                          title={policy.title || "Politique"}
+                          maxLength={120}
+                          lines={3}
+                          className="w-full"
+                          valueClassName="text-sm text-gray-600 whitespace-pre-line"
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>

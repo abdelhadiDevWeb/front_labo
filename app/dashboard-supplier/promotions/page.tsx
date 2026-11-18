@@ -74,7 +74,7 @@ const kindBadgeClass = (kind: CatalogItemType) =>
   kind === "product"
     ? "bg-green-100 text-green-700"
     : kind === "machine"
-      ? "bg-blue-100 text-blue-700"
+      ? "bg-green-100 text-green-700"
       : "bg-amber-100 text-amber-800";
 
 type PromotionFormState = {
@@ -139,7 +139,7 @@ function getPromotionStatus(promotion: Promotion) {
   const end = new Date(promotion.end_day);
   end.setHours(23, 59, 59, 999);
 
-  if (now < start) return { label: "À venir", className: "bg-blue-100 text-blue-800" };
+  if (now < start) return { label: "À venir", className: "bg-green-100 text-green-800" };
   if (now > end) return { label: "Expirée", className: "bg-gray-100 text-gray-700" };
   return { label: "Active", className: "bg-green-100 text-green-800" };
 }
@@ -943,7 +943,7 @@ export default function PromotionsPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenUpdate(promotion)}
-                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                            className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
                           >
                             <Edit className="w-4 h-4" />
                             Modifier
@@ -982,7 +982,7 @@ export default function PromotionsPage() {
         createPortal(
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
+              <div className="bg-gradient-to-r from-green-700 to-emerald-800 p-6 flex items-center justify-between rounded-t-2xl">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <Plus className="w-6 h-6" />
                   Nouvelle promotion
@@ -1031,7 +1031,7 @@ export default function PromotionsPage() {
         createPortal(
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 flex items-center justify-between rounded-t-2xl">
+              <div className="bg-gradient-to-r from-green-700 to-emerald-800 p-6 flex items-center justify-between rounded-t-2xl">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <Edit className="w-6 h-6" />
                   Modifier la promotion

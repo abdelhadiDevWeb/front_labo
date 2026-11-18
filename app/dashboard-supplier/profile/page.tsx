@@ -447,7 +447,7 @@ export default function SupplierProfilePage() {
 
       {/* Profile Image Section */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-8 text-white">
+        <div className="bg-gradient-to-r from-green-700 to-emerald-800 p-8 text-white">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="relative">
               {profileImage ? (
@@ -721,7 +721,7 @@ export default function SupplierProfilePage() {
             <button
               type="submit"
               disabled={isUpdating}
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+              className="px-8 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
             >
               {isUpdating ? (
                 <>
@@ -803,7 +803,7 @@ export default function SupplierProfilePage() {
             <button
               type="submit"
               disabled={isUpdatingPassword}
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+              className="px-8 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
             >
               {isUpdatingPassword ? (
                 <>

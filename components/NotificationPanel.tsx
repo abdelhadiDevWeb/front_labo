@@ -23,10 +23,10 @@ const THEME: Record<Theme, { header: string; subtitle: string; unread: string; d
     dot: "bg-blue-500",
   },
   green: {
-    header: "bg-gradient-to-r from-green-600 to-emerald-600",
+    header: "bg-gradient-to-r from-green-700 to-emerald-800",
     subtitle: "text-green-100",
     unread: "bg-green-50/70",
-    dot: "bg-green-500",
+    dot: "bg-green-700",
   },
 };
 

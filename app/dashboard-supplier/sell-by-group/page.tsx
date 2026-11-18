@@ -194,7 +194,7 @@ export default function SellByGroupPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="relative bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 rounded-2xl p-8 shadow-xl overflow-hidden">
+      <div className="relative bg-gradient-to-r from-green-600 via-green-600 to-emerald-700 rounded-2xl p-8 shadow-xl overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -202,7 +202,7 @@ export default function SellByGroupPage() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Vente groupée</h1>
-              <p className="text-teal-100 text-sm mt-1">
+              <p className="text-green-100 text-sm mt-1">
                 Créez une annonce de vente groupée sur vos produits
               </p>
             </div>
@@ -214,7 +214,7 @@ export default function SellByGroupPage() {
               setError(null);
               setSuccess(null);
             }}
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-teal-700 rounded-xl font-semibold hover:bg-teal-50 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-green-700 rounded-xl font-semibold hover:bg-green-50 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Nouvelle annonce
@@ -264,7 +264,7 @@ export default function SellByGroupPage() {
                     setPriceByOne(String(p.sellingPrice ?? ""));
                   }
                 }}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               >
                 <option value="">Sélectionner un produit</option>
                 {products.map((p) => (
@@ -274,7 +274,7 @@ export default function SellByGroupPage() {
                 ))}
               </select>
               {selectedProduct && (
-                <p className="text-xs text-teal-700 mt-2">
+                <p className="text-xs text-green-700 mt-2">
                   Stock actuel : <strong>{selectedProduct.quantity}</strong> — la quantité
                   de l&apos;annonce sera <strong>retirée du stock</strong> dès la création.
                 </p>
@@ -293,7 +293,7 @@ export default function SellByGroupPage() {
                   required
                   value={qu}
                   onChange={(e) => setQu(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
                   placeholder={
                     selectedProduct
                       ? `1 – ${selectedProduct.quantity}`
@@ -312,7 +312,7 @@ export default function SellByGroupPage() {
                   required
                   value={priceByOne}
                   onChange={(e) => setPriceByOne(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
                   placeholder="Ex: 1200"
                 />
               </div>
@@ -334,7 +334,7 @@ export default function SellByGroupPage() {
                       setEndDate("");
                     }
                   }}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
                 />
               </div>
               <div>
@@ -347,13 +347,13 @@ export default function SellByGroupPage() {
                   min={minEndDate}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
                 />
               </div>
             </div>
 
             {selectedProduct && qu && priceByOne && Number(qu) > 0 && Number(priceByOne) >= 0 && (
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-900">
+              <div className="p-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-900">
                 Total annoncé :{" "}
                 <strong>
                   {(Number(qu) * Number(priceByOne)).toFixed(2)} DA
@@ -365,7 +365,7 @@ export default function SellByGroupPage() {
             <button
               type="submit"
               disabled={isSubmitting || products.length === 0}
-              className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl font-bold hover:from-teal-700 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-bold hover:from-green-800 hover:to-emerald-900 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -423,7 +423,7 @@ export default function SellByGroupPage() {
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           g.status === "open"
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "bg-green-100 text-green-700"
                             : "bg-gray-200 text-gray-700"
                         }`}
                       >
@@ -443,7 +443,7 @@ export default function SellByGroupPage() {
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-teal-500 rounded-full transition-all"
+                          className="h-full bg-green-500 rounded-full transition-all"
                           style={{ width: `${g.progressPercent}%` }}
                         />
                       </div>
@@ -491,7 +491,7 @@ export default function SellByGroupPage() {
                                   )}
                                 </div>
                                 <div className="text-left sm:text-right shrink-0">
-                                  <p className="font-semibold text-teal-700">
+                                  <p className="font-semibold text-green-700">
                                     {u.quantity} unité{u.quantity > 1 ? "s" : ""}
                                   </p>
                                   <p className="text-xs text-gray-500">

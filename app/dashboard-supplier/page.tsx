@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { TrendingUp, Users, ShoppingCart, DollarSign, ArrowUpRight, Package, Loader2 } from "lucide-react";
 import { getProfile, ClientData, getSupplierStatistics, SupplierStatistics } from "@/lib/api";
 import Link from "next/link";
+import ExpandableValue from "@/components/ExpandableValue";
 
 export default function SupplierDashboardPage() {
   const [userData, setUserData] = useState<ClientData | null>(null);
@@ -44,7 +45,7 @@ export default function SupplierDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-green-700 to-emerald-800 rounded-2xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
@@ -121,22 +122,30 @@ export default function SupplierDashboardPage() {
               )}
             </div>
             <h3 className="text-gray-500 text-sm font-medium mb-1">Revenus Totaux</h3>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {statistics.totalRevenue.toFixed(2)} DA
-            </p>
+            <ExpandableValue
+              value={`${statistics.totalRevenue.toFixed(2)} DA`}
+              title="Revenus Totaux"
+              maxLength={16}
+              className="w-full"
+              valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+            />
           </div>
 
           {/* Products Sold */}
           <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-500 p-3 rounded-xl">
+              <div className="bg-green-500 p-3 rounded-xl">
                 <Package className="w-6 h-6 text-white" />
               </div>
             </div>
             <h3 className="text-gray-500 text-sm font-medium mb-1">Produits Vendus</h3>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {statistics.totalProductsSold}
-            </p>
+            <ExpandableValue
+              value={statistics.totalProductsSold}
+              title="Produits Vendus"
+              maxLength={16}
+              className="w-full"
+              valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+            />
           </div>
 
           {/* Total Orders */}
@@ -147,9 +156,13 @@ export default function SupplierDashboardPage() {
               </div>
             </div>
             <h3 className="text-gray-500 text-sm font-medium mb-1">Réserves</h3>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {statistics.totalOrders}
-            </p>
+            <ExpandableValue
+              value={statistics.totalOrders}
+              title="Réserves"
+              maxLength={16}
+              className="w-full"
+              valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+            />
           </div>
 
           {/* Total Clients */}
@@ -160,9 +173,13 @@ export default function SupplierDashboardPage() {
               </div>
             </div>
             <h3 className="text-gray-500 text-sm font-medium mb-1">Clients</h3>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {statistics.totalClients}
-            </p>
+            <ExpandableValue
+              value={statistics.totalClients}
+              title="Clients"
+              maxLength={16}
+              className="w-full"
+              valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+            />
           </div>
         </div>
       ) : (
@@ -234,7 +251,7 @@ export default function SupplierDashboardPage() {
                           order.status === "arrived"
                             ? "bg-green-100 text-green-800"
                             : order.status === "en cours"
-                            ? "bg-blue-100 text-blue-800"
+                            ? "bg-green-100 text-green-800"
                             : "bg-orange-100 text-orange-800"
                         }`}
                       >

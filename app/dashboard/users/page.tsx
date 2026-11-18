@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -25,6 +25,7 @@ import {
   getSessionRole,
 } from "@/lib/api";
 import { isSouAdminRole } from "@/lib/admin-access";
+import ExpandableValue from "@/components/ExpandableValue";
 
 const ACTION_TONES = {
   amber: "border-amber-200 bg-amber-50 text-amber-600 hover:border-amber-500 hover:bg-amber-500 hover:text-white focus-visible:ring-amber-400",
@@ -305,18 +306,38 @@ export default function UsersPage() {
         <div className="flex items-start gap-3">
           <div
             className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold bg-gradient-to-br ${
-              isSupplier ? "from-green-500 to-emerald-500" : "from-blue-500 to-cyan-500"
+              isSupplier ? "from-blue-600 to-cyan-600" : "from-blue-500 to-cyan-600"
             }`}
           >
             {user.firstName.charAt(0)}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
-            {user.email ? <p className="truncate text-xs text-gray-500">{user.email}</p> : null}
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-600">
-              <Phone className="w-3.5 h-3.5 text-gray-400" />
-              {user.phone || "—"}
-            </p>
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <ExpandableValue
+              value={user.name}
+              title="Nom"
+              maxLength={28}
+              className="w-full"
+              valueClassName="text-sm font-semibold text-gray-900"
+            />
+            {user.email ? (
+              <ExpandableValue
+                value={user.email}
+                title="Email"
+                maxLength={28}
+                className="w-full"
+                valueClassName="text-xs text-gray-500"
+              />
+            ) : null}
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
+              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <ExpandableValue
+                value={user.phone || "—"}
+                title="Téléphone"
+                maxLength={18}
+                className="min-w-0"
+                valueClassName="text-xs text-gray-600"
+              />
+            </div>
           </div>
           <span
             className={`shrink-0 px-2.5 py-0.5 text-xs font-semibold rounded-full ${
@@ -373,53 +394,60 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
-          <p className="text-gray-500 mt-1">Gérez tous les utilisateurs de la plateforme</p>
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            Administration laboratoire
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+            Labs & fournisseurs
+          </h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Comptes laboratoire et fournisseurs du marketplace
+          </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
-          <Plus className="w-5 h-5" />
-          <span>Nouvel Utilisateur</span>
+        <button className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shrink-0">
+          <Plus className="w-4 h-4" />
+          <span className="text-sm font-semibold">Nouvel utilisateur</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Rechercher un utilisateur..."
+            placeholder="Rechercher un labo ou fournisseur..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm"
           />
         </div>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12 bg-white rounded-xl shadow-lg border border-gray-100">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-3 text-gray-600">Chargement des utilisateurs...</span>
+          <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
+          <span className="ml-3 text-slate-600">Chargement des utilisateurs...</span>
         </div>
       ) : error ? (
-        <div className="p-12 text-center bg-white rounded-xl shadow-lg border border-gray-100">
-          <p className="text-red-600 mb-4">{error}</p>
+        <div className="p-10 text-center bg-white rounded-xl shadow-sm border border-slate-200">
+          <p className="text-rose-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
           >
             Réessayer
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-6 py-4 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <User className="w-6 h-6 text-blue-600" />
-                Clients ({users.filter((u) => u.role === "client").length})
+        <div className="space-y-4 sm:space-y-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-200">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-700" />
+                Laboratoires ({users.filter((u) => u.role === "client").length})
               </h3>
             </div>
             {users.filter((u) => u.role === "client").length === 0 ? (
@@ -436,25 +464,25 @@ export default function UsersPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Utilisateur
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Contact
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Statut
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Certifie
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Commandes
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Date d&apos;inscription
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -463,43 +491,49 @@ export default function UsersPage() {
                     {users
                       .filter((u) => u.role === "client")
                       .map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold">
+                        <tr key={user.id} className="hover:bg-blue-50/40 transition-colors">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                            <div className="flex items-center min-w-0">
+                              <div className="flex-shrink-0 h-9 w-9 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                                 {user.firstName.charAt(0)}
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
+                              <div className="ml-3 min-w-0">
+                                <div className="text-sm font-medium text-slate-900 truncate max-w-[12rem]">
+                                  {user.name}
+                                </div>
+                                <div className="text-xs text-slate-500 truncate max-w-[12rem]">
+                                  {user.email}
+                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900 flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-gray-400" />
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                            <div className="text-sm text-slate-900 flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-slate-400" />
                               {user.phone}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
                             <span
-                              className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 user.status
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-rose-100 text-rose-800"
                               }`}
                             >
                               {user.status ? "Actif" : "Bloqué"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm text-slate-500">
+                            -
+                          </td>
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm text-slate-900">
                             {user.ordersCount}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm text-slate-500">
                             {formatDate(user.createdAt)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm font-medium">
                             {renderActionButtons(user)}
                           </td>
                         </tr>
@@ -511,10 +545,10 @@ export default function UsersPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Tag className="w-6 h-6 text-green-600" />
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-200">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-blue-700" />
                 Fournisseurs ({users.filter((u) => u.role === "supplier").length})
               </h3>
             </div>
@@ -530,70 +564,74 @@ export default function UsersPage() {
               </div>
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Utilisateur
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Contact
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Statut
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Certifie
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Commandes
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Annonces
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Date d&apos;inscription
                       </th>
-                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-4 py-2.5 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-slate-100">
                     {users
                       .filter((u) => u.role === "supplier")
                       .map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center text-white font-semibold">
+                        <tr key={user.id} className="hover:bg-blue-50/40 transition-colors">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                            <div className="flex items-center min-w-0">
+                              <div className="flex-shrink-0 h-9 w-9 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                                 {user.firstName.charAt(0)}
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              <div className="ml-3 min-w-0">
+                                <div className="text-sm font-medium text-slate-900 truncate max-w-[12rem]">
+                                  {user.name}
+                                </div>
                                 {user.email ? (
-                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                  <div className="text-xs text-slate-500 truncate max-w-[12rem]">
+                                    {user.email}
+                                  </div>
                                 ) : null}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900 flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-gray-400" />
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                            <div className="text-sm text-slate-900 flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-slate-400" />
                               {user.phone || "—"}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
                             <span
-                              className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 user.status
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-rose-100 text-rose-800"
                               }`}
                             >
                               {user.status ? "Actif" : "Bloqué"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
                             {canMutateUsers ? (
                               <button
                                 onClick={() => handleToggleCertife(user.id, !!user.certife)}
@@ -618,14 +656,16 @@ export default function UsersPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm text-slate-900">
                             {user.ordersCount}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">{renderListingQuota(user)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                            {renderListingQuota(user)}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm text-slate-500">
                             {formatDate(user.createdAt)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <td className="px-3 sm:px-4 py-2.5 whitespace-nowrap text-sm font-medium">
                             {renderActionButtons(user)}
                           </td>
                         </tr>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -16,6 +16,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
+import ExpandableValue from "@/components/ExpandableValue";
 import {
   getAllSponsors,
   createSponsor,
@@ -170,15 +171,18 @@ export default function SponsorsPage() {
   const formatDuration = (days: number) => `${days} ${days === 1 ? "jour" : "jours"}`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Megaphone className="w-7 h-7 text-blue-600" />
-            Gestion des sponsorisations
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            Visibilité catalogue
+          </p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 text-blue-700" />
+            Sponsorisations
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Créer et gérer les packs sponsor (durée en jours et prix)
+          <p className="text-sm text-slate-500 mt-0.5">
+            Packs sponsor (durée en jours et prix)
           </p>
         </div>
         <button
@@ -186,10 +190,10 @@ export default function SponsorsPage() {
             setShowCreateModal(true);
             setCreateForm({ time: 30, price: 0 });
           }}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shrink-0"
         >
-          <Plus className="w-5 h-5" />
-          Nouveau sponsor
+          <Plus className="w-4 h-4" />
+          <span className="text-sm font-semibold">Nouveau sponsor</span>
         </button>
       </div>
 
@@ -235,12 +239,23 @@ export default function SponsorsPage() {
                     <Clock className="w-4 h-4 text-blue-600" />
                     {formatDuration(sponsor.time)}
                   </span>
-                  <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                    {sponsor.price.toLocaleString("fr-FR")} DA
+                  <span className="inline-flex items-center gap-1 min-w-0">
+                    <DollarSign className="w-4 h-4 text-blue-600 shrink-0" />
+                    <ExpandableValue
+                      value={`${sponsor.price.toLocaleString("fr-FR")} DA`}
+                      title="Prix"
+                      maxLength={14}
+                      valueClassName="text-sm font-semibold text-gray-900"
+                    />
                   </span>
                 </div>
-                <p className="text-[11px] font-mono text-gray-500 break-all">{sponsor.id}</p>
+                <ExpandableValue
+                  value={sponsor.id}
+                  title="ID sponsor"
+                  maxLength={18}
+                  className="w-full"
+                  valueClassName="text-[11px] font-mono text-gray-500"
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleOpenUpdate(sponsor)}
@@ -279,7 +294,12 @@ export default function SponsorsPage() {
                 {filteredSponsors.map((sponsor) => (
                   <tr key={sponsor.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-4 px-4">
-                      <span className="text-xs font-mono text-gray-600 break-all">{sponsor.id}</span>
+                      <ExpandableValue
+                        value={sponsor.id}
+                        title="ID sponsor"
+                        maxLength={20}
+                        valueClassName="text-xs font-mono text-gray-600"
+                      />
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 text-gray-900">
@@ -289,7 +309,7 @@ export default function SponsorsPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 text-gray-900 font-semibold">
-                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <DollarSign className="w-4 h-4 text-blue-600" />
                         {sponsor.price.toLocaleString("fr-FR")} DA
                       </div>
                     </td>

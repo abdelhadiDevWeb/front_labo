@@ -29,6 +29,7 @@ import {
   typeHasFicheTechnique,
 } from "@/lib/catalog-form-fields";
 import FicheTechniquePanel from "@/components/supplier/FicheTechniquePanel";
+import ExpandableValue from "@/components/ExpandableValue";
 type CatalogKind = "machine" | "service";
 
 const TITLE_KEYS = ["Désignation", "designation", "name", "nom", "Nom"];
@@ -387,7 +388,7 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
                   kind === "machine"
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-green-100 text-green-700"
                     : "bg-purple-100 text-purple-700"
                 }`}
               >
@@ -429,10 +430,17 @@ export default function CatalogItemDetailPage({ kind }: { kind: CatalogKind }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {displayEntries.map(([key, value]) => (
                   <div key={key} className="rounded-xl bg-gray-50 px-4 py-3">
-                    <p className="text-xs text-gray-500 mb-1">{key}</p>
-                    <p className="text-sm font-semibold text-gray-900 break-words">
-                      {String(value)}
+                    <p className="text-xs text-gray-500 mb-1 truncate" title={key}>
+                      {key}
                     </p>
+                    <ExpandableValue
+                      value={String(value)}
+                      title={key}
+                      maxLength={36}
+                      lines={2}
+                      className="w-full"
+                      valueClassName="text-sm font-semibold text-gray-900"
+                    />
                   </div>
                 ))}
               </div>

@@ -44,6 +44,7 @@ import {
 import { downloadSupplierStatisticsPdf } from "@/lib/supplier-statistics-pdf";
 import { collectPdfCharts } from "@/lib/pdf-report-charts";
 import SupplierBuyersStatsSection from "@/components/supplier/SupplierBuyersStatsSection";
+import ExpandableValue from "@/components/ExpandableValue";
 
 const PERIODS: Array<{ id: StatsPeriod; label: string; hint: string }> = [
   { id: "1m", label: "Ce mois", hint: "Mois en cours" },
@@ -418,7 +419,7 @@ export default function SupplierStatisticsPage() {
   return (
     <div ref={reportRef} className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-green-700 to-emerald-800 rounded-2xl p-6 sm:p-8 text-white shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0">
@@ -446,18 +447,18 @@ export default function SupplierStatisticsPage() {
             onClick={() => void handleDownloadPdf()}
             disabled={!canExport || pdfBusy || isLoading}
             aria-busy={pdfBusy}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-green-600 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
               pdfDone
-                ? "bg-emerald-100 text-emerald-900 scale-[0.98]"
+                ? "bg-green-100 text-green-900 scale-[0.98]"
                 : pdfPressed || pdfBusy
-                  ? "bg-emerald-200 text-emerald-950 scale-[0.94] shadow-inner"
-                  : "bg-white text-emerald-800 hover:bg-emerald-50 hover:shadow-lg active:scale-[0.94] active:bg-emerald-100 active:shadow-inner"
+                  ? "bg-green-200 text-green-950 scale-[0.94] shadow-inner"
+                  : "bg-white text-green-800 hover:bg-green-50 hover:shadow-lg active:scale-[0.94] active:bg-green-100 active:shadow-inner"
             }`}
           >
             {pdfBusy ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : pdfDone ? (
-              <Check className="w-4 h-4 text-emerald-700" />
+              <Check className="w-4 h-4 text-green-700" />
             ) : (
               <Download className="w-4 h-4" />
             )}
@@ -499,20 +500,20 @@ export default function SupplierStatisticsPage() {
                 onClick={() => setSelectedPeriod(p.id)}
                 className={`relative rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
                   active
-                    ? "bg-white text-slate-900 shadow-md ring-1 ring-emerald-100"
+                    ? "bg-white text-slate-900 shadow-md ring-1 ring-green-100"
                     : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
                 }`}
               >
                 <span
                   className={`block text-sm font-semibold ${
-                    active ? "text-emerald-700" : ""
+                    active ? "text-green-700" : ""
                   }`}
                 >
                   {p.label}
                 </span>
                 <span className="block text-[11px] text-slate-500 mt-0.5">{p.hint}</span>
                 {active ? (
-                  <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-green-600 to-emerald-500" />
+                  <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-green-700 to-emerald-800" />
                 ) : null}
               </button>
             );
@@ -543,22 +544,30 @@ export default function SupplierStatisticsPage() {
             <TrendingUp className="w-5 h-5 text-green-600" />
           </div>
           <h3 className="text-gray-500 text-sm font-medium mb-1">Revenus (période)</h3>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {Math.round(statistics.totalRevenue).toLocaleString("fr-DZ")} DA
-          </p>
+          <ExpandableValue
+            value={`${Math.round(statistics.totalRevenue).toLocaleString("fr-DZ")} DA`}
+            title="Revenus (période)"
+            maxLength={16}
+            className="w-full"
+            valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+          />
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all">
           <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-500 p-3 rounded-xl">
+            <div className="bg-green-500 p-3 rounded-xl">
               <Package className="w-6 h-6 text-white" />
             </div>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <TrendingUp className="w-5 h-5 text-green-600" />
           </div>
           <h3 className="text-gray-500 text-sm font-medium mb-1">Produits Vendus</h3>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {statistics.totalProductsSold}
-          </p>
+          <ExpandableValue
+            value={statistics.totalProductsSold}
+            title="Produits Vendus"
+            maxLength={12}
+            className="w-full"
+            valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+          />
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all">
@@ -569,9 +578,13 @@ export default function SupplierStatisticsPage() {
             <TrendingUp className="w-5 h-5 text-purple-600" />
           </div>
           <h3 className="text-gray-500 text-sm font-medium mb-1">Total Réserves</h3>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {statistics.totalOrders}
-          </p>
+          <ExpandableValue
+            value={statistics.totalOrders}
+            title="Total Réserves"
+            maxLength={12}
+            className="w-full"
+            valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+          />
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all">
@@ -582,9 +595,13 @@ export default function SupplierStatisticsPage() {
             <TrendingUp className="w-5 h-5 text-orange-600" />
           </div>
           <h3 className="text-gray-500 text-sm font-medium mb-1">Clients</h3>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {statistics.totalClients}
-          </p>
+          <ExpandableValue
+            value={statistics.totalClients}
+            title="Clients"
+            maxLength={12}
+            className="w-full"
+            valueClassName="text-2xl sm:text-3xl font-bold text-gray-900"
+          />
         </div>
       </div>
 
@@ -594,7 +611,7 @@ export default function SupplierStatisticsPage() {
         {monthlyRevenueBarConfig && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <BarChart3 className="w-5 h-5 text-green-600" />
               <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels</h3>
             </div>
             <div className="h-80" data-pdf-chart="Revenus mensuels">
@@ -705,7 +722,7 @@ export default function SupplierStatisticsPage() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-4">
                   <div
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-4 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-4 rounded-full transition-all duration-500"
                     style={{
                       width: `${
                         (statistics.comparison.previousMonthRevenue /
@@ -923,7 +940,7 @@ export default function SupplierStatisticsPage() {
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Package className="w-4 h-4 text-blue-500" />
+                        <Package className="w-4 h-4 text-green-500" />
                         <span className="font-semibold text-gray-900">{product.quantity}</span>
                         <span className="text-sm text-gray-500">unités</span>
                       </div>
@@ -948,9 +965,9 @@ export default function SupplierStatisticsPage() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <div className="bg-blue-500 p-2 rounded-lg">
+                <div className="bg-green-500 p-2 rounded-lg">
                   <Package className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -996,10 +1013,10 @@ export default function SupplierStatisticsPage() {
       <SupplierBuyersStatsSection profile={profile} />
 
       {/* Export CTA */}
-      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-green-50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="rounded-2xl border border-green-100 bg-gradient-to-r from-green-50 to-emerald-50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold text-slate-900 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-emerald-600" />
+            <FileText className="w-4 h-4 text-green-600" />
             Exporter le rapport comptable
           </p>
           <p className="text-sm text-slate-600 mt-0.5">
@@ -1021,7 +1038,7 @@ export default function SupplierStatisticsPage() {
           aria-busy={pdfBusy}
           className={`shrink-0 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-60 ${
             pdfDone
-              ? "bg-emerald-600 scale-[0.98]"
+              ? "bg-green-600 scale-[0.98]"
               : pdfPressed || pdfBusy
                 ? "bg-slate-950 scale-[0.94] shadow-inner"
                 : "bg-slate-900 hover:bg-slate-800 hover:shadow-lg active:scale-[0.94] active:bg-slate-950 active:shadow-inner"

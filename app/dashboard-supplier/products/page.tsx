@@ -34,6 +34,7 @@ import {
   Wrench,
   Star,
 } from "lucide-react";
+import ExpandableValue from "@/components/ExpandableValue";
 import {
   getSupplierProducts,
   getSupplierMachines,
@@ -539,7 +540,7 @@ function ProductsPageContent() {
 
   const getSponsorStatus = (record: SponsorProductRecord) => {
     if (record.source === "subscription" && record.payment_status) {
-      return { label: "Abonnement", className: "bg-blue-100 text-blue-800" };
+      return { label: "Abonnement", className: "bg-green-100 text-green-800" };
     }
     if (record.isActive) {
       return { label: "Actif", className: "bg-green-100 text-green-800" };
@@ -933,14 +934,14 @@ function ProductsPageContent() {
     kind === "product"
       ? "bg-green-100 text-green-700"
       : kind === "machine"
-        ? "bg-blue-100 text-blue-700"
+        ? "bg-green-100 text-green-700"
         : "bg-amber-100 text-amber-800";
 
   const kindSectionClass = (kind: MarketplaceKind) =>
     kind === "product"
       ? "border-green-200"
       : kind === "machine"
-        ? "border-blue-200"
+        ? "border-green-200"
         : "border-amber-200";
 
   const sectionsToShow: MarketplaceKind[] =
@@ -1118,8 +1119,8 @@ function ProductsPageContent() {
     const setSelectedId = isVip ? setSelectedProductId : setSelectedSubscriptionProductId;
     const selectedClass = isVip
       ? "border-purple-600 bg-purple-50 text-purple-900 ring-2 ring-purple-200"
-      : "border-blue-600 bg-blue-50 text-blue-900 ring-2 ring-blue-200";
-    const focusClass = isVip ? "focus:ring-purple-500" : "focus:ring-blue-500";
+      : "border-green-600 bg-green-50 text-green-900 ring-2 ring-green-200";
+    const focusClass = isVip ? "focus:ring-purple-500" : "focus:ring-green-500";
     const kindName = kindLabel(sponsorItemKind);
     const kindArticle =
       sponsorItemKind === "machine" ? "une machine" : sponsorItemKind === "service" ? "un service" : "un produit";
@@ -1255,7 +1256,14 @@ function ProductsPageContent() {
         </div>
 
         <div className="p-4 space-y-3">
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-2">{title}</h3>
+          <ExpandableValue
+            value={title}
+            title="Nom"
+            maxLength={42}
+            lines={2}
+            className="w-full"
+            valueClassName="text-lg font-bold text-gray-900"
+          />
 
           <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
             {entries.length === 0 ? (
@@ -1271,7 +1279,9 @@ function ProductsPageContent() {
                     key={key}
                     className="flex justify-between gap-3 text-sm border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 items-center"
                   >
-                    <span className="text-gray-500 font-medium shrink-0">{key}</span>
+                    <span className="text-gray-500 font-medium shrink-0 max-w-[40%] truncate" title={key}>
+                      {key}
+                    </span>
                     {isFiche && pdfUrl ? (
                       <button
                         type="button"
@@ -1281,7 +1291,7 @@ function ProductsPageContent() {
                             title: `${title} — Fiche technique`,
                           })
                         }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shrink-0"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors shrink-0"
                       >
                         <FileText className="w-3.5 h-3.5" />
                         Voir le PDF
@@ -1289,9 +1299,13 @@ function ProductsPageContent() {
                     ) : isFicheTechniqueField(key) && !pdfUrl ? (
                       <span className="text-gray-400 text-xs italic">Non disponible</span>
                     ) : (
-                      <span className="text-gray-900 text-right break-all font-semibold">
-                        {formatUniqueValue(value)}
-                      </span>
+                      <ExpandableValue
+                        value={formatUniqueValue(value)}
+                        title={key}
+                        maxLength={20}
+                        className="min-w-0 max-w-[60%] justify-end"
+                        valueClassName="text-gray-900 text-right font-semibold"
+                      />
                     )}
                   </div>
                 );
@@ -1363,7 +1377,7 @@ function ProductsPageContent() {
                   router.push(`/dashboard-supplier/services/${item.id}`);
                 }
               }}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all flex items-center justify-center gap-2"
             >
               <Eye className="w-4 h-4" />
               Voir les détails
@@ -1391,7 +1405,7 @@ function ProductsPageContent() {
           </div>
           <button
             onClick={() => router.push("/dashboard-supplier/add-product")}
-            className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
+            className="px-6 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             <span>Ajouter</span>
@@ -1417,9 +1431,9 @@ function ProductsPageContent() {
                 count: kindCounts.machine,
                 Icon: Cpu,
                 active:
-                  "border-blue-500 bg-blue-50 ring-2 ring-blue-200 text-blue-900",
-                idle: "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/60",
-                iconBg: "bg-blue-100 text-blue-700",
+                  "border-green-500 bg-green-50 ring-2 ring-green-200 text-green-900",
+                idle: "border-green-100 bg-white hover:border-green-300 hover:bg-green-50/60",
+                iconBg: "bg-green-100 text-green-700",
               },
               {
                 kind: "service" as MarketplaceKind,
@@ -1468,8 +1482,8 @@ function ProductsPageContent() {
           className="w-full flex items-center justify-between gap-3 p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <History className="w-5 h-5 text-emerald-700" />
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+              <History className="w-5 h-5 text-green-700" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Historique XLS</h2>
@@ -1548,7 +1562,7 @@ function ProductsPageContent() {
                     <button
                       type="button"
                       onClick={() => void openHistoryItems(row)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shrink-0"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors shrink-0"
                     >
                       <Eye className="w-4 h-4" />
                       Voir les{" "}
@@ -1680,7 +1694,7 @@ function ProductsPageContent() {
           {marketplaceItems.length === 0 && (
             <button
               onClick={() => router.push("/dashboard-supplier/add-product")}
-              className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all transform hover:scale-105 shadow-lg"
             >
               Ajouter
             </button>
@@ -1836,7 +1850,7 @@ function ProductsPageContent() {
                                   itemDetailPath(viewingHistory.type, String(item.id))
                                 )
                               }
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100"
                               title="Modifier"
                             >
                               <Edit className="w-3.5 h-3.5" />
@@ -2022,7 +2036,7 @@ function ProductsPageContent() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-emerald-600 to-green-600 px-5 py-4 flex items-center justify-between shrink-0">
+              <div className="bg-gradient-to-r from-green-700 to-emerald-800 px-5 py-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText className="w-5 h-5 text-white shrink-0" />
                   <h3 className="text-lg font-bold text-white truncate">

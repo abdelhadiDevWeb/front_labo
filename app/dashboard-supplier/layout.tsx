@@ -264,13 +264,13 @@ export default function SupplierDashboardLayout({
         return {
           title: "Nouvelle réserve",
           icon: <ShoppingCart className="w-5 h-5" />,
-          iconClassName: "bg-gradient-to-br from-green-600 to-emerald-600",
+          iconClassName: "bg-gradient-to-br from-green-700 to-emerald-800",
         };
       case "order_status":
         return {
           title: "Mise à jour de réserve",
           icon: <Bell className="w-5 h-5" />,
-          iconClassName: "bg-gradient-to-br from-blue-600 to-cyan-600",
+          iconClassName: "bg-gradient-to-br from-green-700 to-emerald-800",
         };
       case "subscription":
         return {
@@ -288,7 +288,7 @@ export default function SupplierDashboardLayout({
         return {
           title: "Message",
           icon: <MessageCircle className="w-5 h-5" />,
-          iconClassName: "bg-gradient-to-br from-teal-600 to-emerald-600",
+          iconClassName: "bg-gradient-to-br from-green-700 to-emerald-800",
         };
       default:
         return {
@@ -436,54 +436,77 @@ export default function SupplierDashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900 supplier-lab-shell">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-950/45 backdrop-blur-[2px] z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-[100dvh] w-[min(17.5rem,88vw)] lg:w-56 xl:w-60 bg-white border-r border-slate-200/90 shadow-[4px_0_24px_rgba(15,23,42,0.04)] z-50 transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
+        aria-label="Menu fournisseur"
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-gray-200">
-            <Link href="/dashboard-supplier" className="flex items-center justify-center">
+          <div className="relative px-4 py-3.5 xl:px-5 xl:py-4 border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white to-green-50/40">
+            <Link href="/dashboard-supplier" className="flex flex-col items-center gap-1.5">
               <Image
                 src="/images/logo.png"
-                alt="Market Lab Logo"
-                width={150}
-                height={60}
-                className="w-32 h-16 object-contain"
+                alt="Dz Labmarket Logo"
+                width={140}
+                height={56}
+                className="w-24 h-12 xl:w-28 xl:h-14 object-contain"
+                priority
               />
+              <span className="inline-flex items-center gap-1 rounded-full border border-green-200/80 bg-green-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-800">
+                Espace fournisseur
+              </span>
             </Link>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden absolute right-2.5 top-2.5 p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+              aria-label="Fermer le menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-2">
+          <nav className="dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3 xl:px-3">
+            <p className="px-2.5 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Navigation
+            </p>
+            <ul className="space-y-0.5">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive =
+                  item.href === "/dashboard-supplier"
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                      className={`flex items-center gap-2.5 px-2.5 py-2 xl:px-3 xl:py-2.5 rounded-xl transition-all duration-200 group relative text-sm ${
                         isActive
-                          ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/50"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-green-600"
+                          ? "bg-gradient-to-r from-green-700 to-emerald-800 text-white shadow-md shadow-green-800/30"
+                          : "text-slate-700 hover:bg-green-50 hover:text-green-800"
                       }`}
                       onClick={() => setSidebarOpen(false)}
                     >
-                      <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
-                      <span className="font-medium">{item.label}</span>
+                      <Icon
+                        className={`w-[1.15rem] h-[1.15rem] shrink-0 transition-transform ${
+                          isActive ? "" : "group-hover:scale-105"
+                        }`}
+                      />
+                      <span className="font-medium truncate leading-tight">{item.label}</span>
                     </Link>
                   </li>
                 );
@@ -492,12 +515,12 @@ export default function SupplierDashboardLayout({
           </nav>
 
           {/* Bottom Actions */}
-          <div className="p-4 border-t border-gray-200 space-y-2">
+          <div className="p-2.5 xl:p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 space-y-2">
             <button
               onClick={() => performLogout(router)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 xl:px-3 xl:py-2.5 rounded-xl text-sm text-rose-600 hover:bg-rose-50 transition-all duration-200"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
               <span className="font-medium">Déconnexion</span>
             </button>
           </div>
@@ -505,32 +528,38 @@ export default function SupplierDashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-56 xl:pl-60 min-w-0">
         {/* Top Bar */}
-        <header className="sticky top-0 z-[99] bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between gap-2 px-4 sm:px-6 lg:px-8 h-16">
+        <header className="sticky top-0 z-[99] border-b border-slate-200/90 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-4 xl:px-6 h-14 max-w-[1600px]">
             <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="lg:hidden p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                aria-label={sidebarOpen ? "Fermer le menu" : "Ouvrir le menu"}
               >
                 {sidebarOpen ? (
-                  <X className="w-6 h-6 text-gray-700" />
+                  <X className="w-5 h-5 text-slate-700" />
                 ) : (
-                  <Menu className="w-6 h-6 text-gray-700" />
+                  <Menu className="w-5 h-5 text-slate-700" />
                 )}
               </button>
               {pathname !== "/dashboard-supplier" && (
                 <BackButton
                   fallbackHref={supplierBackFallback(pathname)}
-                  className="inline-flex h-10 items-center gap-1.5 rounded-lg px-2 sm:px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl px-2 sm:px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition-colors"
                   iconClassName="w-5 h-5"
                   label={<span className="hidden sm:inline">Retour</span>}
                 />
               )}
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
-                {supplierPageTitle(pathname)}
-              </h1>
+              <div className="min-w-0">
+                <p className="hidden sm:block text-[10px] font-semibold uppercase tracking-[0.14em] text-green-700">
+                  Console fournisseur
+                </p>
+                <h1 className="text-[15px] sm:text-lg font-bold text-slate-900 truncate leading-tight">
+                  {supplierPageTitle(pathname)}
+                </h1>
+              </div>
             </div>
 
             {/* User Info Section */}
@@ -545,11 +574,11 @@ export default function SupplierDashboardLayout({
                   }}
                   aria-label="Notifications"
                   aria-expanded={showNotifications}
-                  className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+                  className="relative p-2 rounded-xl hover:bg-green-50 transition-colors group"
                 >
-                  <Bell className="w-5 h-5 text-gray-600 group-hover:text-green-600 transition-colors" />
+                  <Bell className="w-5 h-5 text-slate-600 group-hover:text-green-700 transition-colors" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    <span className="absolute top-1 right-1 min-w-[1.125rem] h-[1.125rem] px-1 bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
@@ -584,9 +613,9 @@ export default function SupplierDashboardLayout({
               <div className="relative user-dropdown-container">
                 <button
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-100 transition-all duration-200 group"
+                  className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl hover:bg-slate-100 transition-all duration-200 group"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow overflow-hidden">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-green-700 to-emerald-800 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow overflow-hidden">
                     {profileImage ? (
                       <img 
                         src={profileImage} 
@@ -636,9 +665,9 @@ export default function SupplierDashboardLayout({
                     <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up">
                       {/* User Info Header */}
                       {userData && (
-                        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+                        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-200">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-500 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+                            <div className="w-12 h-12 bg-gradient-to-br from-green-700 to-emerald-800 rounded-full flex items-center justify-center shadow-md overflow-hidden">
                               {profileImage ? (
                                 <img 
                                   src={profileImage} 
@@ -720,8 +749,8 @@ export default function SupplierDashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          <div className="animate-fade-in">{children}</div>
+        <main className="p-3 sm:p-4 xl:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto max-w-[1600px] animate-fade-in">{children}</div>
         </main>
 
         {/* Support Button - Fixed Bottom Right */}
@@ -743,7 +772,7 @@ export default function SupplierDashboardLayout({
             }
             setShowSupportModal(true);
           }}
-          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-110"
+          className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-green-700 to-emerald-800 text-white p-4 rounded-full shadow-2xl hover:shadow-green-700/50 transition-all duration-300 transform hover:scale-110"
           aria-label="Contacter le support"
         >
           <MessageCircle className="w-6 h-6" />
@@ -762,7 +791,7 @@ export default function SupplierDashboardLayout({
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl">
+                      <div className="p-2 bg-gradient-to-r from-green-700 to-emerald-800 rounded-xl">
                         <MessageCircle className="w-6 h-6 text-white" />
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900">Contactez le support</h3>
@@ -808,7 +837,7 @@ export default function SupplierDashboardLayout({
                         disabled={userData !== null}
                         value={supportFormData.phone}
                         onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
-                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all ${
                           userData ? "bg-gray-100 cursor-not-allowed" : ""
                         }`}
                         placeholder="06 12 34 56 78"
@@ -833,7 +862,7 @@ export default function SupplierDashboardLayout({
                         disabled={userData !== null}
                         value={supportFormData.email}
                         onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
-                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${
+                        className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all ${
                           userData ? "bg-gray-100 cursor-not-allowed" : ""
                         }`}
                         placeholder="votre@email.com"
@@ -852,7 +881,7 @@ export default function SupplierDashboardLayout({
                       rows={5}
                       value={supportFormData.message}
                       onChange={(e) => setSupportFormData({ ...supportFormData, message: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all resize-none"
                       placeholder="Décrivez votre problème ou votre question..."
                     />
                   </div>
@@ -861,7 +890,7 @@ export default function SupplierDashboardLayout({
                   <button
                     type="submit"
                     disabled={isSubmittingSupport}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isSubmittingSupport ? (
                       <>
