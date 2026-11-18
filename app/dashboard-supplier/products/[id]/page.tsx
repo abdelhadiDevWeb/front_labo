@@ -400,7 +400,7 @@ export default function ProductDetailPage() {
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-semibold ${
                       product.productType === "Labo médical"
-                        ? "bg-blue-100 text-blue-700"
+                        ? "bg-green-100 text-green-700"
                         : "bg-purple-100 text-purple-700"
                     }`}
                   >
@@ -466,7 +466,7 @@ export default function ProductDetailPage() {
                 </div>
                 <span className="text-xl font-bold text-green-600">{product.sellingPrice.toFixed(2)} DA</span>
               </div>
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl text-white">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-700 to-emerald-800 rounded-xl text-white">
                 <div className="flex items-center gap-2">
                   <Percent className="w-5 h-5" />
                   <span className="font-semibold">Bénéfice par unité</span>
@@ -483,8 +483,8 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-5">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Box className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Box className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Stock disponible</p>
@@ -583,14 +583,14 @@ export default function ProductDetailPage() {
                             onClick={() => setEditFormData({ ...editFormData, productType: opt.value })}
                             className={`text-left p-4 rounded-xl border-2 transition-all ${
                               selected
-                                ? "border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-sm"
-                                : "border-teal-200 bg-gradient-to-br from-teal-50/60 to-cyan-50/60 hover:border-teal-400"
+                                ? "border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm"
+                                : "border-green-200 bg-gradient-to-br from-green-50/60 to-emerald-50/60 hover:border-green-400"
                             }`}
                           >
                             <div className="flex items-start gap-2">
                               <FlaskConical
                                 className={`h-5 w-5 mt-0.5 shrink-0 ${
-                                  selected ? "text-teal-600" : "text-gray-400"
+                                  selected ? "text-green-600" : "text-gray-400"
                                 }`}
                               />
                               <p className="font-semibold text-gray-900 text-sm leading-snug">

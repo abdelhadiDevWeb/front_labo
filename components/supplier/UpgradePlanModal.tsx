@@ -87,7 +87,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={isProcessing ? undefined : onClose} />
-      <div className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl bg-gradient-to-br from-blue-50 via-white to-cyan-50 shadow-2xl">
+      <div className="relative w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl bg-gradient-to-br from-green-50 via-white to-emerald-50 shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-200 bg-white/95 backdrop-blur px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600">
@@ -130,7 +130,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700"
+                className="px-6 py-3 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900"
               >
                 Fermer
               </button>
@@ -138,7 +138,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
           ) : !selectedPlan ? (
             isLoadingPlans ? (
               <div className="flex justify-center py-20">
-                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
               </div>
             ) : plans.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
@@ -153,14 +153,14 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                     <div
                       key={plan.id}
                       className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all p-6 flex flex-col ${
-                        isCurrent ? "border-blue-400 ring-2 ring-blue-100" : "border-gray-200 hover:border-blue-300"
+                        isCurrent ? "border-green-400 ring-2 ring-green-100" : "border-gray-200 hover:border-green-300"
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="w-5 h-5 text-blue-600" />
+                        <Sparkles className="w-5 h-5 text-green-600" />
                         <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
                         {isCurrent && (
-                          <span className="ml-auto text-[11px] font-bold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">
+                          <span className="ml-auto text-[11px] font-bold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-md">
                             Plan actuel
                           </span>
                         )}
@@ -170,7 +170,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                       )}
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center gap-2 text-gray-700 text-sm">
-                          <Calendar className="w-4 h-4 text-blue-500" />
+                          <Calendar className="w-4 h-4 text-green-500" />
                           <span>Durée de l&apos;abonnement&nbsp;: {formatPlanDuration(plan.time)}</span>
                         </div>
                         <PlanMaxProductsInfo plan={plan} role="supplier" />
@@ -182,7 +182,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                           : `Après validation : vous pourrez ajouter ${after} annonce(s)`}
                       </div>
                       <div className="mt-auto">
-                        <p className="text-3xl font-bold text-blue-600 mb-4">
+                        <p className="text-3xl font-bold text-green-600 mb-4">
                           {plan.price.toLocaleString("fr-DZ")} <span className="text-lg font-medium">DZD</span>
                         </p>
                         <button
@@ -191,7 +191,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                             setSelectedPlan(plan);
                             setError(null);
                           }}
-                          className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
+                          className="w-full py-3 px-4 bg-gradient-to-r from-green-700 to-emerald-800 text-white rounded-xl font-semibold hover:from-green-800 hover:to-emerald-900 transition-all"
                         >
                           Choisir ce plan
                         </button>
@@ -210,7 +210,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                   setError(null);
                 }}
                 disabled={isProcessing}
-                className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 text-sm"
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-green-600 mb-6 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Choisir un autre plan
@@ -220,7 +220,7 @@ export default function UpgradePlanModal({ open, onClose, quota, onSubmitted }: 
                 <div className="text-center mb-8">
                   <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
                   <h3 className="text-2xl font-bold text-gray-900 mb-1">{selectedPlan.name}</h3>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">
+                  <p className="text-3xl font-bold text-green-600 mt-2">
                     {selectedPlan.price.toLocaleString("fr-DZ")} DZD
                   </p>
                   <p className="text-gray-500 text-sm mt-1">

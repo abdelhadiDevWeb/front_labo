@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Shield, Search, Plus, Eye, Mail, Phone, MapPin, User, X, CheckCircle, XCircle, Loader2, Key } from "lucide-react";
 import { getAllAdmins, createAdmin, updateAdminStatus, AdminData, CreateAdminData, getSessionRole } from "@/lib/api";
+import ExpandableValue from "@/components/ExpandableValue";
 
 export default function AdminsPage() {
   const router = useRouter();
@@ -139,19 +140,24 @@ export default function AdminsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestion des Admins</h2>
-          <p className="text-gray-500 mt-1">Gérez les administrateurs et leurs statuts</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+            Administration laboratoire
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Administrateurs</h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Comptes admin et sou-admin de la console
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shrink-0"
         >
-          <Plus className="w-5 h-5" />
-          <span>Nouvel Admin</span>
+          <Plus className="w-4 h-4" />
+          <span className="text-sm font-semibold">Nouvel Admin</span>
         </button>
       </div>
 
@@ -168,15 +174,15 @@ export default function AdminsPage() {
       )}
 
       {/* Search Bar */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Rechercher un administrateur..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm"
           />
         </div>
       </div>
@@ -184,26 +190,36 @@ export default function AdminsPage() {
       {/* Loading State */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
         </div>
       ) : (
         /* Admins Grid */
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
         {filteredAdmins.map((admin) => (
           <div
               key={admin._id}
-            className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 hover:shadow-md transition-all"
           >
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2.5 sm:p-3 bg-purple-100 rounded-xl shrink-0">
                   <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-                <div className="min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 break-words">
-                      {admin.firstName} {admin.lastName}
-                    </h3>
-                  <p className="text-sm text-gray-500 break-all">{admin.email}</p>
+                <div className="min-w-0 space-y-0.5">
+                  <ExpandableValue
+                    value={`${admin.firstName} ${admin.lastName}`}
+                    title="Nom"
+                    maxLength={28}
+                    className="w-full"
+                    valueClassName="text-lg sm:text-xl font-bold text-gray-900"
+                  />
+                  <ExpandableValue
+                    value={admin.email}
+                    title="Email"
+                    maxLength={28}
+                    className="w-full"
+                    valueClassName="text-sm text-gray-500"
+                  />
                   <span
                     className={`mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                       admin.role === "sou-admin"
@@ -229,13 +245,26 @@ export default function AdminsPage() {
             </div>
 
             <div className="space-y-3 mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="w-4 h-4 text-gray-400" />
-                {admin.phone}
+              <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+                <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                <ExpandableValue
+                  value={admin.phone}
+                  title="Téléphone"
+                  maxLength={18}
+                  className="min-w-0"
+                  valueClassName="text-sm text-gray-600"
+                />
               </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
+                <div className="flex items-start gap-2 text-sm text-gray-600 min-w-0">
                   <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <span className="break-words">{admin.address}</span>
+                  <ExpandableValue
+                    value={admin.address}
+                    title="Adresse"
+                    maxLength={36}
+                    lines={2}
+                    className="min-w-0"
+                    valueClassName="text-sm text-gray-600"
+                  />
                 </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Key className="w-4 h-4 text-gray-400" />
@@ -257,7 +286,7 @@ export default function AdminsPage() {
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     admin.status
                       ? "bg-red-100 text-red-600 hover:bg-red-200"
-                      : "bg-green-100 text-green-600 hover:bg-green-200"
+                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isUpdatingStatus === admin._id ? (
@@ -292,7 +321,7 @@ export default function AdminsPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 animate-fade-in">
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col animate-slide-up">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-4 sm:p-6 flex items-center justify-between sticky top-0 z-10">
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-4 sm:p-5 flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0">
                   <Shield className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
@@ -464,7 +493,7 @@ export default function AdminsPage() {
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg sm:rounded-xl hover:from-blue-800 hover:to-cyan-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm sm:text-base shadow-sm"
                 >
                   {isCreating ? (
                     <>
@@ -553,7 +582,7 @@ export default function AdminsPage() {
                   className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm sm:text-base ${
                     selectedAdmin.status
                       ? "bg-red-100 text-red-600 hover:bg-red-200"
-                      : "bg-green-100 text-green-600 hover:bg-green-200"
+                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isUpdatingStatus === selectedAdmin._id ? (

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { getAdminStatistics, getDetailedAdminStatistics, AdminStatistics, DetailedAdminStatistics, getAllSubscriptions, Subscription } from "@/lib/api";
 import AdminUsersStatsSection from "@/components/admin/AdminUsersStatsSection";
+import ExpandableValue from "@/components/ExpandableValue";
 
 // Register Chart.js components
 ChartJS.register(
@@ -464,7 +465,7 @@ export default function StatisticsPage() {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 animate-spin text-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Chargement des statistiques...</p>
         </div>
       </div>
@@ -478,7 +479,7 @@ export default function StatisticsPage() {
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={loadStatistics}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
           >
             Réessayer
           </button>
@@ -534,7 +535,7 @@ export default function StatisticsPage() {
             change: `${revenueGrowth >= 0 ? "+" : ""}${revenueGrowth.toFixed(1)}%`,
             trend: (revenueGrowth >= 0 ? "up" : "down") as "up" | "down",
             icon: DollarSign,
-            color: "bg-green-500",
+            color: "bg-blue-600",
           },
           {
             title: "Total Utilisateurs",
@@ -577,56 +578,65 @@ export default function StatisticsPage() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5 xl:space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          {isLimited ? "Statistiques d'activité" : "Statistiques Complètes"}
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">
+          Indicateurs laboratoire
+        </p>
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+          {isLimited ? "Statistiques d'activité" : "Statistiques"}
         </h2>
-        <p className="text-gray-500 mt-1">
+        <p className="text-slate-500 text-sm mt-0.5">
           {isLimited
             ? "Volumes et répartition — sans données financières ni contacts"
-            : "Analyse détaillée des performances de la plateforme"}
+            : "Pilotage labs, fournisseurs et commandes marketplace"}
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Stats Grid — denser on small laptops */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3 xl:gap-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.title}
-              className="bg-white rounded-xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100"
+              className="bg-white rounded-xl p-3.5 sm:p-4 xl:p-5 shadow-sm hover:shadow-md transition-all border border-slate-200"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} p-3 rounded-xl`}>
-                  <Icon className="w-6 h-6 text-white" />
+              <div className="flex items-center justify-between mb-3">
+                <div className={`${stat.color} p-2 sm:p-2.5 rounded-xl`}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div
                   className={`flex items-center gap-1 text-sm font-semibold ${
-                    stat.trend === "up" ? "text-green-600" : "text-red-600"
+                    stat.trend === "up" ? "text-blue-600" : "text-red-600"
                   }`}
                 >
                   {stat.trend === "up" ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                   {stat.change}
                 </div>
               </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">{stat.title}</h3>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
+              <h3 className="text-slate-500 text-[11px] sm:text-xs font-medium mb-0.5">{stat.title}</h3>
+              <ExpandableValue
+                value={stat.value}
+                title={stat.title}
+                maxLength={14}
+                className="w-full"
+                valueClassName="text-base sm:text-xl xl:text-2xl font-bold text-slate-900 tabular-nums"
+              />
             </div>
           );
         })}
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 xl:gap-5">
         {/* Monthly Revenue - Bar Chart (full admin) */}
         {!isLimited && monthlyRevenueBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels</h3>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="w-5 h-5 text-blue-700" />
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Revenus Mensuels</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={monthlyRevenueBarConfig} options={barChartOptions} />
@@ -636,10 +646,10 @@ export default function StatisticsPage() {
 
         {/* Monthly Orders - Line Chart */}
         {monthlyOrdersLineConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-green-600" />
-              <h3 className="text-lg font-bold text-gray-900">Commandes Mensuelles</h3>
+              <Activity className="w-5 h-5 text-blue-600" />
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Commandes Mensuelles</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Line data={monthlyOrdersLineConfig} options={lineChartOptions} />
@@ -649,10 +659,10 @@ export default function StatisticsPage() {
 
         {/* Orders by Status - Pie Chart */}
         {ordersByStatusPieConfig && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingCart className="w-5 h-5 text-red-600" />
-              <h3 className="text-lg font-bold text-gray-900">Commandes par Statut</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Commandes par Statut</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Pie data={ordersByStatusPieConfig} options={chartOptions} />
@@ -662,10 +672,10 @@ export default function StatisticsPage() {
 
         {/* Users by Role - Doughnut Chart */}
         {usersByRoleDoughnutConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Users className="w-5 h-5 text-purple-600" />
-              <h3 className="text-lg font-bold text-gray-900">Utilisateurs par Rôle</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Utilisateurs par Rôle</h3>
               </div>
             <div className="h-64 sm:h-80">
               <Doughnut data={usersByRoleDoughnutConfig} options={chartOptions} />
@@ -675,10 +685,10 @@ export default function StatisticsPage() {
 
         {/* Users by Role - Bar Chart */}
         {usersByRoleBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-bold text-gray-900">Répartition des Utilisateurs par Rôle</h3>
+              <Users className="w-5 h-5 text-blue-700" />
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Répartition des Utilisateurs par Rôle</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={usersByRoleBarConfig} options={barChartOptions} />
@@ -688,11 +698,11 @@ export default function StatisticsPage() {
 
         {/* Subscription Revenue by Type - Bar Chart */}
         {!isLimited && subscriptionRevenueConfig?.byType && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-orange-600" />
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900">Revenus des Abonnements par Type</h3>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">Revenus des Abonnements par Type</h3>
                 <p className="text-sm text-gray-500">Total: {subscriptionRevenueConfig.total.toFixed(2)} DA ({subscriptionRevenueConfig.count} abonnements actifs)</p>
               </div>
             </div>
@@ -704,10 +714,10 @@ export default function StatisticsPage() {
 
         {/* Products by Category - Bar Chart */}
         {productsByCategoryBarConfig && (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-orange-600" />
-              <h3 className="text-lg font-bold text-gray-900">Produits par Catégorie</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Produits par Catégorie</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={productsByCategoryBarConfig} options={barChartOptions} />
@@ -717,10 +727,10 @@ export default function StatisticsPage() {
 
         {/* Daily Revenue - Scatter Plot */}
         {!isLimited && dailyRevenueScatterConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-purple-600" />
-              <h3 className="text-lg font-bold text-gray-900">Revenus Quotidiens (30 derniers jours)</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Revenus Quotidiens (30 derniers jours)</h3>
               </div>
             <div className="h-64 sm:h-80">
               <Scatter data={dailyRevenueScatterConfig} options={scatterChartOptions} />
@@ -733,10 +743,10 @@ export default function StatisticsPage() {
       <div className="grid grid-cols-1 gap-6">
         {/* Top Suppliers - Bar Chart */}
         {!isLimited && topSuppliersBarConfig && (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-green-600" />
-              <h3 className="text-lg font-bold text-gray-900">Top 10 Fournisseurs par Revenus</h3>
+              <Users className="w-5 h-5 text-blue-600" />
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Top 10 Fournisseurs par Revenus</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={topSuppliersBarConfig} options={barChartOptions} />
@@ -746,10 +756,10 @@ export default function StatisticsPage() {
 
         {/* Top Products - Bar Chart */}
         {!isLimited && topProductsBarConfig && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-pink-600" />
-              <h3 className="text-lg font-bold text-gray-900">Top 10 Produits par Quantité Vendue</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Top 10 Produits par Quantité Vendue</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={topProductsBarConfig} options={barChartOptions} />
@@ -759,10 +769,10 @@ export default function StatisticsPage() {
 
         {/* Monthly Subscription Revenue - Bar Chart */}
         {!isLimited && subscriptionRevenueConfig?.monthly && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <DollarSign className="w-5 h-5 text-purple-600" />
-              <h3 className="text-lg font-bold text-gray-900">Revenus Mensuels des Abonnements</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">Revenus Mensuels des Abonnements</h3>
             </div>
             <div className="h-64 sm:h-80">
               <Bar data={subscriptionRevenueConfig.monthly} options={barChartOptions} />

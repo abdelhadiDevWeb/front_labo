@@ -23,6 +23,7 @@ import {
 import { apiFetch, checkAuthSession, getPaymentsByCommandes, Payment } from "@/lib/api";
 import { printInvoiceSafely } from "@/lib/invoice-print";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import ExpandableValue from "@/components/ExpandableValue";
 import { getApiUrl } from "@/lib/api-config";
 import { getMediaUrl } from "@/lib/media-url";
 interface OrderProduct {
@@ -319,7 +320,7 @@ export default function SupplierOrdersPage() {
       case "refusée":
         return <X className="w-5 h-5 text-red-600" />;
       case "en cours":
-        return <Clock className="w-5 h-5 text-blue-600" />;
+        return <Clock className="w-5 h-5 text-green-600" />;
       case "on route":
         return <Truck className="w-5 h-5 text-orange-600" />;
       case "arrived":
@@ -333,7 +334,7 @@ export default function SupplierOrdersPage() {
     const styles: Record<string, string> = {
       "en attente": "bg-amber-100 text-amber-800 border-amber-300",
       "refusée": "bg-red-100 text-red-700 border-red-300",
-      "en cours": "bg-blue-100 text-blue-700 border-blue-300",
+      "en cours": "bg-green-100 text-green-700 border-green-300",
       "on route": "bg-orange-100 text-orange-700 border-orange-300",
       "arrived": "bg-green-100 text-green-700 border-green-300",
     };
@@ -407,7 +408,7 @@ export default function SupplierOrdersPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-700 to-emerald-800 rounded-xl flex items-center justify-center shadow-lg">
                   <Package className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -449,7 +450,7 @@ export default function SupplierOrdersPage() {
                 onClick={() => setStatusFilter("en cours")}
                 className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                   statusFilter === "en cours"
-                    ? "bg-blue-600 text-white shadow-lg"
+                    ? "bg-green-600 text-white shadow-lg"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -532,7 +533,7 @@ export default function SupplierOrdersPage() {
                         </h3>
                         {getStatusBadge(order.status)}
                         {(order.source === "group_sell" || !!order.groupSelleId) && (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-200">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
                             Depuis annonce (vente groupée)
                           </span>
                         )}
@@ -543,20 +544,40 @@ export default function SupplierOrdersPage() {
                         )}
                       </div>
                       {order.idBuyer ? (
-                        <>
-                          <p className="text-sm text-gray-600">
-                            Client: {order.idBuyer.firstName} {order.idBuyer.lastName}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Email: {order.idBuyer.email}
-                          </p>
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-1 text-sm text-gray-600 min-w-0">
+                            <span className="shrink-0">Client:</span>
+                            <ExpandableValue
+                              value={`${order.idBuyer.firstName} ${order.idBuyer.lastName}`}
+                              title="Client"
+                              maxLength={28}
+                              className="min-w-0"
+                              valueClassName="text-sm text-gray-600"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 text-sm text-gray-600 min-w-0">
+                            <span className="shrink-0">Email:</span>
+                            <ExpandableValue
+                              value={order.idBuyer.email}
+                              title="Email"
+                              maxLength={28}
+                              className="min-w-0"
+                              valueClassName="text-sm text-gray-600"
+                            />
+                          </div>
                           {order.idBuyer.phone && (
-                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                              <Phone className="w-3 h-3" />
-                              {order.idBuyer.phone}
+                            <p className="text-sm text-gray-600 flex items-center gap-1 mt-1 min-w-0">
+                              <Phone className="w-3 h-3 shrink-0" />
+                              <ExpandableValue
+                                value={order.idBuyer.phone}
+                                title="Téléphone"
+                                maxLength={18}
+                                className="min-w-0"
+                                valueClassName="text-sm text-gray-600"
+                              />
                             </p>
                           )}
-                        </>
+                        </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">
                           Informations client non disponibles
@@ -566,10 +587,14 @@ export default function SupplierOrdersPage() {
                         Date: {new Date(order.createdAt).toLocaleString("fr-FR")}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600">
-                        {order.total.toFixed(2)} DA
-                      </p>
+                    <div className="text-right min-w-0">
+                      <ExpandableValue
+                        value={`${order.total.toFixed(2)} DA`}
+                        title="Total"
+                        maxLength={14}
+                        className="justify-end"
+                        valueClassName="text-2xl font-bold text-green-600"
+                      />
                     </div>
                   </div>
 
@@ -579,18 +604,24 @@ export default function SupplierOrdersPage() {
                       {order.products.map((product, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg"
                         >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-gray-900">{product.name}</p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                              <ExpandableValue
+                                value={product.name}
+                                title="Article"
+                                maxLength={32}
+                                className="min-w-0"
+                                valueClassName="font-medium text-gray-900"
+                              />
                               {product.itemType === "machine" && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
                                   Machine
                                 </span>
                               )}
                               {product.isFreeGift ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
                                   Offert (promotion)
                                 </span>
                               ) : product.promotionId ? (
@@ -621,7 +652,7 @@ export default function SupplierOrdersPage() {
                     <div className="flex items-center justify-between mb-3 gap-3">
                       <h4 className="font-semibold text-gray-900">Preuve de paiement:</h4>
                       {recentPaymentOrderIds.has(order._id) && (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300 animate-pulse">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300 animate-pulse">
                           Preuve recue maintenant
                         </span>
                       )}
@@ -658,7 +689,7 @@ export default function SupplierOrdersPage() {
                           <button
                             onClick={() => respondToPendingOrder(order._id, "accept")}
                             disabled={updatingStatus === order._id}
-                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {updatingStatus === order._id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -792,9 +823,9 @@ export default function SupplierOrdersPage() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Payment Info Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                <div className="bg-blue-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-200">
-                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Montant</p>
-                  <p className="text-xl sm:text-2xl font-bold text-blue-900">{selectedPayment.total.toFixed(2)} DA</p>
+                <div className="bg-green-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-green-200">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Montant</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-900">{selectedPayment.total.toFixed(2)} DA</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-purple-200">
                   <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Date d'upload</p>
@@ -882,7 +913,7 @@ export default function SupplierOrdersPage() {
             <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className={`px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
+            <div className={`px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10 ${payments[pendingStatusChange.orderId] ? 'bg-gradient-to-r from-green-700 to-emerald-800' : 'bg-gradient-to-r from-yellow-600 to-orange-600'}`}>
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm flex-shrink-0`}>
                   {payments[pendingStatusChange.orderId] ? (
@@ -1022,7 +1053,7 @@ export default function SupplierOrdersPage() {
             <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-4 md:p-6 pointer-events-none">
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10">
+            <div className="bg-gradient-to-r from-green-700 to-emerald-800 px-4 sm:px-6 py-4 sm:py-5 sticky top-0 z-10">
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm flex-shrink-0">
                   <CheckCircle className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
@@ -1084,7 +1115,7 @@ export default function SupplierOrdersPage() {
                     setShowPaymentAlert(false);
                     setAlertPayment(null);
                   }}
-                  className="flex-1 px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  className="flex-1 px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg font-semibold text-sm sm:text-base hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   <Eye className="w-4 h-4" />
                   Voir le document

@@ -39,6 +39,7 @@ import {
   getAdminUserStatistics,
   getAdminUsersForStatistics,
 } from "@/lib/api";
+import ExpandableValue from "@/components/ExpandableValue";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 ChartJS.register(
@@ -363,18 +364,28 @@ export default function AdminUsersStatsSection() {
                 <tbody className="divide-y divide-gray-100">
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-blue-50/40 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-900">{displayName(user)}</p>
-                        <p className="text-xs text-gray-500 truncate max-w-[240px]">
-                          {user.email}
-                        </p>
-                      </td>
+                    <td className="px-4 py-3 min-w-0 max-w-[260px]">
+                      <ExpandableValue
+                        value={displayName(user)}
+                        title="Nom"
+                        maxLength={24}
+                        className="w-full"
+                        valueClassName="font-semibold text-gray-900"
+                      />
+                      <ExpandableValue
+                        value={user.email}
+                        title="Email"
+                        maxLength={28}
+                        className="w-full"
+                        valueClassName="text-xs text-gray-500"
+                      />
+                    </td>
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                             user.role === "supplier"
                               ? "bg-indigo-50 text-indigo-700"
-                              : "bg-emerald-50 text-emerald-700"
+                              : "bg-blue-50 text-blue-700"
                           }`}
                         >
                           {user.role === "supplier" ? (
@@ -386,12 +397,16 @@ export default function AdminUsersStatsSection() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-800">{user.ordersCount}</td>
-                      <td className="px-4 py-3 font-semibold text-blue-700">
-                        {user.totalAmount.toLocaleString("fr-FR", {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2,
-                        })}{" "}
-                        DA
+                      <td className="px-4 py-3">
+                        <ExpandableValue
+                          value={`${user.totalAmount.toLocaleString("fr-FR", {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          })} DA`}
+                          title="Montant"
+                          maxLength={14}
+                          valueClassName="font-semibold text-blue-700"
+                        />
                       </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         {user.lastOrderAt
@@ -560,7 +575,7 @@ export default function AdminUsersStatsSection() {
                           <strong
                             className={
                               detail.comparison.amountChange >= 0
-                                ? "text-emerald-700"
+                                ? "text-blue-600"
                                 : "text-red-600"
                             }
                           >
@@ -573,7 +588,7 @@ export default function AdminUsersStatsSection() {
                           <strong
                             className={
                               detail.comparison.ordersChange >= 0
-                                ? "text-emerald-700"
+                                ? "text-blue-600"
                                 : "text-red-600"
                             }
                           >
