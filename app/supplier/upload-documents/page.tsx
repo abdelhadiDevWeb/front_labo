@@ -61,8 +61,13 @@ function SupplierUploadForm() {
         });
         const result = await parseResponseJson<{
           success: boolean;
+          message?: string;
           data?: ExistingDocs;
         }>(response);
+        if (response.status === 403 && result.message === "email_unconfirmed") {
+          router.replace("/confirm-email");
+          return;
+        }
         if (!cancelled && result.success && result.data) {
           setExisting(result.data);
         }
@@ -76,7 +81,7 @@ function SupplierUploadForm() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!isCheckingDocs && hasExistingDocs && !isEditMode) {
@@ -384,7 +389,7 @@ function SupplierUploadForm() {
             </span>
           </button>
           {!isEditMode && (
-            <RegistrationStepper role="supplier" current={2} className="mb-5 sm:mb-6 max-w-lg" />
+            <RegistrationStepper role="supplier" current={3} className="mb-5 sm:mb-6 max-w-lg" />
           )}
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
             {hasExistingDocs ? "Vos documents" : "Télécharger vos documents"}

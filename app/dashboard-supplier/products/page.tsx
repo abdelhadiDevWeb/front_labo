@@ -32,6 +32,7 @@ import {
   Video,
   Cpu,
   Wrench,
+  Star,
 } from "lucide-react";
 import {
   getSupplierProducts,
@@ -43,6 +44,7 @@ import {
   deleteProduct,
   deleteMachine,
   deleteService,
+  setCatalogItemRecommended,
   getPublicCategories,
   Product,
   UniqueDataItem,
@@ -76,6 +78,7 @@ interface MarketplaceItem {
   video?: string;
   id_catgory?: string | null;
   id_sous_catgory?: string | null;
+  recommended?: boolean;
 }
 
 const kindToCategoryType = (kind: MarketplaceKind): Category["type_catgory"] =>
@@ -175,6 +178,7 @@ const uniqueDataToItem = (item: UniqueDataItem, kind: "machine" | "service"): Ma
     video: pickStr(d, ["video"]) || undefined,
     id_catgory: item.id_catgory || null,
     id_sous_catgory: item.id_sous_catgory || null,
+    recommended: Boolean(item.recommended),
   };
 };
 
@@ -207,6 +211,7 @@ const productToItem = (product: Product): MarketplaceItem => {
     video: pickStr(d, ["video"]) || product.video,
     id_catgory: product.id_catgory || null,
     id_sous_catgory: product.id_sous_catgory || null,
+    recommended: Boolean(product.recommended),
   };
 };
 
@@ -260,6 +265,7 @@ function ProductsPageContent() {
   const [sponsorVideoPreview, setSponsorVideoPreview] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const [recommendingKey, setRecommendingKey] = useState<string | null>(null);
   const [fichePdfViewer, setFichePdfViewer] = useState<{
     url: string;
     title: string;
@@ -1058,6 +1064,54 @@ function ProductsPageContent() {
     }
   };
 
+  const handleToggleRecommended = async (item: MarketplaceItem) => {
+    const key = `${item.kind}-${item.id}`;
+    if (recommendingKey) return;
+    setRecommendingKey(key);
+    const next = !Boolean(item.recommended);
+    setMarketplaceItems((prev) =>
+      prev.map((row) =>
+        row.id === item.id && row.kind === item.kind
+          ? { ...row, recommended: next }
+          : row
+      )
+    );
+    try {
+      const result = await setCatalogItemRecommended(item.kind, item.id, next);
+      if (!result.success) {
+        setMarketplaceItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id && row.kind === item.kind
+              ? { ...row, recommended: item.recommended }
+              : row
+          )
+        );
+        alert(result.message || "Impossible de mettre à jour la recommandation");
+        return;
+      }
+      if (typeof result.data?.recommended === "boolean") {
+        setMarketplaceItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id && row.kind === item.kind
+              ? { ...row, recommended: result.data!.recommended }
+              : row
+          )
+        );
+      }
+    } catch {
+      setMarketplaceItems((prev) =>
+        prev.map((row) =>
+          row.id === item.id && row.kind === item.kind
+            ? { ...row, recommended: item.recommended }
+            : row
+        )
+      );
+      alert("Une erreur est survenue");
+    } finally {
+      setRecommendingKey(null);
+    }
+  };
+
   const renderSponsorItemPicker = (modal: "vip" | "subscription") => {
     const isVip = modal === "vip";
     const selectedId = isVip ? selectedProductId : selectedSubscriptionProductId;
@@ -1184,12 +1238,20 @@ function ProductsPageContent() {
           >
             {kindLabel(item.kind)}
           </span>
-          {activeSponsor && (
-            <span className="absolute top-3 left-3 px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1">
-              <Megaphone className="w-3 h-3" />
-              Publicité
-            </span>
-          )}
+          <div className="absolute top-3 left-3 flex flex-col gap-2.5">
+            {activeSponsor && (
+              <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-xs font-semibold flex items-center gap-1 w-fit">
+                <Megaphone className="w-3 h-3" />
+                Publicité
+              </span>
+            )}
+            {item.recommended && (
+              <span className="px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-semibold flex items-center gap-1 w-fit">
+                <Star className="w-3 h-3 fill-current" />
+                Recommandé
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="p-4 space-y-3">
@@ -1270,22 +1332,43 @@ function ProductsPageContent() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (item.kind === "product") {
-                router.push(`/dashboard-supplier/products/${item.id}`);
-              } else if (item.kind === "machine") {
-                router.push(`/dashboard-supplier/machines/${item.id}`);
-              } else {
-                router.push(`/dashboard-supplier/services/${item.id}`);
-              }
-            }}
-            className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
-          >
-            <Eye className="w-4 h-4" />
-            Voir les détails
-          </button>
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={() => void handleToggleRecommended(item)}
+              disabled={recommendingKey === itemKey}
+              className={`w-full px-4 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${
+                item.recommended
+                  ? "bg-amber-50 text-amber-800 border-2 border-amber-300 hover:bg-amber-100"
+                  : "bg-white text-gray-700 border-2 border-gray-200 hover:border-amber-300 hover:text-amber-800"
+              }`}
+            >
+              {recommendingKey === itemKey ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Star
+                  className={`w-4 h-4 ${item.recommended ? "fill-amber-500 text-amber-500" : ""}`}
+                />
+              )}
+              {item.recommended ? "Retirer la recommandation" : "Marquer comme recommandé"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (item.kind === "product") {
+                  router.push(`/dashboard-supplier/products/${item.id}`);
+                } else if (item.kind === "machine") {
+                  router.push(`/dashboard-supplier/machines/${item.id}`);
+                } else {
+                  router.push(`/dashboard-supplier/services/${item.id}`);
+                }
+              }}
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all flex items-center justify-center gap-2"
+            >
+              <Eye className="w-4 h-4" />
+              Voir les détails
+            </button>
+          </div>
         </div>
       </div>
     );

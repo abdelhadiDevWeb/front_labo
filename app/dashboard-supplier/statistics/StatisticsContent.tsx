@@ -43,6 +43,7 @@ import {
 } from "@/lib/api";
 import { downloadSupplierStatisticsPdf } from "@/lib/supplier-statistics-pdf";
 import { collectPdfCharts } from "@/lib/pdf-report-charts";
+import SupplierBuyersStatsSection from "@/components/supplier/SupplierBuyersStatsSection";
 
 const PERIODS: Array<{ id: StatsPeriod; label: string; hint: string }> = [
   { id: "1m", label: "Ce mois", hint: "Mois en cours" },
@@ -991,6 +992,8 @@ export default function SupplierStatisticsPage() {
           </div>
         </div>
       )}
+
+      <SupplierBuyersStatsSection profile={profile} />
 
       {/* Export CTA */}
       <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-green-50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

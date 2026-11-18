@@ -32,6 +32,8 @@ import { getMediaUrl as buildMediaUrl } from "@/lib/media-url";
 import { productToUniqueData } from "@/lib/unique-data-display";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
 import QuantityInput from "@/components/QuantityInput";
+import StartChatButton from "@/components/chat/StartChatButton";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
@@ -325,6 +327,7 @@ export default function ProductDetailPage() {
                       >
                         {product.productType}
                       </span>
+                      {product.recommended && <RecommendedBadge />}
                     </div>
                   ) : null}
                   <h1 className="text-lg sm:text-2xl md:text-3xl font-bold leading-snug text-gray-900">
@@ -437,6 +440,16 @@ export default function ProductDetailPage() {
                           <p className="text-xs text-gray-500">Adresse</p>
                           <p className="font-semibold text-gray-900">{product.supplier.address}</p>
                         </div>
+                      </div>
+                    )}
+                    {isAuthenticated && product.supplier.id && (
+                      <div className="pt-3">
+                        <StartChatButton
+                          supplierId={product.supplier.id}
+                          productId={product.id}
+                          label="Contacter le fournisseur"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
+                        />
                       </div>
                     )}
                   </div>

@@ -4,7 +4,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { getPromotionAlert, PROMOTIONS_SEEN_EVENT } from "@/lib/api";
+import {
+  getGroupSelleAlert,
+  getPromotionAlert,
+  GROUP_SELLES_SEEN_EVENT,
+  PROMOTIONS_SEEN_EVENT,
+} from "@/lib/api";
 import {
   BarChart3,
   Building2,
@@ -19,6 +24,7 @@ import {
   LogOut,
   Mail,
   Megaphone,
+  MessageCircle,
   Microscope,
   Package,
   Percent,
@@ -86,9 +92,11 @@ export const MARKETPLACE_MENU: HeaderMenuLink[] = [
 
 const LIVE_HREF = "/live";
 const PROMOTIONS_HREF = "/products/promotions";
+const GROUP_SALES_HREF = "/products/group-sales";
 
 /** Desktop and mobile menus mount together — share one request. */
 let promotionAlertRequest: Promise<boolean> | null = null;
+let groupSelleAlertRequest: Promise<boolean> | null = null;
 
 const fetchHasNewPromotions = (): Promise<boolean> => {
   promotionAlertRequest ??= getPromotionAlert()
@@ -100,7 +108,21 @@ const fetchHasNewPromotions = (): Promise<boolean> => {
   return promotionAlertRequest;
 };
 
-function useNewPromotionsAlert(enabled: boolean): boolean {
+const fetchHasNewGroupSelles = (): Promise<boolean> => {
+  groupSelleAlertRequest ??= getGroupSelleAlert()
+    .then((result) => Boolean(result.success && result.data?.hasNew))
+    .catch(() => false)
+    .finally(() => {
+      groupSelleAlertRequest = null;
+    });
+  return groupSelleAlertRequest;
+};
+
+function useMarketplaceAlert(
+  enabled: boolean,
+  fetchAlert: () => Promise<boolean>,
+  seenEvent: string
+): boolean {
   const [hasNew, setHasNew] = useState(false);
 
   useEffect(() => {
@@ -110,21 +132,29 @@ function useNewPromotionsAlert(enabled: boolean): boolean {
     }
     let cancelled = false;
     let seen = false;
-    void fetchHasNewPromotions().then((value) => {
+    void fetchAlert().then((value) => {
       if (!cancelled && !seen) setHasNew(value);
     });
     const onSeen = () => {
       seen = true;
       setHasNew(false);
     };
-    window.addEventListener(PROMOTIONS_SEEN_EVENT, onSeen);
+    window.addEventListener(seenEvent, onSeen);
     return () => {
       cancelled = true;
-      window.removeEventListener(PROMOTIONS_SEEN_EVENT, onSeen);
+      window.removeEventListener(seenEvent, onSeen);
     };
-  }, [enabled]);
+  }, [enabled, fetchAlert, seenEvent]);
 
   return hasNew;
+}
+
+function useNewPromotionsAlert(enabled: boolean): boolean {
+  return useMarketplaceAlert(enabled, fetchHasNewPromotions, PROMOTIONS_SEEN_EVENT);
+}
+
+function useNewGroupSellesAlert(enabled: boolean): boolean {
+  return useMarketplaceAlert(enabled, fetchHasNewGroupSelles, GROUP_SELLES_SEEN_EVENT);
 }
 
 function AlertDot({ className = "" }: { className?: string }) {
@@ -154,14 +184,16 @@ export const SUPPLIERS_MENU: HeaderMenuLink[] = [
 function HeaderHoverMenu({
   label,
   items,
-  alertHref,
+  alertHrefs = [],
 }: {
   label: string;
   items: HeaderMenuLink[];
-  /** Item flagged with a red dot (the menu label gets one too). */
-  alertHref?: string;
+  /** Items flagged with a red dot (the menu label gets one too). */
+  alertHrefs?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const alertSet = new Set(alertHrefs);
+  const hasAnyAlert = alertSet.size > 0;
 
   return (
     <div
@@ -182,7 +214,7 @@ function HeaderHoverMenu({
         }`}
         aria-haspopup="true"
         aria-expanded={open}
-        aria-label={alertHref ? `${label} — nouvelles promotions` : undefined}
+        aria-label={hasAnyAlert ? `${label} — nouveautés` : undefined}
       >
         <span className="relative">
           {label}
@@ -191,7 +223,7 @@ function HeaderHoverMenu({
               open ? "w-full" : "w-0"
             }`}
           />
-          {alertHref ? <AlertDot className="absolute -top-1.5 -right-2.5" /> : null}
+          {hasAnyAlert ? <AlertDot className="absolute -top-1.5 -right-2.5" /> : null}
         </span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-200 ${
@@ -214,7 +246,7 @@ function HeaderHoverMenu({
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   {item.label}
-                  {item.href === alertHref ? (
+                  {alertSet.has(item.href) ? (
                     <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-red-600">
                       Nouveau
                       <AlertDot />
@@ -236,17 +268,22 @@ export function HomeDesktopNavMenus({
   promotionAlert = false,
 }: {
   showSuppliers?: boolean;
-  /** Logged-in lab: flag promotions published since the last visit. */
+  /** Logged-in lab: flag promotions / group sales published since the last visit. */
   promotionAlert?: boolean;
 }) {
   const hasNewPromotions = useNewPromotionsAlert(promotionAlert);
+  const hasNewGroupSelles = useNewGroupSellesAlert(promotionAlert);
+  const alertHrefs = [
+    ...(hasNewPromotions ? [PROMOTIONS_HREF] : []),
+    ...(hasNewGroupSelles ? [GROUP_SALES_HREF] : []),
+  ];
 
   return (
     <>
       <HeaderHoverMenu
         label="Marketplace"
         items={MARKETPLACE_MENU}
-        alertHref={hasNewPromotions ? PROMOTIONS_HREF : undefined}
+        alertHrefs={alertHrefs}
       />
       {showSuppliers ? (
         <HeaderHoverMenu label="Fournisseurs" items={SUPPLIERS_MENU} />
@@ -348,6 +385,7 @@ export function MobileNavDrawer({
 }) {
   const [mounted, setMounted] = useState(false);
   const hasNewPromotions = useNewPromotionsAlert(isLab);
+  const hasNewGroupSelles = useNewGroupSellesAlert(isLab);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -412,7 +450,7 @@ export function MobileNavDrawer({
                   </p>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -436,6 +474,14 @@ export function MobileNavDrawer({
                 >
                   <ClipboardList className="h-5 w-5 text-cyan-700" />
                   Réserves
+                </Link>
+                <Link
+                  href="/messages"
+                  onClick={onClose}
+                  className="flex flex-col items-center gap-1 rounded-xl border border-gray-100 bg-white py-2.5 text-xs font-semibold text-gray-700 shadow-sm active:bg-gray-50"
+                >
+                  <MessageCircle className="h-5 w-5 text-teal-600" />
+                  Messages
                 </Link>
                 <Link
                   href="/profile"
@@ -495,7 +541,8 @@ export function MobileNavDrawer({
                   <span className="text-[11px] font-semibold leading-tight text-gray-700">
                     {SHORT_LABELS[href] ?? label}
                   </span>
-                  {hasNewPromotions && href === PROMOTIONS_HREF && (
+                  {((hasNewPromotions && href === PROMOTIONS_HREF) ||
+                    (hasNewGroupSelles && href === GROUP_SALES_HREF)) && (
                     <AlertDot className="absolute right-2 top-2" />
                   )}
                 </Link>
@@ -572,10 +619,15 @@ export function HomeMobileNavMenus({
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [suppliersOpen, setSuppliersOpen] = useState(false);
   const hasNewPromotions = useNewPromotionsAlert(promotionAlert);
+  const hasNewGroupSelles = useNewGroupSellesAlert(promotionAlert);
+  const hasMarketplaceAlert = hasNewPromotions || hasNewGroupSelles;
 
   const renderLinks = (items: HeaderMenuLink[], close: () => void) =>
     items.map((item) => {
       const Icon = item.icon;
+      const showAlert =
+        (hasNewPromotions && item.href === PROMOTIONS_HREF) ||
+        (hasNewGroupSelles && item.href === GROUP_SALES_HREF);
       return (
         <Link
           key={`${item.href}-${item.label}`}
@@ -588,7 +640,7 @@ export function HomeMobileNavMenus({
         >
           <Icon className="w-4 h-4" />
           {item.label}
-          {hasNewPromotions && item.href === PROMOTIONS_HREF ? (
+          {showAlert ? (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-red-600">
               Nouveau
               <AlertDot />
@@ -608,7 +660,7 @@ export function HomeMobileNavMenus({
       >
         <span className="relative">
           Marketplace
-          {hasNewPromotions ? <AlertDot className="absolute -top-1 -right-3" /> : null}
+          {hasMarketplaceAlert ? <AlertDot className="absolute -top-1 -right-3" /> : null}
         </span>
         <ChevronDown
           className={`w-4 h-4 transition-transform duration-200 ${

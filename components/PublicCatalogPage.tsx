@@ -36,6 +36,7 @@ import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
 import { inStockFirst } from "@/lib/stock-order";
 import FamilleFilterInput from "@/components/FamilleFilterInput";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BackButton from "@/components/BackButton";
 
@@ -598,6 +599,11 @@ export default function PublicCatalogPage({ kind }: { kind: CatalogKind }) {
                         >
                           {meta.singular}
                         </span>
+                        {item.recommended && (
+                          <span className="absolute top-3 left-3">
+                            <RecommendedBadge />
+                          </span>
+                        )}
                       </div>
                       <div className="p-4 space-y-2 flex-1 flex flex-col">
                         <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">

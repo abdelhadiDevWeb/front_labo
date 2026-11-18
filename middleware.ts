@@ -11,7 +11,9 @@ const PROTECTED_PREFIXES = [
   "/favorable",
   "/statistics",
   "/orders",
+  "/messages",
   "/profile",
+  "/confirm-email",
 ];
 
 /** Never index these (private app + auth utilities). */
@@ -19,6 +21,7 @@ const NOINDEX_PREFIXES = [
   "/dashboard",
   "/dashboard-supplier",
   "/orders",
+  "/messages",
   "/statistics",
   "/profile",
   "/favorable",
@@ -26,6 +29,7 @@ const NOINDEX_PREFIXES = [
   "/client",
   "/supplier/choose-subscription",
   "/supplier/upload-documents",
+  "/confirm-email",
   "/login",
   "/register",
   "/forgot-password",
@@ -73,6 +77,8 @@ export const config = {
     "/favorable/:path*",
     "/orders",
     "/orders/:path*",
+    "/messages",
+    "/messages/:path*",
     "/statistics",
     "/statistics/:path*",
     "/profile",
@@ -82,6 +88,8 @@ export const config = {
     "/supplier/choose-subscription/:path*",
     "/supplier/upload-documents",
     "/supplier/upload-documents/:path*",
+    "/confirm-email",
+    "/confirm-email/:path*",
     "/login",
     "/register",
     "/forgot-password",

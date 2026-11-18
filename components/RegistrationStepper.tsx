@@ -1,8 +1,8 @@
 import { Check } from "lucide-react";
 
 const STEPS: Record<"supplier" | "client", string[]> = {
-  supplier: ["Inscription", "Documents", "Abonnement"],
-  client: ["Inscription", "Documents", "Abonnement"],
+  supplier: ["Inscription", "Email", "Documents", "Abonnement"],
+  client: ["Inscription", "Email", "Documents", "Abonnement"],
 };
 
 interface RegistrationStepperProps {

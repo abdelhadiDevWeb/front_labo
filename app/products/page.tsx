@@ -35,6 +35,7 @@ import { resolveWilayaCode, catalogItemAvailableInWilaya } from "@/lib/algeria-w
 import { revealCatalogFilters } from "@/lib/catalog-filters";
 import { inStockFirst } from "@/lib/stock-order";
 import FamilleFilterInput from "@/components/FamilleFilterInput";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import BackButton from "@/components/BackButton";
 
@@ -811,33 +812,6 @@ export default function ProductsPage() {
                   key={product.id}
                   className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300 sm:hover:-translate-y-2 group relative min-w-0"
                 >
-                  {/* Comparison Checkbox */}
-                  <div className="absolute top-2 left-2 z-10">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleComparison(product.id);
-                      }}
-                      className={`p-2 rounded-lg transition-all shadow-lg ${
-                        selectedForComparison.includes(product.id)
-                          ? "bg-blue-600 text-white"
-                          : "bg-white/90 text-gray-600 hover:bg-white"
-                      }`}
-                      title={
-                        selectedForComparison.includes(product.id)
-                          ? "Désélectionner pour la comparaison"
-                          : "Sélectionner pour la comparaison"
-                      }
-                    >
-                      {selectedForComparison.includes(product.id) ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Scale className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-
                   {/* Image Section */}
                   <Link href={`/products/${product.id}`}>
                     <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
@@ -856,6 +830,33 @@ export default function ProductsPage() {
                           <ImageIcon className="w-16 h-16 text-gray-400" />
                         </div>
                       )}
+                      {/* Comparison + recommended — spaced so badges don’t overlap */}
+                      <div className="absolute top-2 left-2 z-10 flex items-center gap-2.5">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleComparison(product.id);
+                          }}
+                          className={`p-2 rounded-lg transition-all shadow-lg shrink-0 ${
+                            selectedForComparison.includes(product.id)
+                              ? "bg-blue-600 text-white"
+                              : "bg-white/90 text-gray-600 hover:bg-white"
+                          }`}
+                          title={
+                            selectedForComparison.includes(product.id)
+                              ? "Désélectionner pour la comparaison"
+                              : "Sélectionner pour la comparaison"
+                          }
+                        >
+                          {selectedForComparison.includes(product.id) ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Scale className="w-4 h-4" />
+                          )}
+                        </button>
+                        {product.recommended && <RecommendedBadge />}
+                      </div>
                       <div className="absolute top-3 right-3">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${

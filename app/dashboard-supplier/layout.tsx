@@ -48,6 +48,7 @@ const menuItems = [
   { icon: Users, label: "Vente groupée", href: "/dashboard-supplier/sell-by-group" },
   { icon: FileText, label: "Ajouter Produit", href: "/dashboard-supplier/add-product" },
   { icon: ShoppingCart, label: "Réserves", href: "/dashboard-supplier/orders" },
+  { icon: MessageCircle, label: "Messages", href: "/dashboard-supplier/messages" },
   { icon: BarChart3, label: "Statistiques", href: "/dashboard-supplier/statistics" },
   { icon: User, label: "Profil", href: "/dashboard-supplier/profile" },
 ];
@@ -213,9 +214,45 @@ export default function SupplierDashboardLayout({
         return notify(data.title || "Abonnement", data.message || "", "/dashboard-supplier");
       },
     },
+    newChatNotification: {
+      handle: (payload) => {
+        const data = payload as {
+          title?: string;
+          message?: string;
+          conversationId?: string;
+        };
+        const href = data.conversationId
+          ? `/dashboard-supplier/messages?c=${data.conversationId}`
+          : "/dashboard-supplier/messages";
+        showBrowserNotification(data.title || "Nouveau message", data.message || "");
+        return notify(data.title || "Nouveau message", data.message || "", href);
+      },
+    },
+    "chat:newConversation": {
+      handle: (payload) => {
+        const data = payload as {
+          conversationId?: string;
+          message?: string;
+          clientName?: string;
+        };
+        const href = data.conversationId
+          ? `/dashboard-supplier/messages?c=${data.conversationId}`
+          : "/dashboard-supplier/messages";
+        const message =
+          data.message ||
+          `${data.clientName || "Un laboratoire"} a ouvert une conversation avec vous.`;
+        showBrowserNotification("Nouveau chat", message);
+        return notify("Nouveau chat", message, href);
+      },
+    },
   });
 
   const notificationHref = (notification: NotificationData) => {
+    if (notification.type === "chat") {
+      return notification.refId
+        ? `/dashboard-supplier/messages?c=${notification.refId}`
+        : "/dashboard-supplier/messages";
+    }
     if (notification.type === "subscription") return "/dashboard-supplier";
     if (notification.type === "system") return "/dashboard-supplier/products";
     return "/dashboard-supplier/orders";
@@ -246,6 +283,12 @@ export default function SupplierDashboardLayout({
           title: "Alerte stock bas",
           icon: <Package className="w-5 h-5" />,
           iconClassName: "bg-gradient-to-br from-amber-500 to-orange-600",
+        };
+      case "chat":
+        return {
+          title: "Message",
+          icon: <MessageCircle className="w-5 h-5" />,
+          iconClassName: "bg-gradient-to-br from-teal-600 to-emerald-600",
         };
       default:
         return {
@@ -643,6 +686,14 @@ export default function SupplierDashboardLayout({
 
                       {/* Menu Items */}
                       <div className="p-2">
+                        <Link
+                          href="/dashboard-supplier/messages"
+                          onClick={() => setUserDropdownOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <MessageCircle className="w-5 h-5 text-gray-600" />
+                          <span className="text-sm font-medium">Messages</span>
+                        </Link>
                         <Link
                           href="/dashboard-supplier/profile"
                           onClick={() => setUserDropdownOpen(false)}

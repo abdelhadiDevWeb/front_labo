@@ -267,8 +267,8 @@ function RegisterPageContent() {
         });
         const redirectTo =
           validateOnboardingRedirect(result.data?.redirectTo) ||
-          "/supplier/upload-documents";
-        setSuccess("Compte créé avec succès ! Redirection...");
+          "/confirm-email";
+        setSuccess("Compte créé ! Vérifiez votre email…");
         setTimeout(() => {
           router.replace(redirectTo);
         }, 800);
@@ -370,8 +370,8 @@ function RegisterPageContent() {
         });
         const redirectTo =
           validateOnboardingRedirect(result.data?.redirectTo) ||
-          "/client/upload-documents?fresh=1";
-        setSuccess("Compte créé avec succès ! Redirection...");
+          "/confirm-email";
+        setSuccess("Compte créé ! Vérifiez votre email…");
         setTimeout(() => {
           router.replace(redirectTo);
         }, 800);

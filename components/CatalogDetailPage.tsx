@@ -38,6 +38,8 @@ import BackButton from "@/components/BackButton";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import SupplierDeliveryNotes from "@/components/SupplierDeliveryNotes";
 import QuantityInput from "@/components/QuantityInput";
+import StartChatButton from "@/components/chat/StartChatButton";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { resolveWilayaCode } from "@/lib/algeria-wilayas";
 
@@ -166,13 +168,16 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
                   <ImageIcon className="w-16 h-16 text-gray-300" />
                 </div>
               )}
-              <span
-                className={`absolute left-3 top-3 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold shadow-sm ${
-                  isMachine ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {label}
-              </span>
+              <div className="absolute left-3 top-3 flex flex-col gap-1.5">
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold shadow-sm w-fit ${
+                    isMachine ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {label}
+                </span>
+                {item.recommended && <RecommendedBadge />}
+              </div>
               {images.length > 1 && (
                 <>
                   <button
@@ -229,11 +234,16 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
             <div className={CARD}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  {canSeePrice && item.category ? (
-                    <span className="mb-2 inline-flex px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] sm:text-xs font-semibold">
-                      {item.category}
-                      {item.sousCategory ? ` / ${item.sousCategory}` : ""}
-                    </span>
+                  {canSeePrice ? (
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      {item.category ? (
+                        <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] sm:text-xs font-semibold">
+                          {item.category}
+                          {item.sousCategory ? ` / ${item.sousCategory}` : ""}
+                        </span>
+                      ) : null}
+                      {item.recommended && <RecommendedBadge />}
+                    </div>
                   ) : null}
                   <h1 className="text-lg sm:text-2xl md:text-3xl font-bold leading-snug text-gray-900">
                     {item.name}
@@ -349,6 +359,16 @@ export default function CatalogDetailPage({ kind }: { kind: "machine" | "service
                           <p className="text-xs text-gray-500">Adresse</p>
                           <p className="font-semibold text-gray-900">{item.supplier.address}</p>
                         </div>
+                      </div>
+                    )}
+                    {canSeePrice && item.supplier.id && (
+                      <div className="pt-3">
+                        <StartChatButton
+                          supplierId={item.supplier.id}
+                          productId={item.id}
+                          label="Contacter le fournisseur"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
+                        />
                       </div>
                     )}
                   </div>

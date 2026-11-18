@@ -123,3 +123,29 @@ export const subscribeRealtime = (
     release();
   };
 };
+
+/** True when the shared socket is currently connected. */
+export const isRealtimeConnected = (): boolean => Boolean(socket?.connected);
+
+/**
+ * Emit on the shared authenticated socket (messages, typing, …).
+ * Acquires briefly so a one-shot emit works even before a page subscribed.
+ */
+export const emitRealtime = <T = unknown>(
+  event: string,
+  payload: unknown,
+  ack?: (result: T) => void
+): boolean => {
+  const s = acquire();
+  try {
+    if (!s.connected) {
+      release();
+      return false;
+    }
+    if (ack) s.emit(event, payload, ack);
+    else s.emit(event, payload);
+    return true;
+  } finally {
+    release();
+  }
+};

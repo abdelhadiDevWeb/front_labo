@@ -340,7 +340,8 @@ export interface ClientData {
   role?: string;
   status?: boolean;
   laboType?: string;
-  onboardingStep?: "upload_documents" | "choose_subscription";
+  email_confirme?: boolean;
+  onboardingStep?: "confirm_email" | "upload_documents" | "choose_subscription";
   redirectTo?: string;
 }
 
@@ -536,6 +537,64 @@ export const verifyPasswordResetCode = async (email: string, code: string): Prom
     return result;
   } catch (error) {
     devError("Verify password reset code error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Confirm registration email with the 6-digit OTP. */
+export const verifyEmailCode = async (
+  code: string
+): Promise<
+  ApiResponse<{
+    email_confirme: boolean;
+    role?: string;
+    onboardingStep?: string;
+    redirectTo?: string;
+  }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/verify-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to verify email code",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Verify email code error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Resend registration email OTP. */
+export const resendEmailCode = async (): Promise<ApiResponse<null>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/resend-email-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to resend email code",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Resend email code error:", error);
     return {
       success: false,
       message: "Network error. Please check your connection.",
@@ -764,6 +823,7 @@ export interface Product {
   daira?: string | null;
   commune?: string | null;
   supplierId: string;
+  recommended?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1034,6 +1094,7 @@ export interface UniqueDataItem {
   unique_data: Record<string, unknown>;
   id_catgory?: string | null;
   id_sous_catgory?: string | null;
+  recommended?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1335,6 +1396,45 @@ const response = await apiFetch(`${getApiBaseUrl()}/products/${productId}`, {
   }
 };
 
+export type CatalogRecommendKind = "product" | "machine" | "service";
+
+/** Toggle (or set) the supplier "recommandé" flag for a catalog item. */
+export const setCatalogItemRecommended = async (
+  kind: CatalogRecommendKind,
+  id: string,
+  recommended?: boolean
+): Promise<ApiResponse<{ id: string; recommended: boolean }>> => {
+  try {
+    const path =
+      kind === "product"
+        ? `/products/${id}/recommended`
+        : kind === "machine"
+          ? `/machines/${id}/recommended`
+          : `/services/${id}/recommended`;
+    const response = await apiFetch(`${getApiBaseUrl()}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        typeof recommended === "boolean" ? { recommended } : {}
+      ),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to update recommendation",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Set catalog recommended error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Notification interfaces
 export interface NotificationData {
   _id: string;
@@ -1345,12 +1445,176 @@ export interface NotificationData {
     email: string;
   };
   idReceiver: string;
-  type: "order_status" | "new_order" | "system" | "subscription";
+  type: "order_status" | "new_order" | "system" | "subscription" | "chat";
   message: string;
+  /** Deep-link target (e.g. conversation id for chat) */
+  refId?: string | null;
   isRead: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ChatPeer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  name: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  clientId: string;
+  supplierId: string;
+  productId?: string | null;
+  lastMessage: { text: string; senderId: string | null; at: string | null } | null;
+  unread: number;
+  peer: ChatPeer | null;
+  updatedAt?: string;
+  createdAt?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  clientMessageId?: string | null;
+  createdAt: string;
+}
+
+export const listConversations = async (): Promise<
+  ApiResponse<{ conversations: ChatConversation[]; unreadTotal: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/chats`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch conversations",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("List conversations error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getOrCreateConversation = async (payload: {
+  supplierId: string;
+  productId?: string;
+}): Promise<ApiResponse<{ conversation: ChatConversation; created: boolean }>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/chats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to open conversation",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get or create conversation error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getChatMessages = async (
+  conversationId: string,
+  before?: string
+): Promise<ApiResponse<{ messages: ChatMessage[]; hasMore: boolean }>> => {
+  try {
+    const qs = before ? `?before=${encodeURIComponent(before)}` : "";
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/chats/${conversationId}/messages${qs}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch messages",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get chat messages error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const markConversationRead = async (
+  conversationId: string
+): Promise<ApiResponse<{ unread: number }>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/chats/${conversationId}/read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to mark conversation read",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Mark conversation read error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+export const getUnreadChatCount = async (): Promise<
+  ApiResponse<{ unreadTotal: number }>
+> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/chats/unread-count`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch unread chat count",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get unread chat count error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
 
 // Get notifications
 export const getNotifications = async (unreadOnly: boolean = true): Promise<ApiResponse<{ notifications: NotificationData[]; unreadCount: number }>> => {
@@ -1456,6 +1720,7 @@ export interface PublicProduct {
   commune?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  recommended?: boolean;
   supplier: {
     id: string;
     name: string;
@@ -1621,6 +1886,57 @@ export const markPromotionsSeen = async (): Promise<void> => {
     });
     if (response.ok && typeof window !== "undefined") {
       window.dispatchEvent(new Event(PROMOTIONS_SEEN_EVENT));
+    }
+  } catch {
+    // Best effort — the alert simply stays until the next visit.
+  }
+};
+
+export interface GroupSelleAlert {
+  hasNew: boolean;
+  count: number;
+  lastSeenGroupSelle: string | null;
+}
+
+/** Fired on window after the lab's group sales were marked as seen. */
+export const GROUP_SELLES_SEEN_EVENT = "group-selles:seen";
+
+export const getGroupSelleAlert = async (): Promise<ApiResponse<GroupSelleAlert>> => {
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/group-selles/alert`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || `Failed to fetch group-sale alert (${response.status})`,
+      };
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Labs: stamp `last_seen_group_selle` and clear the header alert. No-op for guests. */
+export const markGroupSellesSeen = async (): Promise<void> => {
+  if (!hasAuthSessionHint()) return;
+  try {
+    const response = await apiFetch(`${getApiBaseUrl()}/client/group-selles/seen`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (response.ok && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(GROUP_SELLES_SEEN_EVENT));
     }
   } catch {
     // Best effort — the alert simply stays until the next visit.
@@ -1803,6 +2119,7 @@ export interface PublicCatalogItem {
   commune?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  recommended?: boolean;
   supplier: {
     id: string;
     name: string;
@@ -2326,6 +2643,125 @@ export const getSupplierDetailedStatistics = async (
   }
 };
 
+export interface SupplierBuyerSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  totalSpent: number;
+  ordersCount: number;
+  productsCount: number;
+  lastOrderAt: string | null;
+}
+
+export interface SupplierBuyerStatistics {
+  period?: StatsPeriod;
+  periodLabel?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  periodRangeLabel?: string;
+  buyer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    laboType?: string | null;
+    wilaya?: string | null;
+  };
+  totalSpent: number;
+  totalItemsBought: number;
+  totalOrders: number;
+  monthlySpend: { [key: string]: number };
+  monthlyOrders: { [key: string]: number };
+  topProducts: Array<{
+    name: string;
+    quantity: number;
+    revenue: number;
+    orders: number;
+    itemType: string;
+  }>;
+  ordersByStatus: {
+    "en attente": number;
+    refusée: number;
+    "en cours": number;
+    "on route": number;
+    arrived: number;
+  };
+  recentOrders: Array<{
+    id: string;
+    total: number;
+    status: string;
+    createdAt: string;
+    itemsCount: number;
+    products: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      itemType: string;
+    }>;
+  }>;
+}
+
+/** Supplier: all labs that bought from them */
+export const getSupplierBuyers = async (
+  q?: string
+): Promise<ApiResponse<{ buyers: SupplierBuyerSummary[]; total: number }>> => {
+  try {
+    const params = new URLSearchParams();
+    if (q?.trim()) params.set("q", q.trim());
+    const qs = params.toString();
+    const url = `${getApiBaseUrl()}/commandes/supplier/buyers${qs ? `?${qs}` : ""}`;
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch buyers",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get supplier buyers error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Supplier: detailed stats for one buyer lab */
+export const getSupplierBuyerStatistics = async (
+  buyerId: string,
+  period: StatsPeriod = "1y"
+): Promise<ApiResponse<SupplierBuyerStatistics>> => {
+  try {
+    const url = `${getApiBaseUrl()}/commandes/supplier/buyers/${encodeURIComponent(buyerId)}/statistics?period=${period}`;
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch buyer statistics",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get supplier buyer statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
 // Admin Statistics interfaces
 export interface AdminStatistics {
   totalRevenue?: number;
@@ -2466,6 +2902,178 @@ const response = await apiFetch(`${getApiBaseUrl()}/admin/statistics/detailed`, 
     return {
       success: false,
       message: error.message || "Network error. Please check your connection.",
+    };
+  }
+};
+
+export interface AdminStatsUserSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: "client" | "supplier";
+  status: boolean;
+  certife?: boolean;
+  laboType?: string | null;
+  wilaya?: string | null;
+  ordersCount: number;
+  totalAmount: number;
+  catalogCount: number;
+  lastOrderAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminStatsUsersResponse {
+  users: AdminStatsUserSummary[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    limit: number;
+  };
+  filters: {
+    roleCounts: { client?: number; supplier?: number; [key: string]: number | undefined };
+  };
+}
+
+export interface AdminUserStatistics {
+  period?: StatsPeriod;
+  periodLabel?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  periodRangeLabel?: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: "client" | "supplier";
+    status: boolean;
+    laboType?: string | null;
+    wilaya?: string | null;
+    address?: string | null;
+    certife?: boolean;
+    createdAt?: string;
+  };
+  totalAmount: number;
+  totalItems: number;
+  totalOrders: number;
+  totalPartners: number;
+  monthlyAmount: { [key: string]: number };
+  monthlyOrders: { [key: string]: number };
+  ordersByStatus: {
+    "en attente": number;
+    refusée: number;
+    "en cours": number;
+    "on route": number;
+    arrived: number;
+  };
+  topProducts: Array<{
+    name: string;
+    quantity: number;
+    amount: number;
+    orders: number;
+    itemType: string;
+  }>;
+  topPartners: Array<{
+    partner: { id: string; firstName: string; lastName: string; email: string };
+    totalAmount: number;
+    ordersCount: number;
+    itemsCount: number;
+  }>;
+  catalog: { products: number; machines: number; services: number } | null;
+  subscription: {
+    type: string;
+    price: number;
+    start: string;
+    end: string;
+    status: boolean;
+  } | null;
+  comparison?: {
+    currentAmount: number;
+    previousAmount: number;
+    currentOrders: number;
+    previousOrders: number;
+    amountChange: number;
+    ordersChange: number;
+  };
+  recentOrders: Array<{
+    id: string;
+    total: number;
+    status: string;
+    createdAt: string;
+    itemsCount: number;
+    partnerName: string;
+  }>;
+}
+
+/** Admin: list labs + suppliers for the statistics page */
+export const getAdminUsersForStatistics = async (filters?: {
+  role?: "all" | "client" | "supplier";
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ApiResponse<AdminStatsUsersResponse>> => {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.role && filters.role !== "all") params.append("role", filters.role);
+    if (filters?.search) params.append("search", filters.search);
+    if (filters?.page) params.append("page", String(filters.page));
+    if (filters?.limit) params.append("limit", String(filters.limit));
+    const qs = params.toString();
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/admin/statistics/users${qs ? `?${qs}` : ""}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch users for statistics",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get admin users for statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
+    };
+  }
+};
+
+/** Admin: detailed stats + charts for one lab or supplier */
+export const getAdminUserStatistics = async (
+  userId: string,
+  period: StatsPeriod = "1y"
+): Promise<ApiResponse<AdminUserStatistics>> => {
+  try {
+    const response = await apiFetch(
+      `${getApiBaseUrl()}/admin/statistics/users/${encodeURIComponent(userId)}?period=${period}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: errorData.message || "Failed to fetch user statistics",
+      };
+    }
+    return await response.json();
+  } catch (error) {
+    devError("Get admin user statistics error:", error);
+    return {
+      success: false,
+      message: "Network error. Please check your connection.",
     };
   }
 };
@@ -4520,6 +5128,7 @@ export interface SupplierDetails {
     brand: string;
     productType: string;
     images: string[];
+    recommended?: boolean;
     createdAt: string;
   }>;
 }

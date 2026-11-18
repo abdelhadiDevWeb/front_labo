@@ -187,7 +187,7 @@ export default function ChooseSubscriptionContent({
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span>Retour aux documents</span>
           </Link>
-          <RegistrationStepper role={role} current={3} className="mb-5 sm:mb-6 max-w-lg" />
+          <RegistrationStepper role={role} current={4} className="mb-5 sm:mb-6 max-w-lg" />
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">{pageTitle}</h1>
           <p className="text-sm sm:text-base text-gray-600">{pageSubtitle}</p>
         </div>

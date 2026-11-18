@@ -21,6 +21,7 @@ import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import { getFicheTechniquePdfUrl } from "@/lib/fiche-technique-url";
 import { useCart } from "@/contexts/CartContext";
 import LoginAlert from "@/components/LoginAlert";
+import RecommendedBadge from "@/components/RecommendedBadge";
 
 export default function CatalogItemDetailsModal({
   item,
@@ -115,11 +116,14 @@ export default function CatalogItemDetailsModal({
         >
           <div className="p-4 sm:p-5 border-b border-gray-200 sticky top-0 bg-white z-10 flex items-start justify-between gap-3">
             <div>
-              <span
-                className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold mb-2 ${accent.badge}`}
-              >
-                {label}
-              </span>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${accent.badge}`}
+                >
+                  {label}
+                </span>
+                {item.recommended && <RecommendedBadge />}
+              </div>
               <h3 className="text-lg sm:text-xl font-bold text-gray-900">
                 {item.name}
               </h3>

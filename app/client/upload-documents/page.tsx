@@ -60,8 +60,13 @@ function ClientUploadForm() {
         });
         const result = await parseResponseJson<{
           success: boolean;
+          message?: string;
           data?: { hasDocuments?: boolean; identity?: boolean; agrement?: boolean };
         }>(response);
+        if (response.status === 403 && result.message === "email_unconfirmed") {
+          router.replace("/confirm-email");
+          return;
+        }
         if (!cancelled && result.success && result.data) {
           setExisting({
             identity: Boolean(result.data.identity),
@@ -78,7 +83,7 @@ function ClientUploadForm() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!isCheckingDocs && hasExistingDocs && !isEditMode) {
@@ -260,7 +265,7 @@ function ClientUploadForm() {
             <span>{isEditMode || hasExistingDocs ? "Retour au choix du plan" : "Retour"}</span>
           </button>
           {!isEditMode && (
-            <RegistrationStepper role="client" current={2} className="mb-5 sm:mb-6 max-w-lg" />
+            <RegistrationStepper role="client" current={3} className="mb-5 sm:mb-6 max-w-lg" />
           )}
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">
             {hasExistingDocs

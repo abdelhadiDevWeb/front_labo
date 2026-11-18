@@ -55,6 +55,7 @@ import UniqueDataFields from "@/components/UniqueDataFields";
 import SupplierNameGate from "@/components/SupplierNameGate";
 import CatalogPrice from "@/components/CatalogPrice";
 import CatalogLocationBanner from "@/components/CatalogLocationBanner";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import {
   getUniqueDataTitle,
   productToUniqueData,
@@ -142,6 +143,24 @@ export default function HomePage() {
         const data = payload as { title?: string; message?: string };
         showBrowserNotification(data.title || "Abonnement", data.message || "");
         return { title: data.title || "Abonnement", message: data.message || "" };
+      },
+    },
+    newChatNotification: {
+      handle: (payload) => {
+        const data = payload as {
+          title?: string;
+          message?: string;
+          conversationId?: string;
+        };
+        const href = data.conversationId
+          ? `/messages?c=${data.conversationId}`
+          : "/messages";
+        showBrowserNotification(data.title || "Nouveau message", data.message || "");
+        return {
+          title: data.title || "Nouveau message",
+          message: data.message || "",
+          href,
+        };
       },
     },
   });
@@ -436,10 +455,23 @@ export default function HomePage() {
   const handleNotificationClick = (notification: NotificationData) => {
     setShowNotifications(false);
     markRead(notification._id);
+    if (notification.type === "chat") {
+      router.push(
+        notification.refId ? `/messages?c=${notification.refId}` : "/messages"
+      );
+      return;
+    }
     router.push("/orders");
   };
 
   const describeNotification = (notification: NotificationData): NotificationVisual => {
+    if (notification.type === "chat") {
+      return {
+        title: "Message",
+        icon: <MessageCircle className="w-5 h-5" />,
+        iconClassName: "bg-gradient-to-br from-teal-600 to-cyan-600",
+      };
+    }
     if (notification.type === "order_status") {
       return {
         title: "Mise à jour de réserve",
@@ -1249,11 +1281,14 @@ export default function HomePage() {
                       <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700">
                             Produit
                           </span>
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1">
+                        {product.recommended && <RecommendedBadge compact />}
                         {product.quantity === 0 && (
-                        <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-2 py-0.5 sm:px-3 sm:py-1 bg-red-500 text-white rounded-full text-[10px] sm:text-xs font-semibold">
-                          Rupture
-                            </span>
+                          <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-red-500 text-white rounded-full text-[10px] sm:text-xs font-semibold w-fit">
+                            Rupture
+                          </span>
                         )}
+                      </div>
                     </Link>
 
                     <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
@@ -1413,6 +1448,11 @@ export default function HomePage() {
                       <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-blue-100 text-blue-700">
                         Machine
                       </span>
+                      {machine.recommended && (
+                        <span className="absolute top-2 left-2 sm:top-3 sm:left-3">
+                          <RecommendedBadge compact />
+                        </span>
+                      )}
                     </button>
                     <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
                       <button
@@ -1559,6 +1599,11 @@ export default function HomePage() {
                       <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-amber-100 text-amber-800">
                         Service
                       </span>
+                      {service.recommended && (
+                        <span className="absolute top-2 left-2 sm:top-3 sm:left-3">
+                          <RecommendedBadge compact />
+                        </span>
+                      )}
                     </button>
                     <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col">
                       <button

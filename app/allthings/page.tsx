@@ -43,6 +43,7 @@ import { useCart } from "@/contexts/CartContext";
 import { revealCatalogFilters } from "@/lib/catalog-filters";
 import { inStockFirst, isOutOfStock } from "@/lib/stock-order";
 import FamilleFilterInput from "@/components/FamilleFilterInput";
+import RecommendedBadge from "@/components/RecommendedBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 type ItemKind = "reactif" | "machine" | "service";
@@ -64,6 +65,7 @@ type UnifiedItem = {
   unique_data?: Record<string, unknown> | null;
   id_catgory?: string | null;
   id_sous_catgory?: string | null;
+  recommended?: boolean;
   rawProduct?: PublicProduct;
   rawCatalog?: PublicCatalogItem;
 };
@@ -97,6 +99,7 @@ const productToUnified = (p: PublicProduct): UnifiedItem => ({
   unique_data: p.unique_data as Record<string, unknown> | null,
   id_catgory: p.id_catgory,
   id_sous_catgory: p.id_sous_catgory,
+  recommended: Boolean(p.recommended),
   rawProduct: p,
 });
 
@@ -119,6 +122,7 @@ const catalogToUnified = (
   unique_data: item.unique_data ?? null,
   id_catgory: item.id_catgory,
   id_sous_catgory: item.id_sous_catgory,
+  recommended: Boolean(item.recommended),
   rawCatalog: item,
 });
 
@@ -778,6 +782,11 @@ export default function AllThingsPage() {
                         >
                           {KIND_LABEL[item.kind]}
                         </span>
+                        {item.recommended && (
+                          <span className="absolute top-3 left-3">
+                            <RecommendedBadge />
+                          </span>
+                        )}
                       </div>
                       <div className="p-4 space-y-2 flex-1 flex flex-col">
                         <h3 className="font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600">

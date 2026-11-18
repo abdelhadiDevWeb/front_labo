@@ -171,6 +171,7 @@ export default function RootLayout({
         <CartProvider>
           <ChunkLoadRecovery />
           <SessionGuard />
+          <NavigationTracker />
           {children}
           <LabBottomNav />
         </CartProvider>

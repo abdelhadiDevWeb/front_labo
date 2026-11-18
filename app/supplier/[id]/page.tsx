@@ -30,6 +30,8 @@ import { useCart } from "@/contexts/CartContext";
 import { getMediaUrl } from "@/lib/media-url";
 import CatalogPrice, { useCanSeeCatalogPrice } from "@/components/CatalogPrice";
 import AppLoadingScreen from "@/components/AppLoadingScreen";
+import StartChatButton from "@/components/chat/StartChatButton";
+import RecommendedBadge from "@/components/RecommendedBadge";
 
 export default function SupplierDetailsPage() {
   const params = useParams();
@@ -308,6 +310,13 @@ export default function SupplierDetailsPage() {
                     <Heart className={`w-3.5 h-3.5 ${isFavorite ? "fill-current" : ""}`} />
                     {isFavorite ? "Favori" : "Ajouter favori"}
                   </button>
+                  {isLoggedIn && (
+                    <StartChatButton
+                      supplierId={supplierId}
+                      label="Contacter"
+                      className="inline-flex w-fit items-center justify-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm hover:bg-blue-50 disabled:opacity-60"
+                    />
+                  )}
                   {supplier.certife && (
                     <span className="px-2 sm:px-3 py-1 bg-green-500 text-white rounded-full text-xs font-semibold flex items-center gap-1 w-fit">
                       <CheckCircle className="w-3 h-3" />
@@ -674,6 +683,11 @@ export default function SupplierDetailsPage() {
                           {product.quantity > 0 ? "En stock" : "Rupture"}
                         </span>
                       </div>
+                      {product.recommended && (
+                        <div className="absolute top-2 left-2">
+                          <RecommendedBadge compact />
+                        </div>
+                      )}
                     </div>
                   </Link>
 

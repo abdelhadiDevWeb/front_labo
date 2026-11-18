@@ -10,6 +10,7 @@ const MAX_ENTRIES = 50;
 const RESET_PREFIXES = [
   "/login",
   "/register",
+  "/confirm-email",
   "/forgot-password",
   "/verify-reset-code",
   "/reset-password",

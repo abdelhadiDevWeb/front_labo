@@ -28,6 +28,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { getAdminStatistics, getDetailedAdminStatistics, AdminStatistics, DetailedAdminStatistics, getAllSubscriptions, Subscription } from "@/lib/api";
+import AdminUsersStatsSection from "@/components/admin/AdminUsersStatsSection";
 
 // Register Chart.js components
 ChartJS.register(
@@ -769,6 +770,12 @@ export default function StatisticsPage() {
           </div>
         )}
       </div>
+
+      {!isLimited && (
+        <div className="mt-6">
+          <AdminUsersStatsSection />
+        </div>
+      )}
     </div>
   );
 }

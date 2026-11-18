@@ -24,6 +24,7 @@ import {
   joinGroupSelle,
   GroupSelleItem,
   getSessionRole,
+  markGroupSellesSeen,
 } from "@/lib/api";
 import { getMediaUrl } from "@/lib/media-url";
 import UniqueDataFields from "@/components/UniqueDataFields";
@@ -709,6 +710,29 @@ export default function GroupSelleShowcase({
   const [isLoading, setIsLoading] = useState(true);
   const [detailsItem, setDetailsItem] = useState<GroupSelleItem | null>(null);
   const refreshRef = useRef<() => void>(() => {});
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const hasItems = !isLoading && items.length > 0;
+
+  // Same pattern as promotions: clear the marketplace red badge once the lab sees ventes groupées.
+  useEffect(() => {
+    if (variant === "page") {
+      void markGroupSellesSeen();
+      return;
+    }
+    const section = sectionRef.current;
+    if (!hasItems || !section) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          void markGroupSellesSeen();
+        }
+      },
+      { rootMargin: "0px 0px -50% 0px" }
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [variant, hasItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -873,6 +897,7 @@ export default function GroupSelleShowcase({
 
   return (
     <section
+      ref={sectionRef}
       id="group-sell-section"
       className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-teal-50 via-white to-white scroll-mt-24"
     >

@@ -8,6 +8,7 @@ import {
   BarChart3,
   ClipboardList,
   Heart,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -24,6 +25,7 @@ type MenuItem = { label: string; href: string; icon: LucideIcon; tile: string };
 const MENU_ITEMS: MenuItem[] = [
   { label: "Mon profil", href: "/profile", icon: UserCircle, tile: "bg-blue-50 text-blue-600" },
   { label: "Mes réserves", href: "/orders", icon: ClipboardList, tile: "bg-cyan-50 text-cyan-700" },
+  { label: "Messages", href: "/messages", icon: MessageCircle, tile: "bg-teal-50 text-teal-600" },
   { label: "Statistiques", href: "/statistics", icon: BarChart3, tile: "bg-indigo-50 text-indigo-600" },
   { label: "Favoris", href: "/favorable", icon: Heart, tile: "bg-rose-50 text-rose-500" },
 ];

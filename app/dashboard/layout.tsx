@@ -323,8 +323,8 @@ export default function DashboardLayout({
         await refreshAll();
 
         if ("Notification" in window && Notification.permission === "granted") {
-          new window.Notification(data.title || "Nouvel utilisateur", {
-            body: data.message || "Un nouvel utilisateur attend une activation.",
+          new window.Notification(data.title || "Abonnement", {
+            body: data.message || "Nouvelle activité d'abonnement.",
             icon: "/favicon.ico",
           });
         }

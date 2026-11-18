@@ -9,6 +9,7 @@ const PRIVATE_PREFIXES = [
   "/dashboard",
   "/dashboard-supplier",
   "/orders",
+  "/messages",
   "/statistics",
   "/profile",
   "/favorable",
